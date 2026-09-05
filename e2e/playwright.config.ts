@@ -24,15 +24,36 @@ export default defineConfig({
   testDir: './tests',
   fullyParallel: true,
   retries: process.env.CI ? 2 : 0,
-  use: {
-    baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:3000',
-  },
   // Single browser to start -- broaden only if a real cross-browser bug
   // surfaces.
+  //
+  // Two projects, not two browsers (#240). A server picks its
+  // visualization once, at boot, from GRAPH_VISUALIZATION
+  // (docs/architecture/visualization-switching.md), so one server cannot
+  // serve both drawings -- and the orbital spec has nothing to run
+  // against on a Layered one. The two projects differ only in which
+  // server they point at.
+  //
+  // This is a consequence of the boot-time switch, not of the
+  // visualization: #223 replaces it with a query parameter, and when it
+  // lands these collapse back into one project against one server.
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      testIgnore: /orbital\.spec\.ts/,
+      use: {
+        ...devices['Desktop Chrome'],
+        baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:3000',
+      },
+    },
+    {
+      name: 'orbital',
+      testMatch: /orbital\.spec\.ts/,
+      use: {
+        ...devices['Desktop Chrome'],
+        baseURL:
+          process.env.E2E_ORBITAL_BASE_URL ?? 'http://localhost:3001',
+      },
     },
   ],
 });
