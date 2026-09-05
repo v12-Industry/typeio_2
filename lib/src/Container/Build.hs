@@ -1,6 +1,5 @@
 module Container.Build where
 
-import Config.App (AppConfig (..))
 import Container.Root (RootContainer (..))
 import qualified Domain.Central.Container as CentralContainer
 import qualified Domain.Project.Container as ProjectContainer
@@ -13,10 +12,7 @@ withRootContainer ev k =
     RootContainer
       { appConfig = appConf ev
       , central = CentralContainer.defaultContainer pl
-      , project =
-          ProjectContainer.defaultContainer
-            (visualization (appConf ev))
-            pl
+      , project = ProjectContainer.defaultContainer pl
       , system = SystemContainer.defaultContainer (appConf ev) lg
       }
   where

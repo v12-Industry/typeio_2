@@ -1,6 +1,6 @@
 {- | The rootless visualization: the work, without the project node.
 
-Selected by @GRAPH_VISUALIZATION=Rootless@. The project root is left out
+Selected by @?visualizationMode=Rootless@. The project root is left out
 of the drawing entirely and no containment edges are derived, so nothing
 forces the work to converge on a single box.
 

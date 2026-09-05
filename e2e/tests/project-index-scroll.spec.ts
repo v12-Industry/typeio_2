@@ -73,7 +73,7 @@ test('the project index can be scrolled to its last card by wheel', async ({ pag
 // browser actually renders), for the same reason.
 test("the graph page's #view stays non-scrolling", async ({ page }) => {
   const project = await createProject(page, 'E2E index-scroll graph opt-out');
-  await page.goto(`/ui/project/vw?projectId=${project.id}`);
+  await page.goto(`/ui/project/vw?projectId=${project.id}&visualizationMode=Layered`);
 
   await expect(page.locator('#tree-container')).toBeVisible();
 

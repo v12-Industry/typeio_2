@@ -13,9 +13,11 @@ import Common.Validation
 import Common.Web.Attributes
 import Common.Web.Query (lookupVal)
 import Common.Web.Template.MainHeader (templateNavHeader)
+import Config.Visualization (Visualization)
 import Data.Int (Int64)
 import Data.Text (Text, unpack)
 import Domain.Project.Responder.Ui.ProjectManage.Link
+import Domain.Project.Visualization.Common (validateVisualization)
 import Lucid
 import Network.HTTP.Types (QueryText, status200, status403)
 import Network.HTTP.Types.URI (queryToQueryText)
@@ -29,6 +31,11 @@ data ManageProjectForm = ManageProjectForm
 data ManageProjectPayload = ManageProjectPayload
   { payloadNodeId :: Maybe Int64
   , payloadProjectId :: Int64
+  , payloadVisualization :: Visualization
+  {- ^ Which drawing to ask the graph endpoint for. Resolved here, from
+  this page's own @visualizationMode@, so that a link naming a drawing
+  actually reaches the fragment that renders it (#223).
+  -}
   }
 
 handleProjectManageView :: Application
@@ -47,12 +54,14 @@ handleProjectManageView req respond = do
           [("Content-Type", "text/html")]
           (renderBS $ templateProject py)
   where
-    pidE =
-      validateForm
-        . queryTextToForm
-        . queryToQueryText
-        . queryString
-        $ req
+    qt = queryToQueryText . queryString $ req
+    {- The visualization first, so a bad `visualizationMode` is rejected
+    here rather than being forwarded into the fragment's link and
+    failing there instead -- one error, at the request that carried the
+    wrong value. -}
+    pidE = do
+      viz <- validateVisualization qt
+      validateForm viz (queryTextToForm qt)
 
 queryTextToForm :: QueryText -> ManageProjectForm
 queryTextToForm qt =
@@ -76,7 +85,7 @@ templateProject py = do
         -- the graph without a pointer now that the zoom buttons are
         -- gone.
         tabindex_ "0"
-      , hxGet_ (graphLink pid)
+      , hxGet_ (graphLink pid viz)
       , hxPushUrl_ False
       , hxSwap_ "innerHTML"
       , hxTrigger_ "load"
@@ -102,9 +111,13 @@ templateProject py = do
     empty = mempty :: Html ()
     nidM = payloadNodeId py
     pid = payloadProjectId py
+    viz = payloadVisualization py
 
-validateForm :: ManageProjectForm -> Either [ValidationErr] ManageProjectPayload
-validateForm fm = runValidation id $ do
+validateForm ::
+  Visualization ->
+  ManageProjectForm ->
+  Either [ValidationErr] ManageProjectPayload
+validateForm viz fm = runValidation id $ do
   pid <-
     formProjectId fm
       .$ unpack
@@ -115,4 +128,4 @@ validateForm fm = runValidation id $ do
     formNodeId fm
       .$ unpack
       >>= valRead "Node id must be valid integer"
-  return $ ManageProjectPayload nid <$> pid
+  return $ (\p -> ManageProjectPayload nid p viz) <$> pid

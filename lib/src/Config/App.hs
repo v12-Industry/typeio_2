@@ -10,11 +10,6 @@ import Common.Validation
   , (.$)
   )
 import Config.Db (DbConfig, loadDbConfig)
-import Config.Visualization
-  ( Visualization
-  , keyVisualization
-  , lookupVisualization
-  )
 import Config.Web (WebConfig (..), loadWebConfig)
 import Data.Aeson (ToJSON, object, toJSON, (.=))
 import Data.Text (pack, unpack)
@@ -27,12 +22,6 @@ data AppConfig = AppConfig
   { envName :: EnvironmentName
   , dbConf :: DbConfig
   , webConf :: WebConfig
-  , visualization :: Visualization
-  {- ^ Which dependency-graph visualization to render. Required, with
-  no default: a server running the wrong drawing does not announce
-  itself, it just looks subtly wrong much later. See
-  @docs/architecture/visualization-switching.md@.
-  -}
   }
   deriving (Eq, Read, Show)
 
@@ -42,7 +31,6 @@ instance ToJSON AppConfig where
       [ "env" .= envName cfg
       , "db" .= dbConf cfg
       , "web" .= webConf cfg
-      , "visualization" .= visualization cfg
       ]
 
 data EnvironmentName = Local | Development | Production
@@ -54,7 +42,6 @@ instance ToJSON EnvironmentName where
 loadAppConfig :: IO (Either [ValidationErr] AppConfig)
 loadAppConfig = do
   env <- lookupEnv keyEnv
-  viz <- lookupVisualization
   db <- loadDbConfig
   web <- loadWebConfig
   return $ runValidation id $ do
@@ -63,14 +50,9 @@ loadAppConfig = do
         .$ id
         >>= isThere (er keyEnv)
         >>= valRead "Invalid environment value"
-    viz' <-
-      viz
-        .$ id
-        >>= isThere (er keyVisualization)
-        >>= valRead "Invalid GRAPH_VISUALIZATION value"
     db' <- db
     web' <- web
-    return $ AppConfig <$> env' <*> db' <*> web' <*> viz'
+    return $ AppConfig <$> env' <*> db' <*> web'
   where
     er k = pack k <> " is missing from environment config"
 

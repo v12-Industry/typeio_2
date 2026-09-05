@@ -42,15 +42,23 @@ with the root left out; six parallel chains went from 6 crossings to 0.
 
 ## Selecting it
 
-Today: `GRAPH_VISUALIZATION=Rootless` in `.env`, read once at boot. There
-is no default — an absent or unrecognised value fails startup rather
-than silently drawing the wrong graph (see visualization-switching.md).
+`?visualizationMode=Rootless` on the request — either on the graph
+fragment directly, or on the project page, which forwards it:
 
-[#223](https://github.com/v12-Industry/typeio_2/issues/223) proposes
-moving selection to a request-time `visualizationMode` query parameter,
-defaulting to whichever visualization is most recently added — which
-today would make this one the default. Until #223 lands, the environment
-variable above is the only way to select this visualization.
+```
+/ui/project/vw?projectId=1&visualizationMode=Rootless
+```
+
+Chosen per request as of
+[#223](https://github.com/v12-Industry/typeio_2/issues/223); it used to
+be `GRAPH_VISUALIZATION=Rootless` in `.env`, read once at boot, and that
+variable is gone.
+
+A request naming no visualization gets the hardcoded default, which is
+whichever was added most recently — today `Orbital`, not this one. An
+unrecognised value is a validation error rather than a silent fallback.
+See
+[`../../architecture/visualization-switching.md`](../../architecture/visualization-switching.md).
 
 ## Where the code lives
 

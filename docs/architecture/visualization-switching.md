@@ -1,10 +1,25 @@
 # Visualization Switching
 
-> **Status: built.** `GRAPH_VISUALIZATION` selects the drawing, and two
-> visualizations exist: `Layered` and `Rootless`. #213 wrote this design
-> down before either of them, so the conventions were decided
-> deliberately rather than set by whichever implementation landed first;
-> #215 built the switch and the second visualization.
+> **Status: built.** A `visualizationMode` query parameter selects the
+> drawing, and three visualizations exist: `Layered`, `Rootless` and
+> `Orbital`. #213 wrote this design down before any of them, so the
+> conventions were decided deliberately rather than set by whichever
+> implementation landed first; #215 built the switch and the second
+> visualization, #229–#241 the third.
+>
+> **The selection mechanism was replaced in #223, deliberately
+> reversing what #213 decided.** This document used to say, flatly, that
+> the choice happens "once, when the container is constructed — not per
+> request, and not from a query parameter", and `GRAPH_VISUALIZATION`
+> was that config value. It is gone. The reasoning that replaced it is
+> in [Absent takes the default; wrong is an
+> error](#absent-takes-the-default-wrong-is-an-error) and [The app has
+> been here before](#the-app-has-been-here-before-and-it-is-not-the-same-mistake).
+>
+> Recorded plainly because `CLAUDE.md`'s #50 note warns that a
+> documented decision is not proof of current behaviour — here the
+> hazard is the opposite one: a decision that *was* built, and was then
+> deliberately undone.
 >
 > **The isolation rule changed while it was being built, deliberately.**
 > #213 said visualizations share *no* code and each owns a private copy
@@ -31,85 +46,128 @@ one.
 
 ## The shape of it in one paragraph
 
-A single configuration value, read from the environment at boot, selects
-the active visualization. The selection happens **once**, when the
-container is constructed — not per request, and not from a query
-parameter. Each visualization owns one function from a project's rows to
-the finished fragment. The machinery for getting there — the layout
-engine, the queries, the SVG vocabulary — is shared infrastructure any
-visualization may use, and the two that exist today use all of it,
-differing only in which nodes and edges they hand it.
+Every visualization is live in one process, and each **request** says
+which drawing it wants: an optional `visualizationMode` query parameter,
+falling back to a hardcoded default when absent. Each visualization owns
+one function from a project's rows to the finished fragment. The
+machinery for getting there — the layout engine, the queries, the SVG
+vocabulary, the viewport frame — is shared infrastructure any
+visualization may use, and two of the three use all of it, differing
+only in which nodes and edges they hand it.
 
-## 1. The configuration value
+## 1. The request parameter
 
-`GRAPH_VISUALIZATION`, read from `.env` like every other setting. Never
-hardcoded — see `CLAUDE.md`.
+`visualizationMode`, camelCase like `projectId` and `nodeId`.
 
 ```haskell
 -- Config.Visualization
-
-keyVisualization :: String
-keyVisualization = "GRAPH_VISUALIZATION"
 
 data Visualization
   = Layered   -- root heads the drawing; containment edges derived
   | Rootless  -- the work only, nothing forced to converge (#215)
   | Orbital   -- radial, rootless, shared dependencies replicated (#229)
   deriving (Eq, Read, Show)
+
+defaultVisualization :: Visualization
+defaultVisualization = Orbital
 ```
 
-`Orbital` is the first value here that selects a drawing built on
-something other than the layered engine — see
+Parsed with `valRead`, so the value is the constructor name, exactly how
+`ENV` parses into `Config.App.EnvironmentName`. `Orbital` is the first
+value here that selects a drawing built on something other than the
+layered engine — see
 [`orbital-dependency-weighted-graph.md`](orbital-dependency-weighted-graph.md).
 
-Parsed with `valRead`, so the environment value is the constructor name
-— `Layered` or `Rootless` — exactly how `ENV` already parses into
-`Config.App.EnvironmentName`. It is surfaced as `visualization` on
-`AppConfig`, alongside `dbConf` and `webConf`.
+### Absent takes the default; wrong is an error
 
-**The name is prefixed `GRAPH_` rather than bare.** `DB_*` and `WEB_*`
-group the multi-field configs and `ENV` stands alone; a bare
-`VISUALIZATION` would not say *what* is being visualized, and this app
-may well grow a second thing worth drawing.
+The two cases are deliberately not the same:
 
-### Missing or unrecognised values fail at boot
+| Request | Result |
+|---|---|
+| no `visualizationMode` | `defaultVisualization` |
+| `visualizationMode=` (empty) | `defaultVisualization` — an unfilled control, not a wrong answer |
+| `visualizationMode=Orbital` | that drawing |
+| `visualizationMode=Radial` | **403**, `Invalid visualizationMode value` |
+| `visualizationMode=orbital` | **403** — `Read` is case-sensitive on constructor names |
 
-There is deliberately **no fallback default**. If `GRAPH_VISUALIZATION`
-is absent or names no visualization, startup fails with the same
-accumulated-error report as a missing `DB_HOST`.
+`GRAPH_VISUALIZATION` (#215–#223) had no fallback at all: a missing or
+unparseable value failed at boot, on the reasoning that a server quietly
+drawing the wrong graph does not announce itself — it surfaces much
+later as "the graph looks wrong". **That reasoning survives for a value
+somebody got wrong**, which is why an unrecognised mode is an error
+rather than a fallback. It never applied to a value nobody supplied,
+which is just an ordinary link.
 
-A server running with a silently defaulted visualization is worse than
-one that refuses to start, because the misconfiguration does not
-announce itself — it surfaces much later as "the graph looks wrong".
-Both cases are pinned in `Config.AppSpec`.
+This needs `valRead` *without* `isThere`, and deliberately not through
+`runValidation`: that helper reads "no value and no errors" — exactly
+what an absent optional field produces — as a failure, because it is
+built for fields that must end up present. `validateVisualization`
+spells the three cases out instead.
+
+### The default is "whichever was added most recently"
+
+Today `Orbital`. ⚠️ **Adding a visualization means changing that
+binding**: it is the one part of this mechanism that does not update
+itself, and nothing fails if it is forgotten — the app just keeps
+serving the previous default. The convention exists so a new drawing is
+seen rather than sitting behind a parameter nobody passes.
+
+A spec or link that wants a *specific* drawing should name it rather
+than rely on the default, precisely because the default moves.
+`e2e/tests/graph.spec.ts` asks for `Layered` explicitly for that reason.
 
 ## 2. Where the switch happens
 
-One binding, in `Domain.Project.Responder.Ui.Container`:
+Two pieces. The table of what each visualization is, in
+`Domain.Project.Responder.Ui.Container`:
 
 ```haskell
-graphHandler :: Visualization -> ConnectionPool -> Application
-graphHandler Layered = Layered.handleProjectGraph
-graphHandler Rootless = Rootless.handleProjectGraph
+renderFor :: Visualization -> RenderGraph
+renderFor Layered  = Layered.renderGraph
+renderFor Rootless = Rootless.renderGraph
+renderFor Orbital  = Orbital.renderGraph
 ```
 
-`Container.Build` already held `AppConfig`, so it passes
-`visualization (appConf ev)` down through `ProjectContainer` to the UI
-container. Note it passes the **selected visualization**, not the whole
-`AppConfig`: the container pattern is about handing each level only what
-its handlers actually need.
+and the endpoint that consumes it, in
+`Domain.Project.Visualization.Common`:
 
-### The choice is made once, at construction
+```haskell
+handleGraph :: (Visualization -> RenderGraph) -> ConnectionPool -> Application
+```
 
-Not per request. Not by a query parameter. Everything downstream of
-`graphHandler` holds a single `Application` and is unaware there was a
-choice at all.
+`handleGraph` takes a **function**, not a `Visualization`: the shared
+module never learns which drawings exist, it validates the parameter and
+applies the table it was handed. The list of visualizations stays in one
+place, and the shared request handling stays honest about being shared.
 
-This is worth stating flatly because the app has already been here:
-`?layout=server` was the previous mechanism and was removed in
-#181/#192 once the flag was unreachable from the browser and the second
-renderer it selected was gone. A request-time switch means every handler
-carries a branch and both visualizations stay live in the same process.
+### The choice reaches the fragment, not just the page
+
+Worth knowing, because it is the part that is easy to get wrong: the
+browser navigates to `/ui/project/vw`, and the drawing arrives by a
+*separate* htmx request to `/ui/project/graph`. So the project page
+resolves `visualizationMode` and forwards it into that link
+(`ProjectManage.Link.graphLink`). A parameter on the page URL alone
+would do nothing at all.
+
+It is forwarded as a rendered constructor name, never as text passed
+through from the request, so nothing a caller sends can end up
+concatenated into the link.
+
+### The app has been here before, and it is not the same mistake
+
+`?layout=server` was a request-time flag, removed in #181/#192. It is
+worth saying why bringing one back is not a reversal of that decision:
+`layout=server` selected between a server-rendered graph and a
+client-rendered one *while both existed*, and it was removed because
+nothing in the UI ever set it and the alternative it selected was gone.
+It was a migration flag that outlived its migration.
+
+`visualizationMode` selects between drawings that are all meant to
+exist, all reachable, and all worth looking at. The cost that the
+boot-time switch avoided — every drawing live in one process — is the
+point rather than a side effect: it is what lets one link show a
+colleague the orbital view of the same project without redeploying
+anything.
 
 ## 3. The isolation rule
 

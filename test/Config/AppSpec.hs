@@ -62,38 +62,14 @@ spec = around_ (setValidEnv >>) $
           , "WEB_INDEX_REDIRECT is missing from environment config"
           ]
 
-    it "reads the configured visualization" $ do
-      setEnv "GRAPH_VISUALIZATION" "Rootless"
-      result <- loadAppConfig
-      case result of
-        Right cfg -> visualization cfg `shouldBe` Rootless
-        Left errs -> expectationFailure ("expected success, got: " ++ show errs)
-
-    it "reads every visualization that exists, not just the first two" $ do
-      -- Each constructor is a value somebody has to set in `.env`, so a
-      -- new visualization that parses everywhere except here would be
-      -- unreachable in exactly the way that is hardest to notice: the
-      -- server starts, and serves a different drawing.
-      setEnv "GRAPH_VISUALIZATION" "Orbital"
-      result <- loadAppConfig
-      case result of
-        Right cfg -> visualization cfg `shouldBe` Orbital
-        Left errs -> expectationFailure ("expected success, got: " ++ show errs)
-
-    it "fails when GRAPH_VISUALIZATION is missing, rather than defaulting" $ do
-      -- Deliberately has no default: a silently defaulted visualization
-      -- surfaces much later as "the graph looks wrong", which is worse
-      -- than refusing to start.
-      unsetEnv "GRAPH_VISUALIZATION"
-      result <- loadAppConfig
-      result
-        `shouldBe` Left
-          ["GRAPH_VISUALIZATION is missing from environment config"]
-
-    it "fails with a distinct message when GRAPH_VISUALIZATION names no visualization" $ do
-      setEnv "GRAPH_VISUALIZATION" "Radial"
-      result <- loadAppConfig
-      result `shouldBe` Left ["Invalid GRAPH_VISUALIZATION value"]
+    -- The four GRAPH_VISUALIZATION cases that used to sit here are gone
+    -- with the variable (#223): which drawing to render is a property of
+    -- a request now, not of the process, so there is nothing for
+    -- loadAppConfig to read or reject. The equivalent coverage lives in
+    -- Domain.Project.Visualization.Common's validateVisualization and
+    -- its integration spec -- including the case those tests existed
+    -- for, an unrecognised value being an error rather than a silent
+    -- fallback.
 
     it "succeeds even when WEB_PORT is unset, defaulting to 3000 (see Config.Web.defaultWebPort)" $ do
       unsetEnv "WEB_PORT"

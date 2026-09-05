@@ -11,7 +11,7 @@
 > geometry uses this one copy. Two do: `viz:layered` and `viz:rootless`
 > (#215), which differ only in what they hand the engine, not in how the
 > engine works. Which drawing the app serves is selected by
-> `GRAPH_VISUALIZATION`; see
+> a `visualizationMode` query parameter (#223); see
 > [`visualization-switching.md`](visualization-switching.md) for the
 > switch and for where the line between shared and per-visualization
 > falls.

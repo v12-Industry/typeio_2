@@ -33,7 +33,7 @@ test('editing a node updates its title and description', async ({ page, request 
   const node = await addNode(request, project.id, 'E2E edit-node');
   const nodeTitle = node.title;
 
-  await page.goto(`/ui/project/vw?projectId=${project.id}&nodeId=${node.id}`);
+  await page.goto(`/ui/project/vw?projectId=${project.id}&nodeId=${node.id}&visualizationMode=Layered`);
 
   // Opens the node panel (#node-panel), which itself loads the
   // non-editable detail view into #node-detail. Switch to the editable

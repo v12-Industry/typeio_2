@@ -2,7 +2,7 @@
 its edges to the work are derived.
 
 This is the drawing documented in @docs/architecture/graph-rendering.md@
-and selected by @GRAPH_VISUALIZATION=Layered@. Everything about /how/ it
+and selected by @?visualizationMode=Layered@. Everything about /how/ it
 is drawn is shared (see "Domain.Project.Visualization.Common"); what is
 specific to it is here, and it is exactly one decision — that the
 project root is part of the drawing.
