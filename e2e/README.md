@@ -59,6 +59,39 @@ spec in `tests/`. To point at a different host/port (e.g. a non-default
 E2E_BASE_URL=http://localhost:4000 npm test
 ```
 
+### The orbital spec needs a second server
+
+`orbital.spec.ts` runs as its own Playwright *project*, against a
+separate server started with `GRAPH_VISUALIZATION=Orbital`. A server
+picks its visualization once, at boot (see
+[`visualization-switching.md`](../docs/architecture/visualization-switching.md)),
+so one process cannot serve both drawings and the orbital spec has
+nothing to assert against on a `Layered` one.
+
+Start it alongside the first, on the same database, in another terminal:
+
+```
+GRAPH_VISUALIZATION=Orbital WEB_PORT=3001 cabal run server
+```
+
+Both servers read the same Postgres, so seed once — the demo project
+(`Public API launch`) the orbital spec uses is the one `make seed-db`
+inserts.
+
+Without that second server the `orbital` project's tests fail to
+connect; the rest of the suite is unaffected. To run only the others:
+
+```
+npx playwright test --project=chromium
+```
+
+Point it elsewhere with `E2E_ORBITAL_BASE_URL`, the same way
+`E2E_BASE_URL` works for the first.
+
+**This is temporary.** #223 replaces the boot-time config value with a
+query parameter; when it lands, one server serves both and this second
+project collapses back into the first.
+
 ### Watching it run
 
 `make test-e2e`/`npm test` runs headless (no visible browser window) —
