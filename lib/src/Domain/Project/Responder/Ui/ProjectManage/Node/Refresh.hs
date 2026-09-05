@@ -7,6 +7,8 @@ module Domain.Project.Responder.Ui.ProjectManage.Node.Refresh where
 import Common.Validation
 import Common.Web.Attributes
 import Common.Web.Elements
+import Data.Maybe (fromMaybe)
+import Domain.Project.Graph.Types (LayoutConfig (..), defaultLayoutConfig)
 import Domain.Project.Responder.Ui.ProjectManage.Node.Query
 import Domain.Project.Responder.Ui.ProjectManage.Node.Validation
 import Domain.Project.Visualization.Common (nodeContents, toGraphNode)
@@ -42,13 +44,25 @@ data GetNodeRefreshForm = GetNodeRefreshForm
   { formClientNodeTitle :: Maybe Text
   , formNodeId :: Maybe Text
   , formProjectId :: Maybe Text
+  , formWrapWidth :: Maybe Text
   }
 
 data GetNodeRefreshPayload = GetNodeRefreshPayload
   { payloadNodeId :: Int64
   , payloadProjectId :: Int64
   , payloadClientNodeTitle :: Text
+  , payloadWrapWidth :: Int
+  -- ^ Characters per line in the shape that asked. See 'defaultWrapWidth'.
   }
+
+{- | What to wrap to when the request does not say.
+
+The layered drawing's own box, so a request from before @wrapWidth@
+existed — a page loaded across a deploy, say — still re-wraps to what it
+was originally drawn at rather than to nothing.
+-}
+defaultWrapWidth :: Int
+defaultWrapWidth = cfgLabelWidth defaultLayoutConfig
 
 handleGetNodeRefresh :: ConnectionPool -> Application
 handleGetNodeRefresh pl req rspnd = do
@@ -68,7 +82,7 @@ handleGetNodeRefresh pl req rspnd = do
             == payloadClientNodeTitle pyld
             then Same
             else Different
-    pure (cmpr, nd)
+    pure (cmpr, nd, payloadWrapWidth pyld)
   case rslt of
     Left (InvalidParams es) ->
       rspnd
@@ -82,15 +96,15 @@ handleGetNodeRefresh pl req rspnd = do
           status404
           [("Content-Type", "text/html")]
         $ "Node not found"
-    Right (Different, nd) ->
+    Right (Different, nd, wrapWidth) ->
       rspnd
         . responseLBS
           status200
           [("Content-Type", "text/html")]
         . renderBS
-        . templateRefresh
+        . templateRefresh wrapWidth
         $ nd
-    Right (Same, _) ->
+    Right (Same, _, _) ->
       rspnd
         . responseLBS
           status204
@@ -109,11 +123,12 @@ queryTextToForm qt =
     { formProjectId = lookupVal "projectId" qt
     , formNodeId = lookupVal "nodeId" qt
     , formClientNodeTitle = lookupVal "clientTitle" qt
+    , formWrapWidth = lookupVal "wrapWidth" qt
     }
 
-templateRefresh :: Entity M.Node -> Html ()
-templateRefresh (Entity k e) = do
-  nodeContents . toGraphNode . Entity k $ e
+templateRefresh :: Int -> Entity M.Node -> Html ()
+templateRefresh wrapWidth (Entity k e) = do
+  nodeContents wrapWidth . toGraphNode . Entity k $ e
   g_
     [ class_ "hidden"
     , h_ $
@@ -161,8 +176,17 @@ validatePayload form =
         .$ id
         >>= isThere "Node title is required"
         >>= isNotEmpty "Node title cannot be empty"
+    {- Optional, so no `isThere`: `valRead` passes a Nothing straight
+    through without recording an error, and only flags a value that is
+    present but unparseable. An absent `wrapWidth` falls back to
+    'defaultWrapWidth'; a nonsense one is still a bad request. -}
+    wrp <-
+      formWrapWidth form
+        .$ unpack
+        >>= valRead "Wrap width must be valid integer"
     return $
       GetNodeRefreshPayload
         <$> nid
         <*> pid
         <*> ttl
+        <*> pure (fromMaybe defaultWrapWidth wrp)

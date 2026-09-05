@@ -19,6 +19,8 @@ import Common.Web.Attributes
 import Common.Web.Elements
 import Control.Monad (forM_)
 import Data.Int (Int64)
+import Data.Map.Strict (Map)
+import qualified Data.Map.Strict as Map
 import Data.Text (Text, pack)
 import qualified Data.Text as T
 import Data.Text.Util (intToText)
@@ -33,7 +35,10 @@ import Domain.Project.Orbit.Types
   , Size (..)
   , boundsSize
   )
-import Domain.Project.Responder.Ui.ProjectManage.Link (nodePanelLink)
+import Domain.Project.Responder.Ui.ProjectManage.Link
+  ( nodePanelLink
+  , nodeRefreshLink
+  )
 import Domain.Project.Visualization.Common
   ( FrameBox (..)
   , graphFrame
@@ -51,13 +56,13 @@ size — which for an orbital drawing /is/ the eye, exactly where a
 reader should start. The behaviour comes free; reimplementing it would
 be the mistake.
 -}
-templateOrbit :: Int64 -> OrbitConfig -> OrbitDiagram -> Html ()
-templateOrbit pid cfg d =
+templateOrbit :: Int64 -> OrbitConfig -> Map NodeId Text -> OrbitDiagram -> Html ()
+templateOrbit pid cfg labels d =
   graphFrame box Nothing $ do
     g_ [id_ "graph-links"] $
       forM_ (odLinks d) linkLine
     g_ [id_ "graph-nodes"] $
-      forM_ (odDiscs d) (discGroup pid cfg)
+      forM_ (odDiscs d) (discGroup pid cfg labels)
   where
     Bounds mn _ = odBounds d
     size = boundsSize (odBounds d)
@@ -123,8 +128,8 @@ Only geometry is emitted as attributes. Fill, stroke, hover, the
 highlight glow and the flash all live in @manage-project.css@, keyed off
 the @work@ class the shape carries.
 -}
-discGroup :: Int64 -> OrbitConfig -> Disc -> Html ()
-discGroup pid cfg disc =
+discGroup :: Int64 -> OrbitConfig -> Map NodeId Text -> Disc -> Html ()
+discGroup pid cfg labels disc =
   g_
     [ id_ ("disc-" <> discKey)
     , dataNodeId_ nid
@@ -166,12 +171,49 @@ discGroup pid cfg disc =
         ]
         (mempty :: Html ())
       discLabel discKey centre (dLines disc)
+      {- Re-fetch this disc's label when the node's detail panel closes
+      after an edit (#244).
+
+      One hook per replica, each aimed at its own label element. This is
+      the one Project Manage hook that a selector change could not fix:
+      hyperscript applies `to <selector/>` to every match, but an
+      `hx-target` swaps exactly one element however many match. So a
+      node drawn five times fires five requests and lands five swaps.
+
+      Accepted rather than optimised. It is correct, needs no new
+      endpoint, and the count is bounded by the ceiling on dependents
+      (#231). The alternative -- one hook returning `hx-swap-oob`
+      fragments -- was rejected because it would put "how many replicas
+      does the current drawing have" inside an endpoint shared with the
+      layered visualizations, which is layout knowledge leaking across
+      the seam.
+
+      The hook is a sibling of the label rather than inside it, so it
+      survives the swap and the response does not have to carry a copy
+      of itself. -}
+      g_
+        [ class_ "hidden"
+        , hxGet_ (nodeRefreshLink rawId pid (cfgLabelWidth cfg) label)
+        , hxTrigger_ $
+            "nodePanel:onEditClosed[event.detail.nodeId=="
+              <> nid
+              <> "] from:#node-panel"
+        , hxTarget_ ("#disc-text-" <> discKey)
+        , hxSwap_ "innerHTML"
+        , hxPushUrl_ False
+        ]
+        (mempty :: Html ())
   where
     NodeId rawId = dNode disc
     nid = intToText rawId
     discKey = nid <> "-" <> pack (show (dReplica disc))
     centre = dCentre disc
     nodeSel = "<[data-node-id='" <> nid <> "']/>"
+    {- The untruncated title, which 'Disc' deliberately does not carry
+    (it holds the label already wrapped to the circle). The refresh
+    endpoint compares it against the stored one to decide whether
+    anything changed, so it has to be the original. -}
+    label = Map.findWithDefault T.empty (dNode disc) labels
 
 {- | A disc's label, centred on the circle.
 

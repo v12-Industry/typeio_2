@@ -27,8 +27,10 @@ module Domain.Project.Visualization.Orbital.Responder
   , buildOrbit
   ) where
 
+import Data.Map.Strict (Map)
+import qualified Data.Map.Strict as Map
 import qualified Data.Set as S
-import Data.Text (pack)
+import Data.Text (Text, pack)
 import Database.Persist (Entity (..))
 import Database.Persist.Sql (ConnectionPool, fromSqlKey)
 import qualified Domain.Project.Model as M
@@ -59,7 +61,15 @@ request, querying the project, the error responses, and the viewport
 frame inside 'templateOrbit'.
 -}
 renderGraph :: RenderGraph
-renderGraph pid ns ds = templateOrbit pid defaultOrbitConfig (buildOrbit ns ds)
+renderGraph pid ns ds =
+  templateOrbit pid defaultOrbitConfig (labelsOf ns) (buildOrbit ns ds)
+
+{- | The untruncated titles, which 'Disc' deliberately does not carry —
+it holds the label already wrapped to the circle. The per-node refresh
+hook needs the original to tell the endpoint what it currently shows.
+-}
+labelsOf :: [Entity M.Node] -> Map NodeId Text
+labelsOf ns = Map.fromList [(onId n, onLabel n) | n <- map toOrbitNode ns]
 
 {- | The project's rows as an orbital drawing.
 

@@ -56,7 +56,14 @@ projectCount pool = do
 
 spec :: Spec
 spec =
-  around withTestDatabase
+  -- `aroundAll`, not `around`: one container for the whole spec, with
+  -- `resetBetweenTests` truncating between examples. `around` starts a
+  -- fresh Postgres per example, which is how this suite went from ~45
+  -- seconds to nine minutes and began failing with "Bad response from
+  -- Docker engine" once enough containers were in flight. Every other
+  -- spec here already does it this way; this one was the outlier
+  -- (introduced in #243, found in #244).
+  aroundAll withTestDatabase
     . beforeWith resetBetweenTests
     $ describe "seedDemoProject (integration)"
     $ do

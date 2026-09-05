@@ -240,43 +240,33 @@ toGraphNode (Entity k e) =
 {- | A node's label, re-wrapped and laid out, for 'Node.Refresh' to swap
 in after an edit.
 
-Wrapping is to the layout engine's own box ('cfgLabelWidth' x
-'cfgLabelLines') — the same dimensions the label was first drawn at, so
-a title re-wraps to what it already fitted. Until #181 this took a
-parameter saying which shape was asking, because the old renderer's
-circle fitted fewer characters per line than the box does; with one
-renderer left there is one answer.
--}
-nodeContents :: GraphNode -> Html ()
-nodeContents n = do
-  labelTspans . label $ n
-  g_
-    [ class_ "hidden"
-    , hxGet_ $
-        nodeRefreshLink
-          (graphNodeId n)
-          (projectId n)
-          (label n)
-    , hxTrigger_ $
-        "nodePanel:onEditClosed[event.detail.nodeId=="
-          <> (intToText . graphNodeId $ n)
-          <> "] from:#node-panel"
-    , hxTarget_ $
-        "#node-text-"
-          <> (intToText . graphNodeId $ n)
-    , hxSwap_ "innerHTML"
-    , hxPushUrl_ False
-    ]
-    empty
-  where
-    empty = mempty :: Html ()
+@wrapWidth@ is the asking shape's own, taken from the request — see
+'Domain.Project.Responder.Ui.ProjectManage.Link.nodeRefreshLink'. A
+circle fits fewer characters per line than the box the layered node
+became in #178, and this endpoint serves both.
 
--- | Wrap a raw title to the node box, then lay the lines out.
-labelTspans :: Text -> Html ()
-labelTspans =
+__This emits the label and nothing else.__ It used to carry a copy of
+the refresh hook as well, which was redundant: the drawing emits that
+hook as a /sibling/ of the label element, so it survives a swap that
+replaces only the label's contents. Carrying a second copy inside the
+swapped content meant two hooks fired on every edit after the first —
+harmless, but two requests for one change — and it hardcoded
+@#node-text-\<id\>@ as the target, which is the layered drawing's id
+scheme and not every drawing's (#244).
+
+Keeping the hook with the drawing rather than in the response is also
+the right division: which element to swap into is a fact about the
+drawing, and the drawing is what knows it.
+-}
+nodeContents :: Int -> GraphNode -> Html ()
+nodeContents wrapWidth = labelTspans wrapWidth . label
+
+-- | Wrap a raw title to the asking shape, then lay the lines out.
+labelTspans :: Int -> Text -> Html ()
+labelTspans wrapWidth =
   tspanLines
     . wrapLabel
-      (cfgLabelWidth defaultLayoutConfig)
+      wrapWidth
       (cfgLabelLines defaultLayoutConfig)
 
 -- SVG `<text>` has no wrapping of its own, so a multi-line label has to
@@ -665,7 +655,13 @@ nodeGroup sg n =
       -- an edit.
       g_
         [ class_ "hidden"
-        , hxGet_ (nodeRefreshLink rawId pid rawLabel)
+        , hxGet_
+            ( nodeRefreshLink
+                rawId
+                pid
+                (cfgLabelWidth defaultLayoutConfig)
+                rawLabel
+            )
         , hxTrigger_ $
             "nodePanel:onEditClosed[event.detail.nodeId=="
               <> nid
