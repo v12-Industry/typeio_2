@@ -56,11 +56,9 @@ the full list) via `lookupEnv`, never hardcoded. `WEB_PORT` is the one exception
 default (`3000`, see `Config.Web.defaultWebPort`) rather than being
 required.
 
-**There is no environment variable for the dependency-graph
-visualization.** Which drawing to render is a property of a *request*,
-not of the process: an optional `visualizationMode` query parameter. If
-an old `.env` still carries a `GRAPH_VISUALIZATION` line, delete it —
-nothing reads it, and leaving it there suggests it does something.
+Which dependency-graph drawing to render is **not** among them: it is a
+property of a *request*, not of the process — an optional
+`visualizationMode` query parameter.
 
 See
 [`../../architecture/visualization-switching.md`](../../architecture/visualization-switching.md)

@@ -21,9 +21,9 @@ executable server
     -- machinery (GHC.Event.Thread.getSystemTimerManager) -- without
     -- -threaded, the compiled binary links against the non-threaded RTS,
     -- starts and accepts connections, but crashes handling every single
-    -- request. See #110 for how this went unnoticed: nothing in CI or
-    -- the unit/integration suites actually starts this executable and
-    -- sends it a real HTTP request over a socket.
+    -- request. Nothing in CI or the unit/integration suites starts this
+    -- executable and sends it a real HTTP request over a socket, so
+    -- dropping -threaded would not be caught by any of them.
     ghc-options:      -threaded -rtsopts "-with-rtsopts=-N"
     main-is:          Main.hs
     -- other-modules:
@@ -65,16 +65,16 @@ library src
       -- The orbital visualization's own geometry, exposed for the same
       -- reason: it is pure and dependency-free, so `test-suite spec`
       -- covers it. Deliberately not under Graph.*, which is the layered
-      -- engine (#229).
+      -- engine.
       , Domain.Project.Orbit.Layout
       , Domain.Project.Orbit.Types
       , Domain.Project.Orbit.Unfold
       , Domain.Project.Responder.Api.Node.Post
       , Domain.Project.Responder.Ui.ProjectCreate.Submit
       -- Exposed for `test-suite integration`'s GraphSpec, which asserts
-      -- on the SVG this renders (#178).
+      -- on the SVG this renders.
       , Domain.Project.Visualization.Common
-      -- Exposed for the switch's own integration spec (#223), so it
+      -- Exposed for the switch's own integration spec, so it
       -- exercises the real `renderFor` table rather than a copy that
       -- could drift from it.
       , Domain.Project.Responder.Ui.Container

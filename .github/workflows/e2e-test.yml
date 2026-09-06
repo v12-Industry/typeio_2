@@ -1,9 +1,9 @@
 name: E2E Test
 
-# Runs the Playwright suite (e2e/, #94-#97) against a real running
-# server + a real, seeded Postgres + a headless browser. Per
-# docs/solution-proposals/e2e-testing.md §6/§8 (decided) and #98:
-# informational only, not a required check, and deliberately NOT run on
+# Runs the Playwright suite (e2e/) against a real running server + a
+# real, seeded Postgres + a headless browser. Per
+# docs/solution-proposals/e2e-testing.md §6/§8 (decided): informational
+# only, not a required check, and deliberately NOT run on
 # every PR -- multi-process (browser + server + database), meaningfully
 # slower than test.yml/integration-test.yml, and a finding here isn't
 # necessarily about what a given PR changed. See docs/development/ci.md
@@ -63,10 +63,9 @@ env:
   WEB_REQUEST_ID_HEADER: X-Request-ID
   WEB_REDIRECT_PATH: /api/nodes
   E2E_BASE_URL: http://localhost:3000
-  # GRAPH_VISUALIZATION is gone as of #223: which drawing to render is a
-  # property of the request (`?visualizationMode=`), not of the process,
-  # so there is nothing to set here and every spec names the drawing it
-  # wants. Specs that name none get Config.Visualization's hardcoded
+  # Which drawing to render is a property of the request
+  # (`?visualizationMode=`), not of the process, so it is not set here
+  # and every spec names the drawing it wants. Specs that name none get Config.Visualization's hardcoded
   # default. See docs/architecture/visualization-switching.md.
 
 jobs:
@@ -97,7 +96,7 @@ jobs:
         # not just stdout -- so "why did/didn't e2e run" is visible from
         # the PR checks UI's Summary tab, not just by opening this step's
         # raw log. See docs/development/ci.md's "E2E test workflow"
-        # section (#139).
+        # section.
         run: |
           if gh pr view "$PR" -R "$REPO" --json labels -q '.labels[].name' | grep -qx 'run-e2e'; then
             echo "required=true" >> "$GITHUB_OUTPUT"
@@ -219,11 +218,10 @@ jobs:
       - name: Start server
         run: nohup cabal run server > server.log 2>&1 &
 
-      # One server serves every visualization as of #223 -- the drawing
-      # is a `visualizationMode` query parameter, so orbital.spec.ts
-      # names the one it wants rather than needing a process of its own.
-      # #240 briefly started a second server here for exactly that
-      # reason.
+      # One server serves every visualization -- the drawing is a
+      # `visualizationMode` query parameter, so a spec names the one it
+      # wants rather than needing a process of its own. No second server
+      # is needed here, whatever drawing a spec is about.
       - name: Wait for server
         run: |
           for i in $(seq 1 30); do

@@ -124,13 +124,12 @@ spec = do
       [() | (a, b) <- pairs (odLinks drawing), crosses a b] `shouldBe` []
 
     it "gives every link a visible length" $
-      -- The assertion that would have caught #238's tangency bug, and
-      -- the reason it is here: `cfgMinRingGap` was being applied as a
-      -- centre-to-centre distance, so with a ring step of exactly one
-      -- diameter two radially adjacent discs touched and the link
-      -- between them was trimmed to nothing. Every overlap assertion
-      -- still passed -- tangency is not overlap -- and the drawing
-      -- rendered as touching circles with no arrow at all.
+      -- Tangency is not overlap, so every overlap assertion passes on
+      -- a drawing where `cfgMinRingGap` is read as a centre-to-centre
+      -- distance: at a ring step of exactly one diameter, radially
+      -- adjacent discs touch and the link between them is trimmed to
+      -- nothing -- touching circles with no arrow at all. This is the
+      -- assertion that catches that.
       [() | l <- odLinks drawing, dist (lFrom l) (lTo l) < 1] `shouldBe` []
 
     it "leaves clear space between discs on consecutive rings" $

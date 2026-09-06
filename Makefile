@@ -23,8 +23,7 @@ check-db-env:
 	@if [ -z "$(DB_USER)" ] || [ -z "$(DB_HOST)" ] || [ -z "$(DB_PORT)" ] || [ -z "$(DB_DATABASE)" ]; then \
 		echo "The database variables are not set."; \
 		echo "They come from .env, which is gitignored -- a fresh clone or"; \
-		echo "git worktree has none. Copy one in, then retry."; \
-		echo "See docs/development/onboarding.md for the keys it needs."; \
+		echo "git worktree has none. Run: cp .env.example .env"; \
 		exit 1; \
 	fi
 

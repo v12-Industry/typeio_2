@@ -142,8 +142,8 @@ resetBetweenTests pool = truncateTestData pool >> pure pool
 {- | Minimal fixture every write-responder test needs: a bare 'M.Project'
 and a root 'M.Node' attached to it (status @active@, type
 @project_root@ -- both from 'seedReferenceData'). Centralized here
-since every mutating-responder integration test (this pilot and its
-follow-ups, #66-#69) needs the same starting point.
+since every mutating-responder integration test needs the same
+starting point.
 -}
 seedProjectWithRootNode :: ConnectionPool -> IO (Key M.Project, Key M.Node)
 seedProjectWithRootNode pool = flip runSqlPool pool $ do
@@ -176,7 +176,7 @@ seedProjectWithRootNode pool = flip runSqlPool pool $ do
 {- | An ordinary (non-root) 'M.Node' on an existing project: status
 @active@, type @work@. Companion to 'seedProjectWithRootNode' for
 tests that need a graph rather than a single node -- the two node
-types render differently (#178), so a test asserting on either needs
+types render differently, so a test asserting on either needs
 both present.
 -}
 seedWorkNode :: ConnectionPool -> Key M.Project -> String -> IO (Key M.Node)

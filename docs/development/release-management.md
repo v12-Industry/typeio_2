@@ -41,9 +41,7 @@ release create`.
 
 ## What deliberately doesn't exist here, and why
 
-- **No `CHANGELOG.md`.** `typeio.cabal` used to declare
-  `extra-doc-files: CHANGELOG.md` for a file that never existed; that
-  reference has been removed. GitHub's auto-generated release notes
+- **No `CHANGELOG.md`.** GitHub's auto-generated release notes
   (above) are the source of "what changed" — a hand-maintained
   changelog would be a second, redundant place recording the same
   information, with a real risk of drifting out of sync.

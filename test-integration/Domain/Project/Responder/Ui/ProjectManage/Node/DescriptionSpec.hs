@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-{- | Integration coverage for 'handlePutDescription' (#66), building on
-the infrastructure and pattern established in #65's pilot
+{- | Integration coverage for 'handlePutDescription', building on the
+infrastructure and pattern established in the pilot
 ('Domain.Project.Responder.Api.Node.PostSpec').
 -}
 module Domain.Project.Responder.Ui.ProjectManage.Node.DescriptionSpec (spec) where
