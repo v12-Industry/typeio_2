@@ -1,4 +1,9 @@
-include .env
+## .env is gitignored, so a fresh clone or git worktree has none. A hard
+## `include` would make every target fail before make even looks at the
+## one you asked for -- including format/format-check/test, which need
+## nothing from it. Targets that do need the database variables guard
+## for themselves via check-db-env below.
+-include .env
 export
 
 # --- Config ---
@@ -8,7 +13,20 @@ MIGRATE=migrate
 MIGRATIONS_DIR=migrations
 
 # --- Commands ---
-.PHONY: migrate-up migrate-down migrate-new migrate-force migrate-down-all migrate-version start-app test test-integration test-e2e e2e-install format format-check
+.PHONY: check-db-env migrate-up migrate-down migrate-new migrate-force migrate-down-all migrate-version start-app test test-integration test-e2e e2e-install format format-check
+
+## Fail early, and legibly, when the database variables are missing.
+## Without this, DB_URL still interpolates -- into
+## postgres://:@:/?sslmode=disable -- and `migrate` reports a connection
+## failure that says nothing about the actual cause.
+check-db-env:
+	@if [ -z "$(DB_USER)" ] || [ -z "$(DB_HOST)" ] || [ -z "$(DB_PORT)" ] || [ -z "$(DB_DATABASE)" ]; then \
+		echo "The database variables are not set."; \
+		echo "They come from .env, which is gitignored -- a fresh clone or"; \
+		echo "git worktree has none. Copy one in, then retry."; \
+		echo "See docs/development/onboarding.md for the keys it needs."; \
+		exit 1; \
+	fi
 
 ## Run migratin tests
 test-migrations:
@@ -33,27 +51,27 @@ run-postgres:
 	./local/script/start-postgres.sh $(CONTAINER_NAME)
 
 ## Echo back the database URL
-print-db-url:
+print-db-url: check-db-env
 	@echo $(DB_URL)
 
 ## Apply all up migrations
-migrate-up:
+migrate-up: check-db-env
 	$(MIGRATE) -path $(MIGRATIONS_DIR) -database "$(DB_URL)" up
 
 ## Roll back last migration
-migrate-down:
+migrate-down: check-db-env
 	$(MIGRATE) -path $(MIGRATIONS_DIR) -database "$(DB_URL)" down 1
 
 ## Show current migration version
-migrate-version:
+migrate-version: check-db-env
 	$(MIGRATE) -path $(MIGRATIONS_DIR) -database "$(DB_URL)" version
 
 ## Force migration to a specific version: make migrate-force VERSION=2
-migrate-force:
+migrate-force: check-db-env
 	$(MIGRATE) -path $(MIGRATIONS_DIR) -database "$(DB_URL)" force $(VERSION)
 
 ## Roll back to 0
-migrate-down-all:
+migrate-down-all: check-db-env
 	$(MIGRATE) -path $(MIGRATIONS_DIR) -database "$(DB_URL)" down
 
 ## Create a new migration file: make migrate-new NAME=add_table
