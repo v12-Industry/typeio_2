@@ -73,7 +73,7 @@ elsewhere — that's the established extension point.
 
 The dependency graph used to embed its data as JSON in a
 `<script id="graph-data" type="application/json">` for `nodetree2.js` to
-read and lay out. That whole approach was removed by #181/#182: the
+read and lay out. That whole approach is gone: the
 server now computes every coordinate and sends finished SVG, so the
 graph's data never reaches the browser at all. See
 [`../../architecture/graph-rendering.md`](../../architecture/graph-rendering.md).

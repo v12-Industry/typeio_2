@@ -106,13 +106,13 @@ covered:
   are laid out without overlapping; that no graph data is sent for a
   client to lay out (the d3 the viewport loads moves a transform, it
   does not compute positions); and that the viewport pans and zooms by
-  keyboard, wheel and drag, since #208 left it no buttons to click. See
+  keyboard, wheel and drag, since the viewport has no buttons to click. See
   the spec's
   comments for a severe app bug found while writing the first of these
-  (the graph never positioned any node past the first one — #120, long
+  (the graph never positioned any node past the first one, long
   since fixed).
 - **`tests/project-index-scroll.spec.ts`** — a bug fix's regression
-  test, not one of the four candidate workflows above (#210). Seeds
+  test, not one of the four candidate workflows above. Seeds
   enough projects to overflow the viewport and asserts the project
   index's last card is unreachable before a real wheel event and
   reachable after; separately, that the dependency graph page's `#view`
@@ -176,12 +176,12 @@ to this suite should follow the same conventions:
   default habit.
 
   **The case that motivated this is gone.** The old client-side graph
-  layout could leave a node off-screen or under the page header (#120),
-  so `graph.spec.ts` used `dispatchEvent`. Since the server started
-  placing nodes deterministically (#181), it uses a real `click()` — and
-  that click is now itself a regression test for nodes landing somewhere
-  visible. The technique stays documented because the situation recurs;
-  the graph is no longer an example of it.
+  layout could leave a node off-screen or under the page header,
+  `dispatchEvent` is the workaround when an element cannot be reliably
+  clicked at a screen position. `graph.spec.ts` does not need it: the
+  server places nodes deterministically, so a real `click()` works and
+  doubles as a check that nodes land somewhere visible. The technique
+  stays documented because the situation recurs elsewhere.
 
 ## CI wiring
 
@@ -197,7 +197,7 @@ backgrounding `cabal run server`, seeding via
 `POST /api/central/seed-database`, then `npm test`); this section covers
 when it runs.
 
-**Retries (#152):** `playwright.config.ts` sets `retries: process.env.CI
+**Retries:** `playwright.config.ts` sets `retries: process.env.CI
 ? 2 : 0` — a transient timing flake in CI (htmx's debounce/indicator-box
 timing, the kind `edit-node.spec.ts`'s own comments call out) gets a
 couple of automatic reruns instead of failing the whole check outright.

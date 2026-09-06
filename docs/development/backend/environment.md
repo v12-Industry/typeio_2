@@ -49,20 +49,18 @@ this `Env`.
 ## Config
 
 `AppConfig` (`Config.App`) bundles `EnvironmentName` (`Local` /
-`Development` / `Production`), `DbConfig` (`Config.Db`), `WebConfig`
-(`Config.Web`), and `Visualization` (`Config.Visualization`) — each
-loaded from its own set of environment variables (`DB_HOST`, `DB_PORT`,
-`WEB_REQUEST_ID_HEADER`, etc. — see `.env` for the full list) via
-`lookupEnv`, never hardcoded. `WEB_PORT` is the one exception with a
+`Development` / `Production`), `DbConfig` (`Config.Db`) and `WebConfig`
+(`Config.Web`) — each loaded from its own set of environment variables
+(`DB_HOST`, `DB_PORT`, `WEB_REQUEST_ID_HEADER`, etc. — see `.env` for
+the full list) via `lookupEnv`, never hardcoded. `WEB_PORT` is the one exception with a
 default (`3000`, see `Config.Web.defaultWebPort`) rather than being
 required.
 
 **There is no environment variable for the dependency-graph
-visualization.** `GRAPH_VISUALIZATION` existed between #215 and #223 and
-is gone: which drawing to render is a property of a *request* now, not
-of the process, chosen by an optional `visualizationMode` query
-parameter. Delete the line if an old `.env` still has it — nothing reads
-it, and leaving it there suggests it does something.
+visualization.** Which drawing to render is a property of a *request*,
+not of the process: an optional `visualizationMode` query parameter. If
+an old `.env` still carries a `GRAPH_VISUALIZATION` line, delete it —
+nothing reads it, and leaving it there suggests it does something.
 
 See
 [`../../architecture/visualization-switching.md`](../../architecture/visualization-switching.md)
@@ -74,10 +72,3 @@ independently (present, non-empty, parses, in range) and any failure is
 recorded, so `loadConfig` either returns a fully valid `AppConfig` or
 raises with **every** missing/invalid variable listed at once — not just
 the first one it happened to check.
-
-## What used to be here: `Environment.Acquire`
-
-There used to be an `Environment.Acquire` module (`Acquire`, `Acquire2`)
-— an earlier, more elaborate attempt at the same acquire/release problem
-`withEnv` solves with plain `ContT`. It had no callers anywhere in the
-codebase and was removed in #15.

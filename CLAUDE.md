@@ -39,7 +39,7 @@ graph-based layout for visualizing and managing those dependencies.
   is laid out server-side in Haskell and arrives as finished SVG, so
   there is still no client-side layout code and no graph data sent to
   the browser; d3 only moves a transform, and loads only on the graph,
-  never app-wide the way the D3 removed in #182 did). Full write-up:
+  never app-wide). Full write-up:
   [`docs/development/frontend/`](docs/development/frontend/).
 - **Database:** PostgreSQL 15 (Docker), accessed via esqueleto/persistent.
 - **Migrations:** SQL files in `migrations/`, managed via the `migrate`
@@ -64,9 +64,9 @@ cases:
 | Running/writing unit tests, and what's out of scope (responders) | `docs/development/unit-testing.md` |
 | Running/writing integration tests (the responder-testing answer) | `docs/development/integration-testing.md` |
 | Running/writing E2E tests (Playwright, htmx interaction hazards, CI's `run-e2e` label) | `docs/development/e2e-testing.md` |
-| Anything touching the dependency graph's layout or rendering | `docs/architecture/graph-rendering.md` -- the built pipeline for the *layered* visualization: module map, per-phase contracts, and the dependency-vs-containment distinction (#198) |
-| How the app holds several graph visualizations and picks one, and what they may share | `docs/architecture/visualization-switching.md` -- the config value, the container seam, and what visualizations share (#213, #215) |
-| The orbital dependency-weighted visualization -- radial, with shared dependencies replicated per work stream | `docs/architecture/orbital-dependency-weighted-graph.md` -- ⚠️ **specified, not built** (#229): the design, its unfolding/placement contracts, and the seam change it needs |
+| Anything touching the dependency graph's layout or rendering | `docs/architecture/graph-rendering.md` -- the pipeline for the *layered* visualization: module map, per-phase contracts, and the dependency-vs-containment distinction |
+| How the app holds several graph visualizations and picks one, and what they may share | `docs/architecture/visualization-switching.md` -- the request parameter, the dispatch table, and what visualizations share |
+| The orbital dependency-weighted visualization -- radial, with shared dependencies replicated per work stream | `docs/architecture/orbital-dependency-weighted-graph.md` -- the design, its unfolding and placement contracts, and its DOM contract |
 | Which GitHub issue labels to use | `docs/development/labels.md` |
 | How to cut a release (version bump, tagging, GitHub Releases) | `docs/development/release-management.md` |
 | Repo-level config (GitHub branch protection) as OpenTofu/Terragrunt | `docs/development/infrastructure.md` |
@@ -90,21 +90,19 @@ decision record, not a live source of truth. A proposal's existence,
 even one with a confident "Decision" section, does **not** mean it was
 implemented. Always check the doc's own `Status` line, and cross-check
 against `docs/development/` for whether it actually happened, before
-treating a proposal as current guidance. (See the #50 incident under
-Known Gotchas below.)
+treating a proposal as current guidance.
 
 ## Setup & Local Development
 
 - **Build:** `cabal build all`
 - **Run the server:** `cabal run server` (loads config from `.env` — see
   that file for the required variables; none are hardcoded).
-  ⚠️ **`GRAPH_VISUALIZATION` no longer exists** — it was required
-  between #215 and #223, and is now gone. Which dependency-graph
-  visualization renders is chosen per request by an optional
-  `visualizationMode` query parameter (`Layered`, `Rootless` or
-  `Orbital`); an absent one takes a hardcoded default, an unrecognised
-  one is a validation error. Delete the line from an old `.env` —
-  nothing reads it. See
+  ⚠️ **There is no environment variable for the graph visualization.**
+  Which dependency-graph visualization renders is chosen per request by
+  an optional `visualizationMode` query parameter (`Layered`,
+  `Rootless` or `Orbital`); an absent one takes a hardcoded default, an
+  unrecognised one is a validation error. If an old `.env` still has a
+  `GRAPH_VISUALIZATION` line, delete it — nothing reads it. See
   [`docs/architecture/visualization-switching.md`](docs/architecture/visualization-switching.md).
 - **Start Postgres:** `make run-postgres`
 - **Migrations:** `make migrate-up` / `make migrate-down` /
@@ -166,6 +164,24 @@ Quick summary:
     writes, and it applies when *editing* an existing file too: don't
     reintroduce commentary alongside a change.
   - Language pragmas (`{-# LANGUAGE ... #-}`) are not comments and stay.
+- **Documentation describes the application as it is today.** Not how it
+  got here. Do not write issue numbers, past decisions, or evolution
+  narratives into `docs/development/`, `docs/architecture/` or this
+  file — no "this used to", no "changed in #N", no "before X the app
+  did Y", no status markers recording when something was built. A
+  reader should be able to learn what the app does without the issue
+  tracker open, and without being told about states it is no longer in.
+  - **Keep the rule, drop the story.** A constraint that exists because
+    something once went wrong is still a constraint: state it in the
+    present tense as a fact about the code. "The arrowhead sits on the
+    dependent" stays; "this section previously asserted the opposite,
+    and it cost eight issues" does not.
+  - **The exception is `docs/solution-proposals/`**, which are
+    deliberately point-in-time records of a decision at the moment it
+    was taken. Their issue references and rejected alternatives are the
+    content, and they are left alone.
+  - History that is genuinely worth keeping belongs in a solution
+    proposal or in the git log, not scattered through reference docs.
 - Responder modules are one file per HTTP verb under
   `responder/api/<Domain>/<Verb>.hs` (e.g. `Get.hs`, `Post.hs`), and one
   `View.hs`/template module per feature under `responder/ui/<Feature>/`.
@@ -182,8 +198,7 @@ Quick summary:
   it anyway."
 - **Formatting is automated via Fourmolu** (`fourmolu.yaml` at the repo
   root) — see `docs/solution-proposals/haskell-auto-formatting.md` for
-  the rationale, implemented in #6. The old manual `=`/import-column
-  alignment convention is retired; don't hand-align. `make format`
+  the rationale. Don't hand-align `=` or import columns. `make format`
   formats every `.hs` file in place; `make format-check` checks without
   modifying anything (non-zero exit on a diff) — the same command
   CI/pre-commit would run. For a human editor, point HLS's
@@ -269,8 +284,7 @@ Quick summary:
      two `pull_request` events (`opened`, then `labeled`) close
      together, which races `e2e-test.yml`'s own `concurrency`
      cancellation (harmless, but produces a confusing transient `fail`
-     — see `docs/development/ci.md`'s "E2E test workflow" section,
-     #153).
+     — see `docs/development/ci.md`'s "E2E test workflow" section).
   7. **If the issue carries `review:pre-approve`, don't stop at the
      PR** — that label is advance merge authorization for this PR, so
      wait for required checks and queue it for merge yourself. See the
@@ -350,33 +364,18 @@ Quick summary:
 ## Known Gotchas
 
 - **`make test-migrations` is broken** — see Setup section above.
-- **A solution-proposal's "Decision" section isn't proof it was built**
-  (#50): `docs/solution-proposals/lazy-request-transactions.md` was
-  written with a full write-up and a "Decided" status, and a PR was
-  started against it. Days later, the premise was reconsidered — the
-  problem it solved was already handled by `Domain.Central` composing
-  domains within the responder's existing transaction — and the proposal
-  was rewritten to "Decided against" instead. Nothing broke, but treating
-  the earlier "Decided" section as settled guidance without checking
-  whether it had actually landed in `docs/development/` would have been
-  the wrong move. Always check a proposal's `Status` line, not just its
-  existence.
-
-## Resolved gotchas (kept for context — don't reintroduce)
-
-- **Every `lib/src` directory used to be lowercase while every module
-  name is PascalCase** (`lib/src/platform/Web.hs` for module
-  `Platform.Web`, etc.) — invisible on macOS's case-insensitive
-  filesystem, which is why local development and manual verification
-  never caught it. It surfaced the moment CI (#41) ran on a Linux
-  runner: GHC couldn't find any module at all
-  (`Cabal-7554: can't find source for Platform/Web in lib/src`). Fixed
-  by renaming every directory to match its module path's exact casing —
-  `lib/src` now mirrors the module tree byte-for-byte. Two of the
-  mismatches were at the **git index** level specifically (tracked case
-  differed from the on-disk case shown by `ls`/`find`, which a plain
-  filesystem walk can't detect on a case-preserving filesystem) — if a
-  future rename ever needs to fix a case mismatch again, use a two-step
-  `git mv old old_tmp && git mv old_tmp New`; a direct `git mv old New`
-  fails outright on macOS with "Invalid argument" for a case-only
-  rename.
+- **A solution-proposal's "Decision" section isn't proof it was built.**
+  A proposal can carry a confident write-up and a "Decided" status for
+  something that was never implemented, or that was later decided
+  against. Check its `Status` line and cross-check `docs/development/`
+  before treating one as current guidance.
+- **`lib/src` mirrors the module tree byte-for-byte, casing included.**
+  A directory whose case doesn't match its module path works fine on
+  macOS's case-insensitive filesystem and fails outright on CI's Linux
+  runner, where GHC reports `Cabal-7554: can't find source for
+  Platform/Web in lib/src`. A mismatch can also live in the **git
+  index** while `ls` shows the right thing, which a filesystem walk
+  cannot detect on a case-preserving filesystem.
+- **Renaming for case alone needs two steps.** `git mv old New` fails
+  on macOS with "Invalid argument"; use
+  `git mv old old_tmp && git mv old_tmp New`.

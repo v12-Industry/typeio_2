@@ -45,7 +45,7 @@ rationale in the proposal's §4/§8):
   behavior of `isNotEmpty`/`isBetween`/`isEq` — this is exactly the kind
   of non-obvious behavior a test suite exists to pin down (see the
   `Config.Db`/`Config.Web` specs for it in practice, and `CLAUDE.md`'s
-  notes on issues #38/#48, both bugs this behavior contributed to).
+  notes on the bugs this behavior has contributed to).
 - **`Data.Either`**, **`Data.Text.Util`** — small pure helpers used
   throughout the app.
 - **`Data.HashTree`** — the router's core data structure; the best
@@ -84,7 +84,7 @@ rationale in the proposal's §4/§8):
   ephemeral test database — see
   [`integration-testing.md`](integration-testing.md) for how to run them
   and what's covered so far (all five write/mutate handlers, the
-  `handlePostNode` pilot plus its #66–#69 follow-ups), and
+  `handlePostNode` pilot plus its follow-ups), and
   [`../solution-proposals/integration-testing.md`](../solution-proposals/integration-testing.md)
   for the rationale behind each design choice. Out of scope for this
   doc either way — unit tests still don't cover responders.

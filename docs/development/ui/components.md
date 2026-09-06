@@ -64,7 +64,7 @@ This is the convention to follow for a new page: one `<div id="view">` as
 your template's outermost element, after the nav header and any
 page-specific `<link rel="stylesheet">` (see [styles.md](styles.md)).
 
-`#view` also owns each page's scroll region (#210): `global.css` sets
+`#view` also owns each page's scroll region: `global.css` sets
 `overflow-y: auto` here, since `#container` above never can (see
 `#container`, above). Before this, nothing in the ancestor chain was
 ever set to scroll — a page taller than the viewport was clipped by

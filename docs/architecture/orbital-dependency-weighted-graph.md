@@ -1,14 +1,8 @@
 # The Orbital Dependency-Weighted Graph
 
-> **Status: not built.** Nothing described here exists in the codebase
-> yet. This is the design, written ahead of the implementation the way
-> [`visualization-switching.md`](visualization-switching.md) was written
-> ahead of the visualizations it describes (#213), so that the
-> conventions are decided deliberately rather than set by whichever part
-> lands first. Specified in #229.
->
-> **It is a third visualization, not a change to the two that exist.**
-> `Layered` and `Rootless` are untouched by it. See
+> **One of three visualizations, and the only one that is not layered.**
+> `Layered` and `Rootless` share a geometry engine; this one brings its
+> own. See
 > [`visualization-switching.md`](visualization-switching.md) for how the
 > app holds several drawings at once and what they may share.
 >
@@ -40,7 +34,7 @@ That is a deliberate trade, and it buys something the other two
 visualizations cannot offer: **there are no crossing edges at all.**
 Not minimised — structurally absent. `Layered` runs a crossing-reduction
 heuristic in `Graph.Order` and never claims zero; `Rootless` improves on
-it by removing the node that caused most of the crossings (#215), but
+it by removing the node that caused most of the crossings, but
 still cannot promise none. Here, every drawn node has exactly one
 dependent and every tree owns a disjoint wedge of the circle, so there
 is nothing for an edge to cross.
@@ -56,8 +50,8 @@ expresses as three circles.
 
 ## Worked example
 
-The example is the one in #229's reference images, so the algorithm can
-be checked against a drawing that already exists.
+A small project, worked end to end, so the algorithm can be checked
+against something concrete.
 
 Nodes `A`–`G`. Dependencies, in `project.dependency`'s own terms
 (`node_id` *depends on* `to_node_id`):
@@ -107,7 +101,7 @@ to get backwards:
 
 The term **head** is borrowed deliberately from
 [`graph-rendering.md`](graph-rendering.md)'s account of
-`Graph.Containment` (#211), where it already means "a node nothing else
+`Graph.Containment`, where it already means "a node nothing else
 is waiting on". It is the same set here. Reusing the word rather than
 coining one keeps two parts of the app from having different names for
 the same idea.
@@ -250,10 +244,10 @@ present, or a cycle. It never fails and never refuses to draw.
 
 **`OrbitEdge` names its ends for the relationship, not `source`/
 `target`.** This is the guard rail `graph-rendering.md` argues for at
-length, and the reasoning carries over unchanged: the app has already
-drawn its arrowheads on the wrong end once (#181) and sunk its root to
-the bottom of the drawing for eight issues (#198), both because a field
-called `source` does not tell you which end is waiting.
+length, and the reasoning carries over unchanged: a field called
+`source` does not tell you which end is waiting, so getting the
+relationship backwards costs nothing at the keyboard and is invisible
+until somebody looks at the drawing.
 
 ## Phase contracts
 
@@ -265,7 +259,7 @@ dependents is its own head and its stream is a single disc.
 
 **Guarantees:** every node is reachable from at least one head, unless
 it is in a cycle (see [Cycles](#cycles)). The head set is the same one
-`Graph.Containment` computes for #211, on the same data.
+`Graph.Containment` computes, on the same data.
 
 ### 2. Unfold to a forest — `Orbit.Unfold`
 
@@ -403,8 +397,8 @@ intersect except at a shared rim; no link passes through a disc.
 
 **Cycles are prevented upstream and are not depicted.** A cycle is
 meaningless as a project statement — work that cannot start until it has
-finished — and the decision recorded on #205 is to reject one at write
-time rather than draw it. Unlike the layered engine, this visualization
+finished — and the app rejects one at write time rather than drawing
+it. Unlike the layered engine, this visualization
 has nothing sensible to show for one: unfolding a cycle does not
 terminate, and there is no equivalent of "reverse a back edge and carry
 on" that leaves the drawing honest.
@@ -526,7 +520,7 @@ So this visualization uses its own ids, under a **different prefix**:
 Anything still querying `#node-<id>` — a stylesheet, a test, a future
 hook — should find nothing in an orbital drawing rather than silently
 matching one arbitrary replica. Silent partial matches are how the
-`node-label` bug in #173 survived to #178.
+a duplicated id survives review.
 
 `.node` becoming `.disc` means `manage-project.css` needs orbital rules
 of its own rather than inheriting the layered ones. That is intended:
@@ -558,7 +552,7 @@ the shape sidesteps needing a font-metrics table.
 
 A circle fits fewer characters per line than a box of the same width.
 `graph-rendering.md` records the figure from when the app last drew
-circles: `cfgLabelWidth` 12, against 18 for the rect it became in #178.
+circles: `cfgLabelWidth` 12, against 18 for the layered drawing's rect.
 **Use 12.** Full titles remain available in the node detail panel.
 
 ## Viewport
@@ -637,35 +631,29 @@ requires.
 Selected per request, `?visualizationMode=Orbital` — on the graph
 fragment, or on the project page, which forwards it.
 
-**It is also the default**, because #223's convention is that a request
-naming no visualization gets whichever was added most recently, and this
-is the most recent. That binding
-(`Config.Visualization.defaultVisualization`) has to be updated by
-whoever adds the next one; nothing fails if it is not.
-
-This landed in the order #238 → #223: `Orbital` was first selected by
-`GRAPH_VISUALIZATION`, and became a query parameter when that variable
-was removed.
+**It is also the default**: a request naming no visualization gets
+whichever was added most recently, and this is the most recent. That
+binding (`Config.Visualization.defaultVisualization`) has to be updated
+by whoever adds the next one; nothing fails if it is not.
 
 ## What this design assumes upstream
 
-Two of the decisions above are only safe because of validation that does
-not exist yet. Recording them here so the dependency is visible rather
-than discovered later:
+Two of the decisions above are only safe because of constraints that
+belong at the point a dependency is recorded, not here. Neither is built
+yet, so both are stated as what this drawing is relying on:
 
-| Assumption | Status |
+| Assumption | Where it stands |
 |---|---|
-| Cycles are rejected when a dependency is recorded | Decided on #205; not built. The [backstop](#cycles) covers the gap, and covers malformed data permanently. |
-| A node cannot accumulate enough dependents to make unfolding explode | Filed separately; not built. Until then the [unbounded](#on-the-size-of-the-result) unfolding has no ceiling but the data's own shape. |
+| Cycles are rejected when a dependency is recorded | Not built. The [backstop](#cycles) covers the gap, and covers malformed data permanently. |
+| A node cannot accumulate enough dependents to make unfolding explode | Not built. Until it is, the [unbounded](#on-the-size-of-the-result) unfolding has no ceiling but the data's own shape. |
 
-There is also a plain fact worth knowing before anyone builds this:
-**#205 means there is currently no way to create a dependency at all.**
-`Api.Node.Post` was the only writer of `project.dependency` and #198
-removed the rows it wrote, so on a fresh database the table is empty.
-Until #205 lands, an orbital drawing of a seeded project is one ring of
-discs and no links — every node is a head. That is the algorithm working
-correctly on the data it has, not a defect, but it does mean this
-visualization cannot be meaningfully evaluated by eye until #205 is done.
+A related fact worth knowing: **there is no way to create a dependency
+through the app.** Nothing writes `project.dependency`, so on a database
+without seeded dependencies every node is a head and an orbital drawing
+is one ring of discs with no links. That is the algorithm working
+correctly on the data it has, not a defect — but it does mean the
+seeded demo project is what this visualization has to be looked at
+against.
 
 ## Testing
 

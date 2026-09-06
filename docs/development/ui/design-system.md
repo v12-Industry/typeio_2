@@ -37,8 +37,8 @@ backlog item to silently fix as a drive-by change.
 that was never defined anywhere in `:root` — the closest real token is
 `--accent`. An undefined custom property falls back to the property's
 initial value, so the "textio" wordmark currently renders with no
-background at all. Filed as #89 rather than fixed here (no CSS changes
-in this doc's scope).
+background at all, and it is tracked separately rather than fixed in a
+docs change.
 
 ## Indicators
 

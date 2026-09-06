@@ -51,7 +51,7 @@ No database or service container is involved — `spec` is entirely pure
 (see [`unit-testing.md`](unit-testing.md) for what's covered and why).
 This step deliberately runs `cabal test spec`, not a bare `cabal test`:
 the integration test-suite from
-`docs/solution-proposals/integration-testing.md` (#65) also exists in
+`docs/solution-proposals/integration-testing.md` also exists in
 this package now, and has its own CI coverage — see
 [Integration test workflow](#integration-test-workflow) below — but a
 bare `cabal test` would build and run every test-suite in the package
@@ -167,17 +167,17 @@ its own PR or merge-queue entry (see "[Why pull requests only, not
 purely to leave a cache behind for the *next* run to find, not to
 re-verify correctness. Not a required check; nothing waits on it.
 
-See `docs/solution-proposals/ci-cache-warming.md` (#159, decided) for
+See `docs/solution-proposals/ci-cache-warming.md` for
 the full diagnosis — confirmed with real run timing and
-`actions/cache@v6`'s own log output, not just reasoning — and #160 for
+`actions/cache@v6`'s own log output, not just reasoning — and that proposal for
 what landed.
 
 ## Integration test workflow
 
 `.github/workflows/integration-test.yml` runs `cabal test integration`
 (the suite from `docs/solution-proposals/integration-testing.md` §11
-and #65) on every PR into `main` that touches Haskell-relevant files —
-resolved in #72, following the pattern the solution proposal's §8 had
+) on every PR into `main` that touches Haskell-relevant files —
+following the pattern the solution proposal's §8 had
 left open.
 
 A few ways this deliberately differs from the `test` workflow above:
@@ -213,7 +213,7 @@ dependencies. It exists to fill one specific gap: Dependabot (native,
 free, no workflow needed — see
 `docs/solution-proposals/security-scanning.md` §3) doesn't support the
 Hackage ecosystem, so nothing else in the repo checks Haskell
-dependencies against known CVEs. See the proposal (#62) for the full
+dependencies against known CVEs. See the proposal for the full
 investigation and decision; this section just documents the shape that
 landed.
 
@@ -227,7 +227,7 @@ Steps:
    instead of just the version *bounds* `typeio.cabal` declares.
 3. Run `google/osv-scanner-action` recursively from the repo root. This
    picks up the freeze file just generated, and — if/when
-   `package-lock.json` is real again (#100) — npm dependencies too. One
+   `package-lock.json` is real again — npm dependencies too. One
    tool, one job, both ecosystems.
 4. Append the scan's markdown output to the job summary
    (`$GITHUB_STEP_SUMMARY`). This is deliberately the raw scanner action
@@ -240,11 +240,11 @@ Steps:
 A few ways this deliberately differs from `test.yml` and
 `integration-test.yml`:
 
-- **Schedule-only, not a PR check** (#136). Originally ran on every PR
+- **Schedule-only, not a PR check.** It does not run on every PR
   into `main` too (no `paths:` filter — same shape as `test.yml`), to
   catch a newly *introduced* vulnerable dependency at the point it
   landed — see the proposal's §6/§10 for that original decision. Dropped
-  per #136: a per-PR OSV-Scanner run kept surfacing findings unrelated
+  A per-PR OSV-Scanner run kept surfacing findings unrelated
   to what a given PR actually changed, on a check nothing could act on
   anyway (informational, next bullet). The weekly `schedule` alone still
   covers what a PR trigger structurally can't — a dependency that didn't
@@ -273,7 +273,7 @@ release workflow and the rationale behind it (`docs/solution-proposals/release-m
 other workflows here.
 
 Unlike `test.yml`, `integration-test.yml`, and `e2e-test.yml`, it's not
-a PR check at all (`security-scan.yml` isn't either, as of #136 — see
+a PR check at all (`security-scan.yml` isn't either — see
 [Security scan workflow](#security-scan-workflow) above — but for a
 different reason: it's reacting to schedule drift, not to a version
 bump landing):
@@ -295,10 +295,10 @@ bump landing):
 ## E2E test workflow
 
 `.github/workflows/e2e-test.yml` runs the Playwright suite (`e2e/`,
-built up across #94–#97) against a real, compiled `server` process
+) against a real, compiled `server` process
 talking to a real, seeded Postgres, driven by a headless browser. See
-`docs/solution-proposals/e2e-testing.md` (#17, decided §6/§8) for the
-full design rationale and #98 for what landed; this section covers the
+`docs/solution-proposals/e2e-testing.md` (decided, §6/§8) for the
+full design rationale; this section covers the
 CI shape specifically.
 
 Steps, in order:
@@ -365,7 +365,7 @@ A few ways this deliberately differs from every other workflow here:
   check separate from ever having to spin up (or skip inside) the full
   GHC+Docker+Postgres+browser job.
 - **`check-e2e-required` writes its reasoning to `$GITHUB_STEP_SUMMARY`**
-  (#139), not just to the step's stdout log — so "why did/didn't e2e run
+ , not just to the step's stdout log — so "why did/didn't e2e run
   on this PR" is visible at a glance from the PR checks UI's Summary tab,
   covering all three outcomes: required via the PR's own label, required
   via a named closing issue's label (the issue number is named
@@ -376,7 +376,7 @@ A few ways this deliberately differs from every other workflow here:
   every PR's checks by default.
 
 **Known race, benign: creating a PR and labeling it `run-e2e` as two
-separate, rapid actions** (#153). `opened` and `labeled` are both
+separate, rapid actions**. `opened` and `labeled` are both
 trigger types above, so open-then-label fires two `pull_request` events
 close together, both landing in `e2e-test.yml`'s own `concurrency`
 group (same pattern as the other workflows — see "Same reasoning as
@@ -437,7 +437,7 @@ workflows that don't trigger on `pull_request` at all, for three
 different reasons: `release.yml` triggers on `push` to `main` instead —
 see [Release workflow](#release-workflow) above — because it isn't
 re-checking a PR, it's reacting to one that already merged.
-`security-scan.yml` triggers on a weekly `schedule` only (as of #136) —
+`security-scan.yml` triggers on a weekly `schedule` only —
 see [Security scan workflow](#security-scan-workflow) above — because a
 per-PR run was checking something a PR trigger can't meaningfully check
 (whether a dependency became known-vulnerable with no code change at

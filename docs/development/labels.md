@@ -2,7 +2,7 @@
 
 Every GitHub issue gets two labels: one `type:*` (what kind of work) and
 one `area:*` (what part of the system). This taxonomy was derived from
-an actual review of every issue filed in this repo so far (#1–#54), not
+an actual review of every issue filed in this repo so far, not
 picked abstractly — see the mapping below.
 
 An issue that touches visualization code carries a third, one `viz:*`
@@ -10,26 +10,26 @@ An issue that touches visualization code carries a third, one `viz:*`
 
 ## `type:*` — what kind of work
 
-| Label | Meaning | Example |
-|---|---|---|
-| `type:bug` | Something isn't working correctly | #38, #48 — wrong/misleading behavior found and fixed |
-| `type:chore` | Maintenance: cleanup, tooling adoption, refactors with no behavior change | #1, #6, #15 — formatting, Fourmolu adoption, dead-code removal |
-| `type:documentation` | Adding or updating documentation | #7–#13, #35, #53, #54 |
-| `type:feature` | New capability or behavior | #28–#34, #36, #41, #46, #47 |
-| `type:spike` | Research/investigation producing a solution-proposal doc, not code | #3, #14, #17, #26, #42, #50, #58 |
+| Label | Meaning |
+|---|---|
+| `type:bug` | Something isn't working correctly |
+| `type:chore` | Maintenance: cleanup, tooling adoption, refactors with no behavior change |
+| `type:documentation` | Adding or updating documentation |
+| `type:feature` | New capability or behavior |
+| `type:spike` | Research/investigation producing a solution-proposal doc, not code |
 
 ## `area:*` — what part of the system
 
-| Label | Meaning | Example |
-|---|---|---|
-| `area:backend` | Server-side Haskell: routing, containers, environment, config, logging | #8–#11, #15, #36, #38, #48 |
-| `area:frontend` | Client-side interactivity: htmx, hyperscript | #12 — mirrors `docs/development/frontend/` |
-| `area:ui` | Lucid-rendered HTML and CSS (`#container`/`#view`, global vs. scoped styles) | #7 — mirrors `docs/development/ui/`, deliberately kept separate from `area:frontend` since the docs tree already splits these two |
-| `area:testing` | Unit, integration, or E2E test suites and their tooling | #17, #26, #28–#35, #42, #53 |
-| `area:ci-cd` | GitHub Actions workflows and required checks | #41, #47 |
-| `area:infrastructure` | Terraform/Terragrunt and other non-application infrastructure | #46 |
-| `area:tooling` | Dev tooling: formatting, linting, build config | #1, #3, #6 |
-| `area:process` | How the team/docs/repo operate — not the application itself | #54, #58, #59 (this one) |
+| Label | Meaning |
+|---|---|
+| `area:backend` | Server-side Haskell: routing, containers, environment, config, logging |
+| `area:frontend` | Client-side interactivity: htmx, hyperscript — mirrors `docs/development/frontend/` |
+| `area:ui` | Lucid-rendered HTML and CSS (`#container`/`#view`, global vs. scoped styles) — mirrors `docs/development/ui/`, deliberately kept separate from `area:frontend` since the docs tree already splits these two |
+| `area:testing` | Unit, integration, or E2E test suites and their tooling |
+| `area:ci-cd` | GitHub Actions workflows and required checks |
+| `area:infrastructure` | Terraform/Terragrunt and other non-application infrastructure |
+| `area:tooling` | Dev tooling: formatting, linting, build config |
+| `area:process` | How the team/docs/repo operate — not the application itself |
 
 ## Conventions
 
@@ -53,7 +53,7 @@ An issue that touches visualization code carries a third, one `viz:*`
   dimension well, that's a signal to reconsider the taxonomy the same
   way it was derived (review recent real issues), not to force-fit it or
   invent a label in isolation.
-- GitHub's stock `bug`/`documentation`/`enhancement` labels were removed
+- GitHub's stock `bug`/`documentation`/`enhancement` labels are not used
   from this repo — they overlapped with `type:bug`/`type:documentation`/
   `type:feature` and having both would just be duplicate, confusing
   bookkeeping. The other stock labels (`duplicate`, `good first issue`,
@@ -150,8 +150,8 @@ that is never ambiguous.
 | Label | Means |
 |---|---|
 | `viz:layered` | The layered orthogonal SVG graph — `graph-rendering.md` |
-| `viz:rootless` | The variant that draws the work without the project node — #215 |
-| `viz:orbital` | The orbital dependency-weighted radial graph, which replicates a shared dependency per work stream — `orbital-dependency-weighted-graph.md` (#229) |
+| `viz:rootless` | The variant that draws the work without the project node |
+| `viz:orbital` | The orbital dependency-weighted radial graph, which replicates a shared dependency per work stream — `orbital-dependency-weighted-graph.md` |
 | `viz:all` | Spans every visualization: the switching mechanism itself, the shared queries, this taxonomy |
 | `viz:tbd` | Visualization work whose target isn't decided yet |
 
@@ -197,7 +197,7 @@ gh issue list --label epic:orbital
 
 | Label | Groups |
 |---|---|
-| `epic:orbital` | Delivering the orbital dependency-weighted visualization — `../architecture/orbital-dependency-weighted-graph.md` (#229) |
+| `epic:orbital` | Delivering the orbital dependency-weighted visualization — `../architecture/orbital-dependency-weighted-graph.md` |
 
 It is **orthogonal to `viz:*`**, not a replacement for it. An epic
 routinely contains issues with different `viz:*` labels — `epic:orbital`

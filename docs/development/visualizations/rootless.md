@@ -1,6 +1,6 @@
 # The Rootless Visualization
 
-`viz:rootless`. Added in #215: the work, without the project node. The
+`viz:rootless`: the work, without the project node. The
 root is left out of the drawing entirely, and nothing forces the work to
 converge on a single box.
 
@@ -9,8 +9,8 @@ For the mechanism that selects this visualization, see
 For the layout pipeline it draws with (layer assignment, ordering,
 coordinates, edge routing), see
 [`../../architecture/graph-rendering.md`](../../architecture/graph-rendering.md) —
-that pipeline is shared with [Layered](layered.md) and isn't repeated
-here.
+that pipeline is shared with the layered visualization and isn't
+repeated here.
 
 ## What it draws
 
@@ -30,7 +30,7 @@ The project's own row is untouched in the database and still names the
 project elsewhere in the UI (e.g. the project index) — it just isn't a
 node in this particular drawing.
 
-## Why this exists (#215)
+## Why this exists
 
 The root is free to draw on a project that is one single chain, but it's
 the dominant source of visual mess on a project with several parallel
@@ -48,11 +48,6 @@ fragment directly, or on the project page, which forwards it:
 ```
 /ui/project/vw?projectId=1&visualizationMode=Rootless
 ```
-
-Chosen per request as of
-[#223](https://github.com/v12-Industry/typeio_2/issues/223); it used to
-be `GRAPH_VISUALIZATION=Rootless` in `.env`, read once at boot, and that
-variable is gone.
 
 A request naming no visualization gets the hardcoded default, which is
 whichever was added most recently — today `Orbital`, not this one. An

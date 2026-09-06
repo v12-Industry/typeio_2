@@ -92,5 +92,5 @@ Going by what's actually here:
   scale — the graph viewport's zoom/pan bookkeeping is never going to be
   a hyperscript one-liner, and isn't. Note that the graph's *layout* is
   not on this list at all any more: it is computed server-side in
-  Haskell (#173-#182), which is the far better answer where it's
+  Haskell, which is the far better answer where it's
   available.

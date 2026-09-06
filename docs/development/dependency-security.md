@@ -6,7 +6,7 @@ secret scanning) and a custom CI workflow (OSV-Scanner). They exist
 side by side because the native feature has a real gap: Dependabot
 doesn't support the one ecosystem this repo actually has dependencies
 in. This page is the single place to read the whole picture; see
-`docs/solution-proposals/security-scanning.md` (#62) for the full
+`docs/solution-proposals/security-scanning.md` for the full
 investigation and decision behind it, and
 [`ci.md`](ci.md#security-scan-workflow) for the OSV-Scanner workflow's
 CI mechanics specifically (trigger shape, steps, how it differs from
@@ -34,7 +34,7 @@ one CI job, both ecosystems, so npm ends up covered twice (redundant,
 but harmless) and Haskell ends up covered at all.
 
 There's currently no `package.json`/`package-lock.json` in the repo —
-an earlier orphaned `wifi-password` entry was removed in #100 — so the
+an orphaned `wifi-password` entry has since been removed — so the
 npm side of both mechanisms has nothing to scan today. Both are
 deliberately kept ready to go the moment real JS dependencies exist
 again (see the `npm` entry in `.github/dependabot.yml`).
@@ -69,9 +69,9 @@ run's job summary — there's no separate dashboard. See
 [`ci.md`'s "Security scan workflow"](ci.md#security-scan-workflow)
 section for the exact steps and trigger reasoning.
 
-It originally also ran on every PR into `main`, to catch a newly
+It deliberately does not run on every PR into `main` to catch a newly
 *introduced* vulnerable dependency at the point it landed. That half
-was dropped in #136: a per-PR run kept surfacing findings unrelated to
+is deliberately not a PR check: a per-PR run kept surfacing findings unrelated to
 what the given PR actually changed, on an informational-only check
 nothing could act on from inside that PR anyway. The weekly `schedule`
 alone still covers what a PR trigger structurally can't — a dependency
@@ -93,7 +93,7 @@ section describes for `test.yml`.
   up as a normal PR from the `dependabot[bot]` author.
 - **OSV-Scanner findings**: the **job summary** of the relevant
   `security-scan.yml` run, found in the workflow's own run history —
-  it's schedule-only (#136), so there's no PR to attach it to. There's
+  it's schedule-only, so there's no PR to attach it to. There's
   no other surface for these; don't expect a Security-tab entry, since
   this workflow deliberately doesn't upload SARIF to Code Scanning (see
   `ci.md`'s explanation of why it uses the raw scanner action instead of
