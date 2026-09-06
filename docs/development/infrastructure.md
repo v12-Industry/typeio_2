@@ -1,6 +1,6 @@
 # Infrastructure
 
-Repo-level configuration that used to be set up by hand via the GitHub
+Repo-level configuration that would otherwise be set by hand via the GitHub
 API/UI (branch protection on `main`, currently) is managed as code under
 `infrastructure/`, using [OpenTofu](https://opentofu.org/) + Terragrunt.
 This is the first piece of what may grow into environment-based cloud
@@ -65,7 +65,7 @@ workspace created by hand first.
 also verified working, including that OpenTofu's `cloud` block does
 genuinely talk to it, confirmed by running `tofu init` against
 `hostname = "app.terraform.io"` and getting a real `tofu login` prompt
-rather than a rejection. Switched to GCS per review on #46/#85 once GCP
+rather than a rejection. Switched to GCS on review once GCP
 was confirmed as the likely target — no cloud-agnostic backend is worth
 preferring over the real one once that's settled.)
 

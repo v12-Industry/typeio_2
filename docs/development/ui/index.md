@@ -22,7 +22,7 @@ this directory, in
 [`docs/architecture/graph-rendering.md`](../../architecture/graph-rendering.md)
 — it covers the pipeline's structure, contracts and invariants, which is
 what `architecture/` is for and what `development/` is not. Built across
-#172–#183.
+the layered graph-rendering work.
 
 See also [`docs/development/frontend/`](../frontend/) for how htmx and
 hyperscript — the client-side libraries doing the swapping and the small

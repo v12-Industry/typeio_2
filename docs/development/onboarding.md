@@ -54,9 +54,9 @@ a demo project, **Public API launch**, with seven work nodes and real
 dependencies between them. It is idempotent — running it twice leaves
 one demo project.
 
-The demo project is there because until #243 the seed inserted
+The demo project is there because the seed once inserted
 reference data only, and there is still no way to create a dependency
-through the UI (#205) — so a freshly seeded database drew every graph
+through the UI — so a freshly seeded database drew every graph
 as a handful of disconnected nodes with no edges, in every
 visualization. Its shape is deliberate: three heads, and one node (the
 auth service) that three separate outcomes are waiting on. That shared

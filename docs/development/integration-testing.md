@@ -106,20 +106,20 @@ itself — worth getting right here too:
   `Integration.Support.seedProjectWithRootNode` — plain `insert` calls,
   not routed through the app's seed mechanism. Centralized in
   `Integration.Support` since every mutating-responder integration test
-  (this pilot and its follow-ups, #66–#69) needs the same starting
+  (this pilot and its follow-ups) needs the same starting
   point, but it is fixture data for tests, not reference data for the
   app, and the two aren't merged into one mechanism.
 
 ## What's actually covered
 
 All five write/mutate handlers now have integration coverage: the pilot
-plus its four follow-ups (#66–#69), each asserting against actual
+plus four follow-ups, each asserting against actual
 inserted/updated rows after driving the handler through
 `Network.Wai.Test.runSession`/`srequest`, form-encoded the same way a
 real client would submit it.
 
 - **`Domain.Project.Responder.Api.Node.Post.handlePostNode`** (the
-  pilot, #65 —
+  pilot —
   `test-integration/Domain/Project/Responder/Api/Node/PostSpec.hs`) —
   chosen because it's a real, multi-table, foreign-key-and-join-driven
   write (`Project`, `NodeStatus`, `NodeType`, `Node`, `Dependency`), the
@@ -128,24 +128,24 @@ real client would submit it.
   `Dependency` edge to the root) and a failure path (404 for a
   nonexistent project).
 - **`Domain.Project.Responder.Ui.ProjectManage.Node.Description.handlePutDescription`**
-  (#66 —
+  (
   `test-integration/Domain/Project/Responder/Ui/ProjectManage/Node/DescriptionSpec.hs`)
   — seeds a project/root node via `seedProjectWithRootNode`, then covers
   the success path (the `Node`'s `description` column is replaced) and a
   failure path (500 for a nonexistent node).
 - **`Domain.Project.Responder.Ui.ProjectManage.Node.Status.handlePutNodeStatus`**
-  (#67 —
+  (
   `test-integration/Domain/Project/Responder/Ui/ProjectManage/Node/StatusSpec.hs`)
   — same seeding, covers the success path (the `Node`'s
   `NodeStatus` foreign key is updated to the seeded `closed` status) and
   a failure path (404 for a nonexistent node).
 - **`Domain.Project.Responder.Ui.ProjectManage.Node.Title.handlePutTitle`**
-  (#68 —
+  (
   `test-integration/Domain/Project/Responder/Ui/ProjectManage/Node/TitleSpec.hs`)
   — same seeding, covers the success path (the `Node`'s `title` column
   is replaced) and a failure path (404 for a nonexistent node).
 - **`Domain.Project.Responder.Ui.ProjectCreate.Submit.handleProjectSubmit`**
-  (#69 —
+  (
   `test-integration/Domain/Project/Responder/Ui/ProjectCreate/SubmitSpec.hs`)
   — unlike the others, this handler *creates* the `Project`/root `Node`
   rather than mutating an existing one, so it needs no

@@ -1,44 +1,5 @@
 # Visualization Switching
 
-> **Status: built.** A `visualizationMode` query parameter selects the
-> drawing, and three visualizations exist: `Layered`, `Rootless` and
-> `Orbital`. #213 wrote this design down before any of them, so the
-> conventions were decided deliberately rather than set by whichever
-> implementation landed first; #215 built the switch and the second
-> visualization, #229–#241 the third.
->
-> **The selection mechanism was replaced in #223, deliberately
-> reversing what #213 decided.** This document used to say, flatly, that
-> the choice happens "once, when the container is constructed — not per
-> request, and not from a query parameter", and `GRAPH_VISUALIZATION`
-> was that config value. It is gone. The reasoning that replaced it is
-> in [Absent takes the default; wrong is an
-> error](#absent-takes-the-default-wrong-is-an-error) and [The app has
-> been here before](#the-app-has-been-here-before-and-it-is-not-the-same-mistake).
->
-> Recorded plainly because `CLAUDE.md`'s #50 note warns that a
-> documented decision is not proof of current behaviour — here the
-> hazard is the opposite one: a decision that *was* built, and was then
-> deliberately undone.
->
-> **The isolation rule changed while it was being built, deliberately.**
-> #213 said visualizations share *no* code and each owns a private copy
-> of everything, including the layout engine. Building #215 priced that:
-> it meant duplicating a ~1,500-line geometry engine so that one
-> visualization could decline to draw one node, and every future fix to
-> that geometry — #214's component packing was one, landed the same day —
-> would have had to be applied twice. That was judged utopian and
-> revised. The rule now draws the line at *policy* rather than at
-> *directory*, and [The isolation rule](#3-the-isolation-rule) below is
-> the current, normative version.
->
-> **The seam moved again in #233, for the same reason the rule did:**
-> the version written here could not express a visualization that is not
-> layered, because `BuildGraph` returns a `ServerGraph` and a
-> `ServerGraph` carries a `Diagram`. It is now `RenderGraph` — rows in,
-> finished fragment out. That is a widening, not a reversal: what is
-> shared, and the flag test, are unchanged.
-
 The dependency graph may be the most important thing in this
 application, and there is more than one good way to draw it. This
 describes how the app holds several visualizations at once and picks
@@ -64,8 +25,8 @@ only in which nodes and edges they hand it.
 
 data Visualization
   = Layered   -- root heads the drawing; containment edges derived
-  | Rootless  -- the work only, nothing forced to converge (#215)
-  | Orbital   -- radial, rootless, shared dependencies replicated (#229)
+  | Rootless  -- the work only, nothing forced to converge
+  | Orbital   -- radial, rootless, shared dependencies replicated
   deriving (Eq, Read, Show)
 
 defaultVisualization :: Visualization
@@ -73,9 +34,9 @@ defaultVisualization = Orbital
 ```
 
 Parsed with `valRead`, so the value is the constructor name, exactly how
-`ENV` parses into `Config.App.EnvironmentName`. `Orbital` is the first
-value here that selects a drawing built on something other than the
-layered engine — see
+`ENV` parses into `Config.App.EnvironmentName`. `Orbital` is the only
+value that selects a drawing built on something other than the layered
+engine — see
 [`orbital-dependency-weighted-graph.md`](orbital-dependency-weighted-graph.md).
 
 ### Absent takes the default; wrong is an error
@@ -90,21 +51,19 @@ The two cases are deliberately not the same:
 | `visualizationMode=orbital` | **403** — `Read` is case-sensitive on constructor names |
 | `visualizationMode=` (empty) | **403** — present and unparseable, not absent |
 
-That last row is worth knowing because the friendlier reading is
+A value somebody got **wrong** fails loudly rather than falling back,
+because a server quietly drawing the wrong graph does not announce
+itself — it surfaces much later as "the graph looks wrong". A value
+nobody supplied is not that; it is an ordinary link, and it takes the
+default.
+
+The empty case is worth knowing because the friendlier reading is
 tempting. `lookupVal` returns `Just ""` for an empty parameter, so it is
 a value that does not parse rather than a missing one, and every other
-optional query parameter in this app already behaves that way —
-`?nodeId=` is rejected the same way by `ProjectManage.View`'s own
-`valRead`. Special-casing this one field would make "empty" mean
-something different depending on which parameter you left blank.
-
-`GRAPH_VISUALIZATION` (#215–#223) had no fallback at all: a missing or
-unparseable value failed at boot, on the reasoning that a server quietly
-drawing the wrong graph does not announce itself — it surfaces much
-later as "the graph looks wrong". **That reasoning survives for a value
-somebody got wrong**, which is why an unrecognised mode is an error
-rather than a fallback. It never applied to a value nobody supplied,
-which is just an ordinary link.
+optional query parameter in this app behaves that way — `?nodeId=` is
+rejected the same way by `ProjectManage.View`'s own `valRead`.
+Special-casing this one field would make "empty" mean something
+different depending on which parameter you left blank.
 
 Expressed as one ordinary `runValidation` pipeline, like every other
 validator in the app:
@@ -116,24 +75,18 @@ lookupVal "visualizationMode" qt
   >>= orDefault defaultVisualization
 ```
 
-`orDefault` is what makes that possible, and it was added to
-`Common.Validation` for this (#223). It is the counterpart to
+`orDefault` is what makes that possible. It is the counterpart to
 `isThere` — that one says "absence is an error", this says "absence is
-fine, use this instead" — and the module could not previously express
-the second. Crucially it **fills a missing value without suppressing a
-bad one**: an error already recorded still fails the whole validation,
-so an absent field takes the default while a present-but-wrong one is
-still rejected. It has to come last in a chain, for the reason its own
-docs give.
+fine, use this instead". Crucially it **fills a missing value without
+suppressing a bad one**: an error already recorded still fails the whole
+validation, so an absent field takes the default while a
+present-but-wrong one is still rejected. It has to come last in a chain,
+for the reason its own docs give.
 
 Without it, a pipeline ending in an absent optional field hands
 `runValidation` a `(Nothing, [])` — no value and no errors — which it
 reports as `"Unknown error in validation"`, because it is built for
-fields that must end up present. The first version of this change
-worked around that by validating the visualization separately from the
-rest of the form; splitting one pipeline into two to dodge a gap in the
-validation vocabulary was the wrong trade, and the gap is now closed
-instead.
+fields that must end up present.
 
 ### The default is "whichever was added most recently"
 
@@ -177,28 +130,12 @@ Worth knowing, because it is the part that is easy to get wrong: the
 browser navigates to `/ui/project/vw`, and the drawing arrives by a
 *separate* htmx request to `/ui/project/graph`. So the project page
 resolves `visualizationMode` and forwards it into that link
-(`ProjectManage.Link.graphLink`). A parameter on the page URL alone
-would do nothing at all.
+(`ProjectManage.Link.graphLink`). **A parameter on the page URL alone
+would do nothing at all.**
 
 It is forwarded as a rendered constructor name, never as text passed
 through from the request, so nothing a caller sends can end up
 concatenated into the link.
-
-### The app has been here before, and it is not the same mistake
-
-`?layout=server` was a request-time flag, removed in #181/#192. It is
-worth saying why bringing one back is not a reversal of that decision:
-`layout=server` selected between a server-rendered graph and a
-client-rendered one *while both existed*, and it was removed because
-nothing in the UI ever set it and the alternative it selected was gone.
-It was a migration flag that outlived its migration.
-
-`visualizationMode` selects between drawings that are all meant to
-exist, all reachable, and all worth looking at. The cost that the
-boot-time switch avoided — every drawing live in one process — is the
-point rather than a side effect: it is what lets one link show a
-colleague the orbital view of the same project without redeploying
-anything.
 
 ## 3. The isolation rule
 
@@ -218,7 +155,7 @@ project, the error responses — is shared and identical whichever drawing
 is selected.
 
 **A layered visualization does not write one of these by hand.** It
-composes the two shared pieces it already had:
+composes two shared pieces:
 
 ```haskell
 renderGraph pid ns ds = templateServerGraph (buildGraph pid ns ds)
@@ -228,12 +165,12 @@ type BuildGraph = Int64 -> [Entity M.Node] -> [Entity M.Dependency] -> ServerGra
 
 `Layered.buildGraph` keeps every node and derives the root's containment
 edges; `Rootless.buildGraph` drops the root, derives nothing, and drops
-any stored edge that referred to it. That one function is still the
-whole of what those two differ by.
+any stored edge that referred to it. That one function is the whole of
+what those two differ by.
 
-#### Why the seam is at *render*, not at *build* (#233)
+#### Why the seam is at *render*, not at *build*
 
-`BuildGraph` was the seam until #233, and it could not stay there. A
+`BuildGraph` cannot express a visualization that is not layered. A
 `ServerGraph` carries a `Diagram`, and `serverGraph` produces one by
 calling the layered layout engine:
 
@@ -245,13 +182,9 @@ serverGraph pid lns les =
 So every drawing expressible through `BuildGraph` is a layered one *by
 construction* — `PlacedNode` has no angle, `PlacedEdge` is a polyline
 with jump points, and `templateServerGraph` renders rects and orthogonal
-paths. The escape hatch this document already promised below ("a
-visualization that is not layered at all … brings its own geometry") was
-not actually reachable through the seam as written.
-
-Moving the seam out one step costs the layered visualizations one line
-each and lets a radial or force-directed one import neither the engine
-nor the template.
+paths. Putting the seam one step further out costs the layered
+visualizations one line each and lets a radial or force-directed one
+import neither the engine nor the template.
 
 ### What is shared
 
@@ -260,7 +193,7 @@ nor the template.
 | `Domain.Project.Graph.*` — the layered layout engine | Geometry, not policy. It takes nodes and edges and returns coordinates; it has no opinion about which nodes it was given. One copy means one place to fix a layout bug. |
 | `Domain.Project.Model` and the esqueleto queries | The domain, not a drawing of it. Two visualizations asking the same question of the database is not coupling; duplicating the query would let them silently disagree about what "the project" is. |
 | Request parsing, error responses (`handleGraphWith`) | Identical whichever drawing is selected. |
-| `graphFrame` — the navigable shell (#242) | The viewport, not the drawing. Six load-bearing details (no `viewBox`, the base-size attributes, `#graph-zoom-layer`, the origin shift, the anchor conversion, and the script tag living *inside* the fragment) that every visualization needs identically and none of which are apparent from the markup. Hand-rolling it gets pan/zoom subtly wrong with nothing to catch it. |
+| `graphFrame` — the navigable shell | The viewport, not the drawing. Six load-bearing details (no `viewBox`, the base-size attributes, `#graph-zoom-layer`, the origin shift, the anchor conversion, and the script tag living *inside* the fragment) that every visualization needs identically and none of which are apparent from the markup. Hand-rolling it gets pan/zoom subtly wrong with nothing to catch it. |
 | The SVG vocabulary — `edgeLine`, `nodeGroup`, `nodeLabel`, `arrowMarker`, `templateServerGraph` | Presentation primitives, the same tier as `Common.Web.Elements`. Available to any visualization; used in practice by the layered ones, since they are what draws rects and orthogonal paths. |
 | `Data.*` / `Common.*` utilities | General-purpose library code. `wrapLabel` wraps text; it does not know what a graph is. |
 
@@ -272,7 +205,7 @@ one `BuildGraph` — which nodes exist, which edges exist, and whether any
 are derived — because they agree on everything downstream of it. A
 visualization that agrees on less simply shares less.
 
-### What a visualization must publish (#234)
+### What a visualization must publish
 
 The seam above says what a visualization *supplies*. This is the one
 thing it *owes* the rest of the app:
@@ -286,10 +219,9 @@ edit — select on that attribute, so they work on any drawing without
 knowing which one is on screen.
 
 **Why an attribute and not the element id.** An id encodes an
-assumption: exactly one element per node. That held while every
-visualization drew a node once. The orbital visualization (#229) draws a
-node once per dependent, and under an id-based selector every one of
-these hooks silently degrades to "whichever element the browser matched
+assumption: exactly one element per node. The orbital visualization
+draws a node once per dependent, and under an id-based selector every
+one of these hooks degrades to "whichever element the browser matched
 first" — the panel highlights one arbitrary copy, the edit flashes a
 different one, and nothing errors.
 
@@ -310,33 +242,32 @@ behaviour somewhere the reader of the markup cannot see it.
 
 **`hx-target` is the exception, and it needs a different answer.** An
 `hx-target` swaps one element however many match, so the per-node label
-refresh cannot be fixed by changing its selector — see #244.
+refresh cannot be fixed by changing its selector: each drawn element
+carries its own hook aimed at its own label.
 
 `#node-<id>` remains on the layered drawings alongside the attribute:
 `graph-rendering.md` lists it as a contract and `graph.spec.ts` locates
-nodes by it. This is additive.
+nodes by it. The attribute is additive.
 
 ### Where the seam moves if a visualization needs more
 
-The shared pieces are shared because nothing yet needs them to differ,
-not because they may never. A visualization that wants its own document
+The shared pieces are shared because nothing needs them to differ, not
+because they may never. A visualization that wants its own document
 assembly — a frame drawn around the work instead of a root node, say —
 writes its own `RenderGraph` and does not call `templateServerGraph`,
 rather than bending the shared one with a flag. A visualization that is
 not layered at all — a radial or force-directed one — simply does not
 import `Domain.Project.Graph.*`; it brings its own geometry.
 
-**Since #233 both of those are reachable rather than aspirational.**
-Declining the engine and declining the template are now the same kind of
-act: don't import it. Nothing has to be parameterised for a
-visualization to opt out of either.
+Both are ordinary acts rather than special cases: declining the engine
+and declining the template are the same thing, which is not importing
+it. Nothing has to be parameterised for a visualization to opt out of
+either.
 
 **The rule to hold is that a flag never crosses the seam.** If a shared
 function grows a parameter whose only purpose is to say which
 visualization is calling, that function has stopped being shared
 infrastructure and should be moved into the visualizations that need it.
-That is the failure mode the original no-shared-code rule was reaching
-for, and it is worth keeping even though the blanket version was not.
 
 ## 4. Directory layout
 
@@ -345,34 +276,40 @@ lib/src/Domain/Project/
   Graph/                     -- shared: the layered layout engine
     Types.hs  Layer.hs  Order.hs  Coord.hs  Route.hs  Layout.hs
     Containment.hs           -- root-to-work derivation, used by Layered
+  Orbit/                     -- the orbital visualization's own geometry
+    Types.hs  Unfold.hs  Layout.hs
   Visualization/
     Common.hs                -- shared: queries, request/response, SVG
     Layered/Responder.hs     -- buildGraph: root included
     Rootless/Responder.hs    -- buildGraph: root left out
+    Orbital/                 -- radial; imports no Graph.* at all
+      Responder.hs  View.hs
 ```
 
-`Domain.Project.Graph.*` did not move. It was already a pure,
-dependency-free, visualization-agnostic tier — the neutral home the
-revised rule calls for — so making it shared was a matter of saying so,
-not of relocating it.
+`Domain.Project.Graph.*` and `Domain.Project.Orbit.*` are siblings, not
+a hierarchy: both are pure, dependency-free geometry tiers, and neither
+imports the other. A visualization uses whichever suits the drawing it
+makes, or brings a third.
 
 ## 5. Testing
 
-- **The shared engine stays in the unit tier.** It is pure and
+- **Both geometry tiers stay in the unit tier.** They are pure and
   dependency-free (`docs/development/unit-testing.md`), and the hard
   rule in [`graph-rendering.md`](graph-rendering.md) — no `Database.*`,
   `persistent`, `Esqueleto`, `Lucid` or `Network.Wai` under
-  `Domain.Project.Graph.*` — is what keeps it there.
+  `Domain.Project.Graph.*`, and the same under `Domain.Project.Orbit.*`
+  — is what keeps them there.
 - **Each visualization's conversion is integration-tested**, because it
   takes `Entity` values and renders markup. `Rootless.ResponderSpec`
   asserts what its conversion decides: no root drawn, no containment
   derived, root-referring edges dropped — plus the positive case, since
   every one of those would also pass on a visualization that drew
   nothing at all.
-- **Every visualization is exercised**, not only the configured one.
-  Both specs construct their handler directly rather than reading
-  `GRAPH_VISUALIZATION`, so adding a visualization cannot quietly change
-  what an existing test asserts.
+- **Every visualization is exercised**, not only the default one. Each
+  spec constructs its handler directly, so adding a visualization cannot
+  quietly change what an existing test asserts. The switch itself is
+  covered separately, driving `handleGraph` with the real `renderFor`
+  table so a spec cannot pass against a table that has lost an entry.
 
 ## 6. How an issue says which visualization it is for
 

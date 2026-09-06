@@ -11,9 +11,9 @@ is the per-visualization reference for what each one actually draws.
 
 - **Layered** (`viz:layered`) — the project root heads the drawing, with
   its edges to the work derived. Doc tracked in
-  [#225](https://github.com/v12-Industry/typeio_2/issues/225).
+  a doc of its own.
 - [**Rootless**](rootless.md) — the work only, with the project root left
-  out entirely (`viz:rootless`, #215).
+  out entirely (`viz:rootless`).
 
 Both share one layout engine and SVG vocabulary — see
 [`../../architecture/graph-rendering.md`](../../architecture/graph-rendering.md)

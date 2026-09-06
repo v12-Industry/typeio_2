@@ -6,17 +6,15 @@ conventions a change in that area has to respect.
 
 - [**Graph rendering**](graph-rendering.md) — the layered layout engine:
   its pipeline and SVG rendering. Shared infrastructure, used by every
-  visualization that wants layered geometry. *Status: built
-  (#172–#183, #190, #198, #214).*
+  visualization that wants layered geometry.
 - [**Visualization switching**](visualization-switching.md) — how the
   app holds several visualizations of the dependency graph and selects
-  one by configuration, and where the line between shared and
-  per-visualization falls. *Status: built (#213, #215).*
+  one per request, and where the line between shared and
+  per-visualization falls.
 - [**Orbital dependency-weighted graph**](orbital-dependency-weighted-graph.md)
-  — a third visualization: the dependency graph unfolded into a forest
-  of radial trees, one per head, replicating a shared dependency into
-  every work stream that waits on it so that the drawing contains no
-  crossing edges at all. *Status: not built (specified in #229).*
+  — the dependency graph unfolded into a forest of radial trees, one per
+  head, replicating a shared dependency into every work stream that
+  waits on it so that the drawing contains no crossing edges at all.
 
 ## How this differs from the other two doc directories
 
@@ -34,15 +32,15 @@ plainly and shows which parts exist. `development/` may not: if
 something is described there, it is supposed to be true today.
 
 That is the whole reason this directory exists. Work large enough to
-span many issues needs a stable reference *while it is being built* —
-otherwise every issue re-derives the design from a solution proposal,
+span many changes needs a stable reference *while it is being built* —
+otherwise each change re-derives the design from a solution proposal,
 which is explicitly a point-in-time record and not a live source of
-truth (see `CLAUDE.md`'s note on the #50 incident).
+truth.
 
 **A doc here doesn't graduate to `development/` when the work lands.**
-Its status markers come off and it stays put — the module map and phase
-contracts are just as useful after shipping, and they are a different
-kind of document from "how to run the E2E suite".
+It stays put — the module map and contracts are just as useful after
+shipping, and they are a different kind of document from "how to run the
+E2E suite".
 
 ## A known inconsistency
 

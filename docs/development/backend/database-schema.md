@@ -174,7 +174,7 @@ wrote a row per new node pointing at the project root, to mean
 "belongs to this project", duplicating `project_id` into a table that
 means something else entirely. The graph read those rows as real
 dependencies and drew the project root beneath every node in the
-project (#198). Migration `000009` removed them, and nothing writes
+project. Migration `000009` removed them, and nothing writes
 them now; the graph derives membership from `project_id` instead. If
 you are adding a writer here, it should be recording a genuine
 dependency between two pieces of work.

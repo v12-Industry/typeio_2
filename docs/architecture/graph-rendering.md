@@ -1,17 +1,12 @@
 # Dependency Graph Rendering — the layered visualization
 
-> **Status: built.** Everything below describes what the app actually
-> does. The pipeline shipped across #173–#182 and this document was
-> reconciled against the result in #183; the phase-by-phase status table
-> that used to sit here is gone because every row reached ✅.
->
 > **The pipeline below is shared; the drawing it produces is not.**
 > `Domain.Project.Graph.*` is the layered layout engine, and it is
 > *shared infrastructure* — any visualization that wants layered
-> geometry uses this one copy. Two do: `viz:layered` and `viz:rootless`
-> (#215), which differ only in what they hand the engine, not in how the
-> engine works. Which drawing the app serves is selected by
-> a `visualizationMode` query parameter (#223); see
+> geometry uses this one copy. Two do: `viz:layered` and `viz:rootless`,
+> which differ only in what they hand the engine, not in how the engine
+> works. Which drawing the app serves is selected by a
+> `visualizationMode` query parameter; see
 > [`visualization-switching.md`](visualization-switching.md) for the
 > switch and for where the line between shared and per-visualization
 > falls.
@@ -25,12 +20,11 @@
 > upper node is waiting on the lower one", but only some are *stored*.
 > The root-to-work edges are derived from `node.project_id` rather than
 > read from `project.dependency`, and the root attaches only to the
-> *heads* of the work, not to every node (#211). See
-> [Stored edges and derived ones](#stored-edges-and-derived-ones-198-206).
+> *heads* of the work, not to every node. See
+> [Stored edges and derived ones](#stored-edges-and-derived-ones).
 
-Built by #173–#183, from the spike in #169. The graph is rendered
-server-side as finished SVG: there is no client-side layout code, and
-no graph data is sent to the browser.
+The graph is rendered server-side as finished SVG: there is no
+client-side layout code, and no graph data is sent to the browser.
 
 For *why* any of this was chosen — the options weighed, the algorithms
 rejected, the requirements derived from the reference images — see
@@ -46,17 +40,15 @@ design; that directory covers the day-to-day.
 
 ## What this is, in one paragraph
 
-The project dependency graph went from "server sends JSON, client
-computes positions with D3" to "server computes positions, client
-receives finished SVG". Layout is a pure Haskell pipeline of the
+The server computes positions and the client receives finished SVG.
+Layout is a pure Haskell pipeline of the
 [layered graph drawing](https://en.wikipedia.org/wiki/Layered_graph_drawing)
 family (nodes in rows by dependency depth, edges as right-angle
-polylines), rendered to SVG by the existing Lucid vocabulary. The
-~280KB D3 that used to load on every page in the app — not just the one
-with a graph on it — is gone, and no graph data is sent to the browser.
+polylines), rendered to SVG by the Lucid vocabulary. No graph data is
+sent to the browser, and no JavaScript computes a position.
 
 D3 does appear once more on the client, and the distinction matters:
-#208's viewport uses `d3-zoom` to pan and zoom the finished drawing.
+The viewport uses `d3-zoom` to pan and zoom the finished drawing.
 That is a *gesture* library, not a layout one — it moves a single
 transform and never reads the graph's structure — and it is ~47KB
 loaded only by the graph fragment. See [Viewport](#viewport).
@@ -81,16 +73,16 @@ responder does the I/O on either side of it and nothing else.
 
 ## Module map
 
-| Module | Owns | Issue |
-|---|---|---|
-| `Domain.Project.Graph.Types` | Every type below; no logic | #173 |
-| `Domain.Project.Graph.Containment` | Which work the root attaches to | #211 |
-| `Domain.Project.Graph.Layer` | Cycle breaking, layer assignment, dummy insertion | #173, #176 |
-| `Domain.Project.Graph.Order` | Crossing reduction, crossing counter | #177 |
-| `Domain.Project.Graph.Coord` | x/y assignment, component packing | #174 |
-| `Domain.Project.Graph.Route` | Ports, tracks, polylines, line jumps | #175, #180 |
-| `Domain.Project.Graph.Layout` | The pipeline; the one entry point callers use | #173 |
-| `Domain.Project.Responder.Ui.ProjectManage.Graph` | Queries, entity → layout conversion, SVG rendering | #173 |
+| Module | Owns |
+|---|---|
+| `Domain.Project.Graph.Types` | Every type below; no logic |
+| `Domain.Project.Graph.Containment` | Which work the root attaches to |
+| `Domain.Project.Graph.Layer` | Cycle breaking, layer assignment, dummy insertion |
+| `Domain.Project.Graph.Order` | Crossing reduction, crossing counter |
+| `Domain.Project.Graph.Coord` | x/y assignment, component packing |
+| `Domain.Project.Graph.Route` | Ports, tracks, polylines, line jumps |
+| `Domain.Project.Graph.Layout` | The pipeline; the one entry point callers use |
+| `Domain.Project.Responder.Ui.ProjectManage.Graph` | Queries, entity → layout conversion, SVG rendering |
 
 ### The one hard rule
 
@@ -145,7 +137,7 @@ constructors are the guard rail, because they take their arguments in
 the relationship's own terms. Generic field names are what let the
 previous renderer point its arrowheads at the wrong end for as long as
 it did, and writing the root's edge the wrong way round is what sank the
-root to the bottom of the drawing for eight issues (#198).
+root to the bottom of the drawing.
 
 ```haskell
 data Point = Point { ptX :: Double, ptY :: Double }
@@ -230,7 +222,7 @@ is drawn above the work it is waiting on. Layering by *dependencies*
 instead (a node with no dependencies at layer 0) would invert the
 drawing and put the leaf tasks on top.
 
-### Stored edges and derived ones (#198, #206)
+### Stored edges and derived ones
 
 An edge carries an `EdgeKind`. **Both kinds draw the same thing** — the
 upper node is waiting on the lower one, arrowhead on the upper end. What
@@ -246,18 +238,17 @@ A project is not complete until its tasks are, so the root genuinely
 depends on every node under it, and the arrow points into the root:
 this work feeds the project.
 
-What #198 fixed was never that relationship — it was that the app
-*stored* it, as a `project.dependency` row per node pointing at the
-root, duplicating `project_id` and pointing the wrong way. Deriving it
-instead puts the root at the head and leaves `project.dependency`
-meaning only what somebody explicitly recorded.
+Membership is **derived, never stored**. `node.project_id` already
+records it, so writing a `project.dependency` row per node to say the
+same thing would duplicate that column — and a `project.dependency` row
+means a genuine ordering between two pieces of work and nothing else.
 
 Build edges with `dependsOn`/`contains` rather than the `LayoutEdge`
 record: the constructors take their arguments in the relationship's own
 terms, which is the only thing that has reliably stopped this being
 written backwards.
 
-#### Which work the root attaches to (#211)
+#### Which work the root attaches to
 
 Derived does not mean "one per node". `Graph.Containment` attaches the
 root to the **heads** of the work — nodes nothing else is waiting on —
@@ -265,10 +256,10 @@ and to nothing else. A node further down already hangs below a head and
 reaches the root that way, so the rule a reader can hold onto is: **a
 node is attached to the root, or to other work, never both.**
 
-Attaching the root to every node, which is what #198 did when it first
-derived these, draws the project's real shape and then buries it. On a
-chain of five, the root fanned out to all five on top of the four edges
-that described the actual work, and it got worse the larger the project.
+Attaching the root to every node instead draws the project's real shape
+and then buries it: on a chain of five, the root fans out to all five on
+top of the four edges that describe the actual work, and it gets worse
+the larger the project.
 
 Two cases keep the drawing whole, and both are why this is a function
 with tests rather than a filter inline:
@@ -283,26 +274,20 @@ with tests rather than a filter inline:
   which edge it reversed: which edge breaks a cycle is layout's own
   business, and membership should not depend on that choice.
 
-A stored row that already puts the root above a node (the
-pre-migration-000009 shape) counts as attached, so no second edge is
-derived beside it.
+A stored row that already puts the root above a node counts as attached,
+so no second edge is derived beside it.
 
-> ⚠️ **This section previously asserted the opposite, and it cost eight
-> issues.** It claimed the root "depends on its work, so the work
-> descends from it". The app recorded the reverse: `POST
-> /api/project/nodes` wrote a `project.dependency` row per node pointing
-> at the root, to mean "belongs to this project". Layering then
-> correctly drew each dependent above what it waits on, so the root sank
-> beneath everything in the project.
+> ⚠️ **Never record project membership as a `project.dependency` row.**
+> A row pointing from a node *at* the root says "the root depends on
+> this node" — and layering, working correctly, then draws every node
+> above the root and sinks it to the bottom of the drawing. The layout
+> rule is not what breaks; the relationship it is handed is. Membership
+> comes from `node.project_id`, and the root's edges are derived from
+> it.
 >
-> Nothing caught it until #181 made the graph reachable in a browser and
-> someone looked at it. The layout rule was right the whole time; the
-> relationship it was handed was wrong.
->
-> Membership is now derived from `project.node.project_id`, which
-> already recorded it — migration 000009 removed the duplicated rows,
-> and a `project.dependency` row means a genuine ordering between two
-> pieces of work and nothing else.
+> This failure is invisible from the code and from the tests: both the
+> write and the layout are individually doing what they say. It shows up
+> only by looking at the drawing.
 
 **Guarantees:** every edge spans at least one layer, in a consistent
 direction. Layers are contiguous from 0. Disconnected components are
@@ -359,8 +344,8 @@ crossings to zero.
 `y = layer * (nodeHeight + cfgLayerGap)`. `x` by the priority/median
 method: each node wants the median x of its neighbours in the adjacent
 layer; conflicts resolved in priority order (by number of connections
-into that layer — and, once #176 lands, dummy chains first so long edges
-stay straight), pushing lower-priority neighbours aside to preserve
+into that layer, with dummy chains first so long edges stay straight),
+pushing lower-priority neighbours aside to preserve
 `cfgNodeGap`. Four alternating down/up passes.
 
 An even number of neighbours averages the middle two rather than picking
@@ -394,10 +379,9 @@ this safe to run after phase 4 has already chosen an order:
 A component is only ever pushed right, never pulled left, so a drawing
 whose components were already clear of each other comes back untouched.
 
-This was scoped in #174 and shipped without it — none of that issue's
-acceptance criteria covered it — while this document recorded it as
-delivered anyway. #214 is the record of that gap and of the fixture that
-exposed it, now pinned by tests in both `CoordSpec` and `LayoutSpec`.
+Pinned by tests in both `CoordSpec` and `LayoutSpec`: placement alone
+looks correct on small graphs, and the packing is only visibly needed
+once a component is narrow at the top and wide further down.
 
 **Guarantees:** no two node boxes overlap; every pair is at least
 `cfgNodeGap` apart horizontally.
@@ -426,7 +410,7 @@ exposed it, now pinned by tests in both `CoordSpec` and `LayoutSpec`.
 - **Polylines.** Vertical out of the source port, horizontal along the
   track, vertical into the target port — at most two bends per adjacent-
   layer edge.
-- **Line jumps** (#180): after routing, horizontal/vertical crossings
+- **Line jumps**: after routing, horizontal/vertical crossings
   get a small arc in the horizontal segment so the reader can see the
   lines don't connect. In an orthogonal drawing nothing otherwise
   separates "these cross" from "these meet" — both are a black `+`.
@@ -449,7 +433,7 @@ exposed it, now pinned by tests in both `CoordSpec` and `LayoutSpec`.
 
   Worth knowing: these fire often. Across 1200 generated graphs, 57%
   had at least one. What K(2,2) produces is *not* one of them — that
-  shape's conflict is a shared vertical column (#190), an overlap rather
+  shape's conflict is a shared vertical column, an overlap rather
   than a crossing, which is why a jump fixture has to be a little larger
   than the obvious one.
 
@@ -459,10 +443,10 @@ exposed it, now pinned by tests in both `CoordSpec` and `LayoutSpec`.
   owns y.
 
 **Guarantees:** every segment is axis-aligned. No two runs from
-different edges overlap collinearly, horizontal or vertical (#190).
+different edges overlap collinearly, horizontal or vertical.
 **No polyline intersects a node box** — unconditional, including
-multi-row edges, since #176 gives each one a reserved lane rather than
-leaving it to miss the rows it passes by luck.
+multi-row edges, since each one gets a reserved lane rather than being
+left to miss the rows it passes by luck.
 
 A multi-row edge bends at each end and runs straight in between, so it
 occupies exactly three columns: the port it leaves, the lane it travels,
@@ -470,7 +454,7 @@ and the port it arrives at. More than two bends on such an edge is
 expected — "at most two bends" is a property of a single segment, not of
 a whole edge.
 
-**Separating shared columns (#190).** Two edges whose port columns
+**Separating shared columns.** Two edges whose port columns
 coincide would draw their vertical runs on top of each other wherever
 those runs overlap in y — not a crossing, an overlap, which renders as
 one edge instead of two. A lower port landing on a column another edge
@@ -503,9 +487,9 @@ generated graphs (2.7%) contained at least one overlap; after, none do.
   its work* — not by special-casing it. Nothing guarantees the root is
   alone in layer 0: a real dependency recorded as "task X depends on
   the project root" would put the root below X, which is the rule
-  working correctly on data that says something unusual. What no longer
-  happens is *every* node saying that, which is what sank the root
-  before the edge was derived rather than stored (#198).
+  working correctly on data that says something unusual. What cannot
+  happen is *every* node saying it, because the root's edges are derived
+  rather than stored.
 - `pnTopLeft` is the box's top-left corner, not its centre. (The
   client-side renderer this replaced positioned by centre; that habit
   deliberately did not carry over.)
@@ -526,12 +510,10 @@ Therefore:
 | `dependsOn`'s dependency | `to_node_id` | no — the tail |
 | `dependsOn`'s dependent | `node_id` | **yes — the head** |
 
-**This was the reverse of what the app used to draw.** The old
-conversion built `GraphLink { source = node_id, target = to_node_id }`
-and the renderer put `marker-end` on the target, so its arrowheads sat
-on the *dependency*. That conversion is gone (#181) and the arrowhead is
-now on the dependent, but the trap is recorded because it is the exact
-mistake a future port of this mapping would repeat.
+**The trap is that the natural-looking mapping is backwards.** A
+conversion of the form `{ source = node_id, target = to_node_id }` with
+`marker-end` on the target puts the arrowhead on the *dependency* — it
+reads plausibly and draws the relationship the wrong way round.
 
 This is exactly why `LayoutEdge`'s fields are named for the relationship
 rather than `source`/`target`: with semantic names, getting it backwards
@@ -555,7 +537,7 @@ coordinates baked in. No `#graph-data` JSON, no layout script.
 - New SVG elements/attributes go in `Common.Web.Elements` /
   `Common.Web.Attributes` — the established extension point (see
   [`../development/ui/haskell-rendering.md`](../development/ui/haskell-rendering.md)). `rect_`,
-  `rx_` and `transform_` live there now (#173), not inline.
+  `rx_` and `transform_` live there, not inline.
 - **Only geometry is emitted as attributes.** Fill, stroke, hover, the
   highlight glow and the flash animation are all `manage-project.css`,
   keyed off the node's `.root`/`.work` class. A `stroke="white"` on the
@@ -590,25 +572,22 @@ alongside it.
 | `.link` | CSS |
 | `hx-get`/`hx-target="#node-panel"`/`hx-push-url` on each node | the whole node-detail interaction |
 
-The one deliberate break was `circle` → `rect` (#178), and it cost less
-than expected. `manage-project.css` keys the node's fill, hover, glow
-and flash off the `.root`/`.work` class the shape carries rather than
-off an element name, so when #182 removed the circle only a single
-`r: 45` rule had to go with it. Element names in selectors are what
-would have made that swap expensive.
+**Style rules key off the `.root`/`.work` class the shape carries, not
+off the element name.** `manage-project.css` sets fill, hover, glow and
+flash that way, which is what makes changing a node's shape cheap:
+element names in selectors are what would make it expensive.
 
-`graph.spec.ts`'s overlap assertion changed at #181: it used to compare
-centre distances against a circle's diameter, and now reads each box's
-own width/height off the `rect` and tests real rectangle intersection —
-exact rather than a proxy.
+`graph.spec.ts`'s overlap assertion reads each box's own width and
+height off the `rect` and tests real rectangle intersection, rather than
+comparing centre distances against a nominal size — exact rather than a
+proxy.
 
 **`#node-text-<id>` is a contract, not an implementation detail.** The
 label element and the hook that refreshes it are written ~40 lines apart
 in `ProjectManage/Graph.hs`, and nothing in the type system ties them
-together. The server path shipped in #173 with a constant `node-label`
-id on every node, which both repeated one id across the document and
-aimed the refresh hook at an element that did not exist; #178 fixed it
-and pinned it with an integration test
+together. A constant id here would both repeat one id across the
+document and aim the refresh hook at an element that does not exist, and
+neither shows up as an error — so it is pinned by an integration test
 (`test-integration/…/ProjectManage/GraphSpec.hs`).
 
 **Labels are positioned by a `transform` on the `<text>`, not by `x`/`y`
@@ -616,15 +595,14 @@ on it and every `<tspan>`.** That puts the text origin at the centre of
 the node box, so `Node.Refresh` can return a label fragment that lands
 correctly without knowing where the node sits.
 
-While both renderers existed this had to hold for the circle too, and
-the refresh endpoint carried a `layout=server` flag because the two
-shapes fitted different numbers of characters per line (`cfgLabelWidth`
-18 vs. the circle's 12). #181 removed the flag along with the circle:
-one renderer, one wrap width.
+The refresh endpoint is shared with the orbital drawing, whose circles
+fit fewer characters per line than this box (12 against 18), so each
+drawing tells it which width to wrap to — see
+[`orbital-dependency-weighted-graph.md`](orbital-dependency-weighted-graph.md).
 
 ### Palette
 
-The reference images in #169 supply **shape and layout only, not
+The reference images supply **shape and layout only, not
 colour**. The graph keeps the app's own theme: `global.css`'s
 `--bg-start`/`--bg-end` background, `--accent-bold` for the root node,
 `--accent-light` for work nodes, `--text-primary` for labels. See
@@ -652,7 +630,7 @@ large project is expected to overflow the view.
 
 ### As built
 
-`static/script/graph-viewport.js`, driving `d3-zoom` (#208). It loads
+`static/script/graph-viewport.js`, driving `d3-zoom`. It loads
 from inside the graph fragment rather than once at page load, because
 htmx replaces `#tree-container`'s contents wholesale on every graph
 load — and that is also what keeps d3 off every other page in the app.
@@ -695,12 +673,10 @@ the parts to be careful around:
   *before* the dynamic import resolves, so a fast second swap cannot
   race a half-initialised viewport.
 
-**#181 made this reachable.** While the server layout sat behind
-`?layout=server`, which nothing in the UI set (#192), none of the
-viewport could be driven by a browser — its coverage was integration
-assertions on what the server emitted. The cutover removed the flag, and
-`e2e/tests/graph.spec.ts` now drives the gestures for real, asserting on
-the zoom layer's `transform`.
+`e2e/tests/graph.spec.ts` drives the gestures for real in a browser,
+asserting on the zoom layer's `transform`. Integration assertions on the
+emitted markup cannot cover a viewport: nothing about pan and zoom is
+visible in what the server sends.
 
 ## Cycles
 
