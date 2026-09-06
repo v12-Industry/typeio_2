@@ -15,6 +15,8 @@ conventions a change in that area has to respect.
   — the dependency graph unfolded into a forest of radial trees, one per
   head, replicating a shared dependency into every work stream that
   waits on it so that the drawing contains no crossing edges at all.
+  For what it draws day to day rather than how it is designed, see
+  [`../development/visualizations/orbital.md`](../development/visualizations/orbital.md).
 
 ## How this differs from the other two doc directories
 

@@ -67,6 +67,7 @@ cases:
 | Anything touching the dependency graph's layout or rendering | `docs/architecture/graph-rendering.md` -- the pipeline for the *layered* visualization: module map, per-phase contracts, and the dependency-vs-containment distinction |
 | How the app holds several graph visualizations and picks one, and what they may share | `docs/architecture/visualization-switching.md` -- the request parameter, the dispatch table, and what visualizations share |
 | The orbital dependency-weighted visualization -- radial, with shared dependencies replicated per work stream | `docs/architecture/orbital-dependency-weighted-graph.md` -- the design, its unfolding and placement contracts, and its DOM contract |
+| What a given visualization actually draws, and where its own code lives | `docs/development/visualizations/` -- one file each for Layered, Rootless and Orbital |
 | Which GitHub issue labels to use | `docs/development/labels.md` |
 | How to cut a release (version bump, tagging, GitHub Releases) | `docs/development/release-management.md` |
 | Repo-level config (GitHub branch protection) as OpenTofu/Terragrunt | `docs/development/infrastructure.md` |

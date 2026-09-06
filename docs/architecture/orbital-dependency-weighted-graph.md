@@ -197,6 +197,14 @@ data OrbitEdge = OrbitEdge
   , oeDependency :: NodeId   -- the one waited on; drawn further out
   }
 
+-- | The unfolded forest, before any geometry. One per drawn circle.
+data OrbitTree = OrbitTree
+  { otNode     :: NodeId
+  , otReplica  :: Int
+  , otRing     :: Int
+  , otChildren :: [OrbitTree]  -- ^ this node's dependencies
+  }
+
 -- | One drawn circle. 'dNode' is not unique across a drawing.
 data Disc = Disc
   { dNode    :: NodeId
@@ -227,6 +235,12 @@ data OrbitConfig = OrbitConfig
   , cfgLabelWidth  :: Int     -- characters per label line
   , cfgLabelLines  :: Int     -- maximum label lines
   , cfgMargin      :: Double  -- padding around the whole drawing
+  }
+
+defaultOrbitConfig = OrbitConfig
+  { cfgDiscRadius = 45, cfgDiscGap    = 24, cfgMinRingGap = 55
+  , cfgEyeRadius  = 130
+  , cfgLabelWidth = 12, cfgLabelLines = 3,  cfgMargin     = 60
   }
 ```
 
@@ -410,6 +424,16 @@ row can still arrive by seed script, direct SQL, or from before the
 validation existed. So phase 2 stops expanding a branch when a node
 would repeat on its own ancestor path.
 
+**A wholly cyclic group has no head, and adopts an anchor rather than
+vanishing.** Every node in such a group is something else's dependency,
+so nothing in it qualifies as a head and it would be left out of the
+forest entirely. Unfolding instead takes the lowest-numbered unreached
+node as a root and keeps going until every node is drawn somewhere —
+the same answer `Graph.Containment` gives the identical case for the
+layered drawing. A renderer that silently omits nodes is the failure
+this document rejects for truncation, and it is no more acceptable
+here.
+
 The distinction matters because the two failure modes are not
 comparable. A layered drawing handed a cycle draws something slightly
 wrong. An unfolding handed a cycle **does not terminate** — it hangs the
@@ -433,18 +457,24 @@ the app currently answers it.
 
 Every node gets a hue, identical across all of its replicas and stable
 across renders. Assignment is a **golden-angle rotation** over the
-node's index in a stable ordering of the project's nodes:
+node's **id**:
 
 ```
-hue = (index * 137.508°) mod 360
+hue = (id * 137.508°) mod 360
 ```
 
-which spreads adjacent indices to opposite sides of the wheel and needs
-no palette table. Hashing the node id was considered and rejected: it
-gives no spread guarantee, so a small project can easily draw two
-neighbouring nodes in near-identical colours — which in this
-visualization is not a cosmetic problem but a false statement that they
-are the same node.
+which spreads adjacent ids to opposite sides of the wheel and needs no
+palette table. Hashing the id instead gives no spread guarantee, so a
+small project can easily draw two neighbouring nodes in near-identical
+colours — which in this visualization is not a cosmetic problem but a
+false statement that they are the same node.
+
+**The key is the id, not a position in an ordering.** Ids never change,
+and a project's ids are near-consecutive, so the golden angle spreads
+them exactly as well as it spreads indices. A position-based key does
+not survive the drawing changing: inserting or deleting one node shifts
+every hue after it, which destroys the one cue colour exists to give —
+that this circle and that circle are the same work.
 
 ### Where the colour lives
 
@@ -458,11 +488,14 @@ The resolution: the disc group carries a CSS custom property
 `--node-hue`, and the stylesheet computes everything from it.
 
 ```html
-<g class="disc work" data-node-id="42" style="--node-hue: 137.5">
+<g id="disc-42-0" class="disc" data-node-id="42" style="--node-hue: 137.5">
+  <circle class="work" … />
 ```
 
 ```css
-.disc .disc-shape { fill: hsl(var(--node-hue) var(--disc-sat) var(--disc-light)); }
+#tree-container .disc .work {
+  fill: hsl(var(--node-hue) var(--disc-sat) var(--disc-light));
+}
 ```
 
 What is emitted is a *datum* — which node this is — not an appearance
@@ -481,19 +514,26 @@ the same `data-node-id`.
 
 This is hyperscript on the disc, not a new script file — the same `h_`
 attribute pattern the app already uses for small declarative effects
-(see [`../development/frontend/`](../development/frontend/)) — and it
-reuses the existing `.node-highlight` glow rather than inventing a
-second highlight style:
+(see [`../development/frontend/`](../development/frontend/)):
 
 ```
-on mouseenter add .node-highlight to <[data-node-id='42']/>
-on mouseleave remove .node-highlight from <[data-node-id='42']/>
+on mouseenter add .replica-hover to <[data-node-id='42']/>
+on mouseleave remove .replica-hover from <[data-node-id='42']/>
 ```
 
 CSS cannot express this on its own: there is no selector for "every
 element sharing an attribute value with the hovered one". That is the
 whole reason it needs a behaviour at all, and worth writing down so
 nobody spends an afternoon looking for the selector.
+
+**It is its own class, `.replica-hover`, sharing the panel highlight's
+appearance rather than its class.** One glow, two independent triggers,
+and the stylesheet says so. The classes cannot be merged, because
+`.node-highlight` carries `pointer-events: none` and this trigger is the
+pointer: taking the shape out of hit-testing while the cursor is over it
+fires `mouseleave`, which removes the class, which puts the shape back
+under the cursor, which fires `mouseenter` — a flicker loop for as long
+as the cursor sits still.
 
 ## The DOM contract
 
@@ -543,6 +583,19 @@ require `Node.Refresh` to know how many replicas the current drawing
 has, which is layout knowledge leaking into an endpoint that is shared
 with the other two visualizations.
 
+**The hook's link carries `wrapWidth`.** A circle fits fewer characters
+per line than the layered rect, and one endpoint serves both drawings;
+without the parameter an edited label comes back wrapped to the other
+shape. The caller knows its own geometry and the endpoint does not, so
+the caller says.
+
+**The response is label lines and nothing else.** It carries no copy of
+the hook that requested it: the drawing's hook is a sibling of the label
+rather than a child, so it survives the swap untouched. A hook inside
+the response would be re-inserted on every edit — two requests per edit
+instead of one — and would have to hardcode the id it targets, which is
+precisely the thing this visualization changed.
+
 ## Labels
 
 Discs are a **fixed size** and labels wrap to fit, via the existing
@@ -561,38 +614,16 @@ circles: `cfgLabelWidth` 12, against 18 for the layered drawing's rect.
 the drag-vs-click threshold and the listener teardown are all
 independent of what the drawing contains.
 
-One detail falls out nicely. `templateServerGraph` emits
+One detail falls out nicely. `graphFrame` emits
 `data-root-x`/`data-root-y` for the viewport to open on, and falls back
 to the centre of the drawing's natural size when there is no root. An
 orbital drawing has no root — and its centre *is* the eye, which is
 exactly where a reader should start. So Orbital emits no root anchor and
 gets the right opening position from the existing fallback.
 
-## Where the seam is, and why it has to move
+## Where the seam is
 
-The per-visualization surface today is:
-
-```haskell
-type BuildGraph =
-  Int64 -> [Entity M.Node] -> [Entity M.Dependency] -> ServerGraph
-```
-
-and `ServerGraph` carries a `Diagram`, which `serverGraph` produces by
-calling the shared layered engine:
-
-```haskell
-serverGraph pid lns les =
-  ServerGraph { …, sgDiagram = layout defaultLayoutConfig lns les }
-```
-
-**Orbital cannot be expressed through that seam.** It does not produce a
-`Diagram`, because a `Diagram` is layered geometry: `PlacedNode` has no
-angle and no replica ordinal, `PlacedEdge` is a polyline with jump
-points, and `templateServerGraph` renders rects, orthogonal paths and
-`#node-<id>` ids.
-
-The seam moves out one step, from "decide the nodes and edges" to
-"render the drawing":
+The per-visualization surface is **render**, not build:
 
 ```haskell
 -- Domain.Project.Visualization.Common
@@ -602,21 +633,43 @@ type RenderGraph =
 handleGraphWith :: RenderGraph -> ConnectionPool -> Application
 ```
 
-`Layered` and `Rootless` are then thin compositions of the pieces they
+It has to be there rather than one step in. The narrower surface would
+be "decide the nodes and edges":
+
+```haskell
+type BuildGraph =
+  Int64 -> [Entity M.Node] -> [Entity M.Dependency] -> ServerGraph
+```
+
+but `ServerGraph` carries a `Diagram`, and **Orbital cannot be expressed
+through that.** A `Diagram` *is* layered geometry: `PlacedNode` has no
+angle and no replica ordinal, `PlacedEdge` is a polyline with jump
+points, and `templateServerGraph` renders rects, orthogonal paths and
+`#node-<id>` ids.
+
+So `Layered` and `Rootless` are thin compositions of the pieces they
 already use —
 
 ```haskell
-render pid ns ds = templateServerGraph (serverGraph pid (nodesFor ns) (edgesFor ds))
+renderGraph pid ns ds = templateServerGraph (buildGraph pid ns ds)
 ```
 
-— and `BuildGraph`, `serverGraph` and `templateServerGraph` all survive
-untouched as the shared machinery of the *layered* visualizations.
-Orbital supplies its own `RenderGraph` and imports none of them.
+— with `BuildGraph`, `serverGraph` and `templateServerGraph` intact as
+the shared machinery of the *layered* visualizations. Orbital supplies
+its own `RenderGraph` and imports none of them.
 
-What stays shared is the part that was never about geometry:
+What is shared is the part that was never about geometry:
 `validateProjectId`, `queryNodes`, `queryDependencies`, the error
 responses, the node-detail links and `Data.Text.Util`. Two
 visualizations asking the database the same question is not coupling.
+
+**The SVG frame is shared, and its type is deliberately neutral.**
+`graphFrame` emits `#tree-view`, the zoom layer, the arrow marker and
+the viewport script for every visualization, and it takes a `FrameBox`
+— four plain `Double`s — rather than `Graph.Types.Bounds`. Otherwise
+describing a rectangle would require a non-layered visualization to
+import the layered engine, falsifying the isolation rule in the one case
+it exists for.
 
 **No flag crosses the seam.** Nothing gains a `Visualization` parameter;
 what varies is a function, which is what
@@ -647,12 +700,12 @@ yet, so both are stated as what this drawing is relying on:
 | Cycles are rejected when a dependency is recorded | Not built. The [backstop](#cycles) covers the gap, and covers malformed data permanently. |
 | A node cannot accumulate enough dependents to make unfolding explode | Not built. Until it is, the [unbounded](#on-the-size-of-the-result) unfolding has no ceiling but the data's own shape. |
 
-A related fact worth knowing: **there is no way to create a dependency
-through the app.** Nothing writes `project.dependency`, so on a database
-without seeded dependencies every node is a head and an orbital drawing
-is one ring of discs with no links. That is the algorithm working
-correctly on the data it has, not a defect — but it does mean the
-seeded demo project is what this visualization has to be looked at
+A related fact worth knowing: **no UI flow creates a dependency.** The
+only writer of `project.dependency` is the seed endpoint, so on a
+database without seeded dependencies every node is a head and an orbital
+drawing is one ring of discs with no links. That is the algorithm
+working correctly on the data it has, not a defect — but it does mean
+the seeded demo project is what this visualization has to be looked at
 against.
 
 ## Testing
@@ -699,8 +752,10 @@ case, since every one of those would also pass on a visualization that
 drew nothing.
 
 E2E coverage is warranted, since the acceptance criteria involve a
-user-facing flow: hovering a replica highlights its siblings, and the
-viewport opens on the eye. The issue that builds this carries `run-e2e`.
+user-facing flow the browser has to be driven through: hovering a
+replica highlights its siblings, clicking either opens the same panel,
+and editing a title updates every replica's label. What is built is in
+[`../development/visualizations/orbital.md`](../development/visualizations/orbital.md).
 
 ## Deliberately out of scope
 
