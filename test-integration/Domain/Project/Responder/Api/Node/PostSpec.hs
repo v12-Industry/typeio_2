@@ -52,12 +52,12 @@ spec = aroundAll withTestDatabase $
             M.nodeDescription newNode `shouldBe` "ANewNode"
             M.nodeProjectId newNode `shouldBe` projectKey
 
-            -- No dependency row (#198). One used to be written here,
-            -- pointing at the project root to record membership -- but
-            -- `node.project_id`, asserted just above, already records
-            -- exactly that. Storing it twice put the root at the bottom
-            -- of the graph, because a `project.dependency` row means an
-            -- ordering between two pieces of work and layout drew it as
+            -- No dependency row. One pointing at the project root
+            -- would record membership -- but `node.project_id`,
+            -- asserted just above, already records exactly that.
+            -- Storing it twice puts the root at the bottom of the
+            -- graph, because a `project.dependency` row means an
+            -- ordering between two pieces of work and layout draws it as
             -- one.
             deps <-
               flip runSqlPool pool $

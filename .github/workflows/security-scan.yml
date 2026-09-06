@@ -5,18 +5,16 @@ name: Security Scan
 # (dependabot/dependabot-core#2745, tracked upstream, not shipped as of
 # this writing). Native Dependabot (npm) and secret scanning already
 # cover the rest -- see docs/solution-proposals/security-scanning.md
-# (#62) for the full investigation and decision (§3-§9).
+# for the full investigation and decision (§3-§9).
 #
 # Deliberately a SEPARATE workflow from test.yml, not a new job in it --
 # different trigger shape (schedule-only, below) and different blocking
 # semantics (informational, below). See docs/development/ci.md.
 #
-# Schedule-only (#136) -- originally also ran on every PR into main, to
-# catch a newly *introduced* vulnerable dependency at the point it
-# landed; narrowed to just the weekly run per #136, leaving only the
-# scan for drift (a dependency that didn't change but became
-# known-vulnerable since it was last touched, which no PR would ever
-# trigger a check for).
+# Schedule-only: this scans for drift -- a dependency that didn't change
+# but became known-vulnerable since it was last touched, which no PR
+# would ever trigger a check for. Catching a newly *introduced* vulnerable
+# dependency is not this workflow's job.
 on:
   schedule:
     # Weekly, matching Dependabot's own default cadence for version
@@ -25,8 +23,8 @@ on:
     - cron: '0 5 * * 1'
 
 # Same reasoning as test.yml: a second scheduled run shouldn't queue
-# alongside one still in flight. No PR number to key on (schedule-only
-# now, see #136), so this always falls back to the ref.
+# alongside one still in flight. Being schedule-only, there is no PR
+# number to key on, so this always falls back to the ref.
 concurrency:
   group: security-scan-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -63,9 +61,9 @@ jobs:
       - name: cabal freeze
         run: cabal freeze
 
-      # Scans cabal.project.freeze (just generated) and, if/when real JS
-      # deps exist again (#100), package-lock.json -- one tool, one job,
-      # both ecosystems (§4).
+      # Scans cabal.project.freeze (just generated) and, if real JS deps
+      # ever exist, package-lock.json -- one tool, one job, both
+      # ecosystems (§4).
       #
       # continue-on-error: this check is informational only (§7), not a
       # required status check, so a finding -- or the scan step itself

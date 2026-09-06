@@ -62,14 +62,12 @@ spec = around_ (setValidEnv >>) $
           , "WEB_INDEX_REDIRECT is missing from environment config"
           ]
 
-    -- The four GRAPH_VISUALIZATION cases that used to sit here are gone
-    -- with the variable (#223): which drawing to render is a property of
-    -- a request now, not of the process, so there is nothing for
-    -- loadAppConfig to read or reject. The equivalent coverage lives in
+    -- No visualization cases here: which drawing to render is a
+    -- property of a request, not of the process, so there is nothing
+    -- for loadAppConfig to read or reject. That coverage lives in
     -- Domain.Project.Visualization.Common's validateVisualization and
-    -- its integration spec -- including the case those tests existed
-    -- for, an unrecognised value being an error rather than a silent
-    -- fallback.
+    -- its integration spec, including an unrecognised value being an
+    -- error rather than a silent fallback.
 
     it "succeeds even when WEB_PORT is unset, defaulting to 3000 (see Config.Web.defaultWebPort)" $ do
       unsetEnv "WEB_PORT"

@@ -172,6 +172,14 @@ Quick summary:
   did Y", no status markers recording when something was built. A
   reader should be able to learn what the app does without the issue
   tracker open, and without being told about states it is no longer in.
+  - **The same applies to every comment that survives in the repo** —
+    test files, stylesheets, client scripts, workflow YAML, `.cabal`
+    and config files. A comment is documentation that happens to live
+    next to code, and it goes stale the same way. An `it`/`describe`
+    string is not a place for an issue number either. A reference to
+    an *upstream* project's issue (e.g.
+    `dependabot/dependabot-core#2745`) is fine — that is a pointer to
+    someone else's tracker, not this repo's history.
   - **Keep the rule, drop the story.** A constraint that exists because
     something once went wrong is still a constraint: state it in the
     present tense as a fact about the code. "The arrowhead sits on the

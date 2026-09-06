@@ -1,13 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-{- | Integration coverage for the visualization switch (#223).
+{- | Integration coverage for the visualization switch.
 
 Which drawing to render is a property of the /request/ now, not of the
 process: an optional @visualizationMode@ query parameter, defaulting to
-'defaultVisualization' when absent. Before #223 it was
-@GRAPH_VISUALIZATION@, read once at boot, and the equivalent coverage
-lived in @Config.AppSpec@ — those four cases moved here with the
-mechanism.
+'defaultVisualization' when absent. Nothing about it is read from the
+environment, so none of this belongs in @Config.AppSpec@.
 
 The point of testing it at this tier rather than by calling
 'validateVisualization' directly is that the interesting failure is not

@@ -159,15 +159,14 @@ body {
   font-size: 1rem;
 }
 
-/* Every page's own scroll region (#210). #container above stays a
-   fixed window pinned to the viewport -- that pinning is what keeps
-   the shell feeling like an SPA rather than a stack of page loads --
+/* Every page's own scroll region. #container above stays a fixed
+   window pinned to the viewport -- that pinning is what keeps the
+   shell feeling like an SPA rather than a stack of page loads --
    which means it can never be where a tall page's content is reached
-   from. Before this, nothing in the ancestor chain was ever set to
-   scroll: content past the fold was genuinely unreachable by wheel,
-   trackpad, scrollbar or keyboard (only by script -- `overflow:hidden`
-   still permits `el.scrollTop = ...`, which is no help to an actual
-   user).
+   from. Something in the ancestor chain has to scroll, or content past
+   the fold is unreachable by wheel, trackpad, scrollbar or keyboard
+   (`overflow:hidden` still permits `el.scrollTop = ...`, but that is
+   no help to an actual user).
 
    overflow-x stays hidden rather than left unset: setting only
    overflow-y promotes the other axis to `auto` too (the CSS overflow

@@ -67,9 +67,9 @@ spec = do
       \isBetween's own logs-but-passes-through design, see Common.ValidationSpec) still \
       \returns the out-of-range value rather than Nothing"
       $ do
-        -- #48: this used to disagree with its own message (code allowed up
-        -- to 11, message said 10) -- fixed to isBetween 1 10, matching the
-        -- message and the .env value actually in use (DB_POOL_COUNT=10).
+        -- Pins the bound and its message to each other: isBetween 1 10,
+        -- a message saying 1 and 10, and the .env value in use
+        -- (DB_POOL_COUNT=10) all have to agree.
         let (result, errs) = runWriter (validateConfig validLookup {poolCount' = Just "11"})
         result `shouldBe` Just validConfig {poolCount = 11}
         errs `shouldBe` ["DB_POOL_COUNT must be between 1 and 10"]

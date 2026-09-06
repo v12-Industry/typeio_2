@@ -5,9 +5,9 @@ import { createProject } from './helpers';
 // workflow covered because it needs no pre-existing fixture data beyond
 // the reference NodeStatus/NodeType rows `make seed-db` already
 // provides, and every other candidate workflow depends on a project
-// existing -- see #94's ticket body for the full reasoning. Follow-up
+// existing -- see docs/development/e2e-testing.md. Follow-up
 // workflows (add/edit a node, change status, the dependency graph) are
-// tracked separately in #95-#97.
+// workflows live in their own specs.
 //
 // Convention for every spec in this suite: locators and web-first
 // (auto-retrying) assertions for every htmx-swapped region, never a
@@ -37,7 +37,7 @@ test('creating a project shows it on the project index', async ({ page }) => {
 
   await page.getByRole('button', { name: 'Create Project' }).click();
 
-  // getByLabel() -- fixed in #118, which gave each control here an `id`
+  // getByLabel() -- each control here carries an `id`
   // matching its <label for="...">. Previously scoped by `name` instead,
   // since the label/control association getByLabel depends on didn't
   // hold.

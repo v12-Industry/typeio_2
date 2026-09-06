@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 {- | Integration coverage for the orbital visualization's renderer
-(#237).
+.
 
 Like @Rootless.ResponderSpec@, these assertions are about the rendered
 markup rather than geometry: the placement is pure and unit-tested in
@@ -121,7 +121,7 @@ spec = aroundAll withTestDatabase $
 
         it "gives each replica its own label id" $ \pool -> do
           -- Unique per circle, which is what the per-node label
-          -- refresh needs once it arrives (#244).
+          -- refresh needs.
           (projectKey, shared) <- sharedDependencyFixture pool
 
           body <- graphBody pool (fromSqlKey projectKey)
@@ -139,7 +139,7 @@ spec = aroundAll withTestDatabase $
           countStr (panelLink shared (fromSqlKey projectKey)) body
             `shouldBe` 2
 
-      describe "replica identity (#239)" $ do
+      describe "replica identity" $ do
         it "gives every replica of a node the same colour" $ \pool -> do
           -- Colour is what tells a reader that two circles are one
           -- node, so a replica in a different hue is not a cosmetic
@@ -181,7 +181,7 @@ spec = aroundAll withTestDatabase $
       describe "the DOM contract" $ do
         it "tags every disc with the node it stands for" $ \pool -> do
           -- The one thing this visualization owes the Project Manage
-          -- UI (#234): the panel highlight and the post-edit flash
+          -- UI: the panel highlight and the post-edit flash
           -- both select on this.
           (projectKey, _) <- seedProjectWithRootNode pool
           workKey <- seedWorkNode pool projectKey "Build the thing"
@@ -212,8 +212,8 @@ spec = aroundAll withTestDatabase $
           body `shouldNotContainStr` "id=\"node-text-"
 
         it "ships the zoom layer and the viewport script" $ \pool -> do
-          -- Comes from the shared frame (#242) rather than from
-          -- anything written here, which is the point of that issue.
+          -- Comes from the shared frame rather than from anything
+          -- written here, which is the point of sharing it.
           (projectKey, _) <- seedProjectWithRootNode pool
           _ <- seedWorkNode pool projectKey "Build the thing"
 

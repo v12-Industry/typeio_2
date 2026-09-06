@@ -1,8 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { addNode, createProject } from './helpers';
 
-// Every navigation here asks for `visualizationMode=Layered` explicitly
-// (#223). It is not redundant: which drawing a request with no
+// Every navigation here asks for `visualizationMode=Layered`
+// explicitly. It is not redundant: which drawing a request with no
 // parameter gets is Config.Visualization's hardcoded default, and that
 // default is "whichever visualization was added most recently" -- so it
 // moves every time one is added. This spec is about the layered
@@ -10,15 +10,14 @@ import { addNode, createProject } from './helpers';
 // it should keep testing those rather than silently re-pointing at
 // whatever landed last.
 
-// Fourth and last workflow covered by this suite (#97, follow-up to
-// #94-#96): view the dependency graph, click a node, and
-// confirm its detail panel opens with the `.node-highlight` glow, then
+// Viewing the dependency graph: click a node, and confirm its detail
+// panel opens with the `.node-highlight` glow, then
 // that closing the panel clears it again. The `.flash` background-poll
 // effect (Node.Refresh) is explicitly out of scope here, same as the
 // proposal's hazards call out -- a one-shot transient, not this spec's
 // concern.
 //
-// Two things here changed with the radial layout (#162):
+// Two things worth knowing about how this spec drives the drawing:
 //
 //   - Nodes are located by id (`#node-<id>`), not by their label text.
 //     Labels now wrap to the node and truncate past three lines
@@ -26,10 +25,8 @@ import { addNode, createProject } from './helpers';
 //     present as one contiguous string to filter on -- and the id was
 //     always the more robust handle anyway, being independent of how
 //     the label happens to render.
-//   - This uses a real click() again, not dispatchEvent('click'). The
-//     workaround existed because of #120 (nodes never positioned, so
-//     there was no reliable on-screen point to click); with the layout
-//     now deterministic and fitted to the viewport, a real pointer
+//   - This uses a real click(), not dispatchEvent('click'). The layout
+//     is deterministic and fitted to the viewport, so a real pointer
 //     click works -- which also makes this a regression test for nodes
 //     actually landing somewhere visible and clickable.
 test("clicking a graph node opens its detail panel and highlights it, closing clears both", async ({ page, request }) => {
@@ -42,9 +39,9 @@ test("clicking a graph node opens its detail panel and highlights it, closing cl
   // by an htmx swap into #tree-container, not synchronously with
   // navigation -- assert on the rendered SVG structure (both nodes
   // present as real elements) before interacting with either, rather
-  // than assuming the graph is ready right after goto(). Since #181 the
-  // SVG is server-rendered, so there is no client layout pass to wait
-  // on beyond that swap.
+  // than assuming the graph is ready right after goto(). The SVG is
+  // server-rendered, so there is no client layout pass to wait on
+  // beyond that swap.
   await expect(page.locator('#graph-nodes .node')).toHaveCount(2);
 
   const graphNode = page.locator(`#node-${node.id}`);
@@ -72,7 +69,7 @@ test("clicking a graph node opens its detail panel and highlights it, closing cl
   await expect(graphNode).not.toHaveClass(/node-highlight/);
 });
 
-// The layout's own contract (#162): the graph must render compactly and
+// The layout's own contract: the graph must render compactly and
 // legibly, not sprawl or pile nodes on top of each other. Asserting on
 // geometry here rather than eyeballing a screenshot -- this is the
 // property that regressed twice while building the layout.
@@ -85,7 +82,7 @@ test("the dependency graph lays nodes out on-screen without overlapping them", a
   await page.goto(`/ui/project/vw?projectId=${project.id}&visualizationMode=Layered`);
   await expect(page.locator('#graph-nodes .node')).toHaveCount(4);
 
-  // Boxes now, not circles (#178), and the server places them (#181):
+  // Boxes, not circles, and the server places them:
   // the group's transform is the box's *top-left*, and its size is on
   // the rect. Reading both means this can assert real box overlap
   // rather than the centre-distance proxy the circle version used.
@@ -103,7 +100,8 @@ test("the dependency graph lays nodes out on-screen without overlapping them", a
     })
   );
 
-  // Every node positioned and sized at all -- #120's regression, where
+  // Every node positioned and sized at all. The failure this guards,
+  // where
   // every node past the first kept a null transform.
   for (const b of boxes) {
     expect(
@@ -126,11 +124,9 @@ test("the dependency graph lays nodes out on-screen without overlapping them", a
   }
 });
 
-// The cutover (#181): the server-computed graph is what the app serves,
-// with no query parameter. Before this, every one of #173-#180 was
-// reachable only via `?layout=server`, which nothing in the UI set
-// (#192) -- so this is the first test that drives any of it in a real
-// browser.
+// The server-computed graph is what the app serves, with no query
+// parameter selecting it -- this is the test that drives the pure
+// layout pipeline in a real browser.
 test("the graph renders server-side, with no client layout script", async ({ page, request }) => {
   const project = await createProject(page, 'E2E server layout');
   await addNode(request, project.id, 'E2E server node');
@@ -154,16 +150,16 @@ test("the graph renders server-side, with no client layout script", async ({ pag
   await expect(page.locator('#graph-data')).toHaveCount(0);
 });
 
-// Containment (#198, #206): the project root heads the graph, and the
+// Containment: the project root heads the graph, and the
 // edges to its work carry an arrowhead like any dependency -- a
 // project's completion does depend on its work being complete.
 //
 // The arrow assertion has to be an e2e test rather than a markup one.
 // `marker-end` is set in two places, the path attribute and
 // `manage-project.css`'s `.link` rule, so markup alone doesn't settle
-// what the browser actually draws: #198 removed the attribute and the
-// CSS put it straight back, while the integration test stayed green.
-// Computed style is the only thing that sees the real answer.
+// what the browser actually draws: drop the attribute and the CSS puts
+// it straight back, with the integration test none the wiser. Computed
+// style is the only thing that sees the real answer.
 test("the project root heads the graph, with arrows into it from its work", async ({ page, request }) => {
   const project = await createProject(page, 'E2E containment');
   for (const t of ['Containment A', 'Containment B']) {

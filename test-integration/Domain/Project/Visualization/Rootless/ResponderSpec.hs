@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-{- | Integration coverage for the rootless visualization (#215).
+{- | Integration coverage for the rootless visualization.
 
 Like @ProjectManage.GraphSpec@, these assertions are about the rendered
 markup rather than geometry: the layout engine is shared with the

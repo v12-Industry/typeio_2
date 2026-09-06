@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { createProject, createProjectFast } from './helpers';
 
-// #210: #container (the app shell) was pinned to overflow:hidden with
+// #container (the app shell) is pinned to overflow:hidden with
 // nothing else in the ancestor chain ever set to scroll, so a project
 // index with more rows than fit on screen had no user-facing way to
 // reach the rest -- present in the DOM (confirmed in the ticket by
@@ -58,7 +58,7 @@ test('the project index can be scrolled to its last card by wheel', async ({ pag
   await expect(lastCard).toBeInViewport();
 });
 
-// #210's second acceptance criterion: #view (global.css) now scrolls by
+// The second half of the same rule: #view (global.css) scrolls by
 // default, and the dependency graph page has to opt out
 // (views/manage-project.css) since its own viewport pans by transform
 // on #graph-zoom-layer and must not also become a native scroll target

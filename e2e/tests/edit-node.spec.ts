@@ -1,14 +1,14 @@
 import { test, expect } from '@playwright/test';
 import { addNode, createProject } from './helpers';
 
-// Second workflow covered by this suite (#95, follow-up to #94's
+// Editing a node, building on the
 // create-project pilot): add a node, then edit its title and
 // description via the node-detail panel.
 //
 // The "add a node" step here is a direct API call
 // (helpers.ts's addNode()), not a UI interaction: the app has no UI
 // affordance to create a node at all -- see that helper's comments for
-// the full finding. Reusing it as setup, the same way #94's own suite
+// the full finding. Reusing it as setup, the same way the create suite
 // reuses `make seed-db` for reference data rather than reinventing
 // seeding, keeps this spec focused on what's actually UI-testable here:
 // editing.
@@ -17,14 +17,14 @@ import { addNode, createProject } from './helpers';
 // (ProjectManage.View's own supported deep-link shape -- the same one
 // Graph.pushUrl puts in the address bar on a real click) rather than
 // clicking the node in the graph. That's deliberate, not a workaround:
-// interacting with the graph itself is #97's scope, not this ticket's,
+// interacting with the graph itself is graph.spec.ts's scope,
 // and the direct-link path exercises a real, already-supported way into
 // this same panel without depending on where a node lands.
 //
 // The original reason was stronger and no longer applies: the old
 // client-side force layout could settle a node at a genuinely
 // off-screen position (a 2-node graph once settled with one node's
-// bounding box at x:-191, entirely under the page header). Since #181
+// bounding box at x:-191, entirely under the page header). Now that
 // the server places every node deterministically, so a real click would
 // work here now -- graph.spec.ts does exactly that. This spec stays
 // deep-linked because that is still the narrower thing to test.
@@ -46,7 +46,7 @@ test('editing a node updates its title and description', async ({ page, request 
   const newTitle = `${nodeTitle} (edited)`;
   const newDescription = `Edited by e2e/tests/edit-node.spec.ts at ${new Date().toISOString()}`;
 
-  // getByLabel() -- #118 gave the title input the id "title" (it used
+  // getByLabel() -- the title input carries the id "title" (it used
   // to be "node-title", not matching its <label for="title">) and gave
   // the description textarea an id at all (it had none).
   //

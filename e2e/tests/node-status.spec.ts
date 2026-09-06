@@ -1,13 +1,13 @@
 import { test, expect } from '@playwright/test';
 import { addNode, createProject } from './helpers';
 
-// Third workflow covered by this suite (#96, follow-up to #94/#95):
+// Changing a node's status:
 // change a node's status via the status <select> in the node-detail
 // panel, and confirm it both updates the panel's own indicator and
 // actually persists (re-fetch the panel and check the new status is
 // selected there too, not just that the indicator claimed success).
 //
-// Same deep-link approach as #95's edit-node.spec.ts for opening the
+// Same deep-link approach as edit-node.spec.ts for opening the
 // panel (?nodeId= in the URL, not clicking the graph) -- see that
 // spec's comments for why.
 test("changing a node's status updates and persists it", async ({ page, request }) => {
@@ -33,7 +33,7 @@ test("changing a node's status updates and persists it", async ({ page, request 
   // the general shape of this hazard (freshly htmx-swapped-in elements
   // and Playwright's non-pointer interaction helpers).
   //
-  // getByLabel(), not a name-attribute selector: #118 fixed this
+  // getByLabel(), not a name-attribute selector: the control carries
   // <select>'s missing id alongside the title/description fields it
   // was filed for -- same underlying gap, same file.
   const status = page.getByLabel('Status:');
@@ -52,7 +52,7 @@ test("changing a node's status updates and persists it", async ({ page, request 
   await expect(statusRow.locator('.property-value')).toHaveText('closed');
 
   // Also reopen the edit panel and confirm the dropdown itself now
-  // shows the real current status pre-selected (#115: Node.Edit.templateNodeEdit
+  // shows the real current status pre-selected (Node.Edit.templateNodeEdit
   // used to set `selected` on the <select> element itself rather than
   // the matching <option>, which isn't meaningful HTML -- every browser
   // ignored it and defaulted to whichever <option> came first,
