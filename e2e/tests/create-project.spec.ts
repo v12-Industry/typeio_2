@@ -37,10 +37,8 @@ test('creating a project shows it on the project index', async ({ page }) => {
 
   await page.getByRole('button', { name: 'Create Project' }).click();
 
-  // getByLabel() -- each control here carries an `id`
-  // matching its <label for="...">. Previously scoped by `name` instead,
-  // since the label/control association getByLabel depends on didn't
-  // hold.
+  // getByLabel() -- each control here carries an `id` matching its
+  // <label for="...">, which is the association getByLabel depends on.
   await page.getByLabel('Title:').fill(title);
   await page.getByLabel('Description:').fill(description);
   await page.getByRole('button', { name: 'Submit' }).click();

@@ -23,9 +23,8 @@ export async function createProject(page: Page, titlePrefix: string): Promise<Cr
   await page.goto('/ui/projects/vw');
   await page.getByRole('button', { name: 'Create Project' }).click();
 
-  // getByLabel() -- ProjectCreate.View's inputs used to have no `id`
-  // matching their <label for="...">, so this had to scope by `name`
-  // instead; each control carries the matching `id`.
+  // getByLabel() works because ProjectCreate.View's inputs each carry
+  // an `id` matching their <label for="...">.
   await page.getByLabel('Title:').fill(title);
   await page.getByLabel('Description:').fill(description);
   await page.getByRole('button', { name: 'Submit' }).click();
@@ -33,11 +32,8 @@ export async function createProject(page: Page, titlePrefix: string): Promise<Cr
   // Not page.locator('#project-index').filter(...): #project-index is
   // the single list container (one match, so filter() has nothing to
   // narrow among) -- .project-item is the per-card div's class.
-  // ProjectIndex.List used to render every card with the same literal
-  // *id* here (invalid HTML); each card's id is now
-  // unique, per-project), so this now scopes by the shared class
-  // instead, which still resolves to every card, then narrows to the
-  // one containing this title.
+  // Scoping by the shared class resolves to every card, then narrows
+  // to the one containing this title.
   const card = page.locator('.project-item').filter({ hasText: title });
   await expect(card.getByRole('heading', { name: title, level: 3 })).toBeVisible();
 

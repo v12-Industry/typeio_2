@@ -175,8 +175,6 @@ to this suite should follow the same conventions:
   separately-tracked rendering bug is what's in the way, not as a
   default habit.
 
-  **The case that motivated this is gone.** The old client-side graph
-  layout could leave a node off-screen or under the page header,
   `dispatchEvent` is the workaround when an element cannot be reliably
   clicked at a screen position. `graph.spec.ts` does not need it: the
   server places nodes deterministically, so a real `click()` works and

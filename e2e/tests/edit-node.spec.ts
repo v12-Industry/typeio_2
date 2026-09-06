@@ -21,13 +21,9 @@ import { addNode, createProject } from './helpers';
 // and the direct-link path exercises a real, already-supported way into
 // this same panel without depending on where a node lands.
 //
-// The original reason was stronger and no longer applies: the old
-// client-side force layout could settle a node at a genuinely
-// off-screen position (a 2-node graph once settled with one node's
-// bounding box at x:-191, entirely under the page header). Now that
-// the server places every node deterministically, so a real click would
-// work here now -- graph.spec.ts does exactly that. This spec stays
-// deep-linked because that is still the narrower thing to test.
+// A real click would work here too -- the server places every node
+// deterministically, and graph.spec.ts does exactly that. This spec
+// stays deep-linked because that is the narrower thing to test.
 test('editing a node updates its title and description', async ({ page, request }) => {
   const project = await createProject(page, 'E2E edit-node project');
   const node = await addNode(request, project.id, 'E2E edit-node');

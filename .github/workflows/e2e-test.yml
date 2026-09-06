@@ -63,10 +63,9 @@ env:
   WEB_REQUEST_ID_HEADER: X-Request-ID
   WEB_REDIRECT_PATH: /api/nodes
   E2E_BASE_URL: http://localhost:3000
-  # There is no GRAPH_VISUALIZATION here: which drawing to render is a
-  # property of the request (`?visualizationMode=`), not of the process,
-  # so there is nothing to set and every spec names the drawing it
-  # wants. Specs that name none get Config.Visualization's hardcoded
+  # Which drawing to render is a property of the request
+  # (`?visualizationMode=`), not of the process, so it is not set here
+  # and every spec names the drawing it wants. Specs that name none get Config.Visualization's hardcoded
   # default. See docs/architecture/visualization-switching.md.
 
 jobs:

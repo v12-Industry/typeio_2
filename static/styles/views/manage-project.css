@@ -161,9 +161,9 @@ svg {
 /* Keyboard panning needs the container focusable, and a focus ring on
    a whole panel is noise -- but removing it outright would leave a
    keyboard user with no idea where focus is, so it shows only for
-   keyboard focus. With the zoom buttons gone, the arrow/+/-/0 keys
-   graph-viewport.js binds here are the only non-pointer way around the
-   graph, which makes this focus target load-bearing. */
+   keyboard focus. The arrow/+/-/0 keys graph-viewport.js binds here
+   are the only non-pointer way around the graph, which makes this
+   focus target load-bearing. */
 #tree-container:focus {
   outline: none;
 }
@@ -189,12 +189,6 @@ svg {
 #tree-container.is-panning .work {
   cursor: grabbing;
 }
-
-/* The zoom/recentre button cluster that used to sit in the viewport's
-   corner (`#graph-controls`, `.graph-controls-inner`, `.graph-control`)
-   is gone along with the markup that carried it. The d3-zoom viewport
-   recentres on double-click and takes zoom from the wheel, so the
-   drawing is no longer covered by three permanent buttons. */
 
 #tree-container .link {
   stroke: #999;

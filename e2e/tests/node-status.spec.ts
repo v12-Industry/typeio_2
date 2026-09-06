@@ -52,11 +52,11 @@ test("changing a node's status updates and persists it", async ({ page, request 
   await expect(statusRow.locator('.property-value')).toHaveText('closed');
 
   // Also reopen the edit panel and confirm the dropdown itself now
-  // shows the real current status pre-selected (Node.Edit.templateNodeEdit
-  // used to set `selected` on the <select> element itself rather than
-  // the matching <option>, which isn't meaningful HTML -- every browser
-  // ignored it and defaulted to whichever <option> came first,
-  // "active", regardless of the node's real status). Re-navigating
+  // shows the real current status pre-selected. `selected` has to be
+  // on the matching <option>, not on the <select> itself: the latter
+  // isn't meaningful HTML, and every browser ignores it and defaults to
+  // whichever <option> comes first regardless of the node's real
+  // status. Re-navigating
   // (rather than clicking mode_edit again) is deliberate: it forces a
   // fresh GET of the edit panel from the server, not a reused DOM node.
   await page.goto(`/ui/project/vw?projectId=${project.id}&nodeId=${node.id}&visualizationMode=Layered`);

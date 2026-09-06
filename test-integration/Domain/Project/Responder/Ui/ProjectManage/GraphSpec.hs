@@ -316,7 +316,7 @@ spec = aroundAll withTestDatabase $
 
           body <- graphBody pool (fromSqlKey projectKey) []
 
-          -- The graph no longer leaves the server as data at all: it
+          -- The graph never leaves the server as data at all: it
           -- leaves as finished SVG, so there is nothing for a client
           -- layout script to read.
           body `shouldNotContainStr` "graph-data"

@@ -139,7 +139,7 @@ test("the graph renders server-side, with no client layout script", async ({ pag
   await expect(page.locator('#graph-nodes .node rect.work')).toHaveCount(1);
   await expect(page.locator('#graph-nodes circle')).toHaveCount(0);
 
-  // The graph no longer leaves the server as data for a client to lay
+  // The graph never leaves the server as data for a client to lay
   // out, so there is nothing for one to read.
   //
   // Note this stays true even though the viewport loads d3 again: d3
@@ -248,7 +248,7 @@ test("the graph viewport opens on the project root and zooms", async ({ page, re
   expect(opened.x).toBeCloseTo(box.width / 2 - rootX, 0);
   expect(opened.y).toBeCloseTo(box.height / 2 - rootY, 0);
 
-  // Zoom via the keyboard, which is what replaced the +/- buttons.
+  // Zoom via the keyboard: the non-pointer path to the same gestures.
   await page.locator('#tree-container').focus();
   await page.keyboard.press('+');
   await expect

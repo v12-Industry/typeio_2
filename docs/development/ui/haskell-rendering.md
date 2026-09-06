@@ -69,13 +69,11 @@ elsewhere — that's the established extension point.
 
 ## Passing server data to client JS
 
-**There is no longer a pattern for this in the app, which is the point.**
+**There is no pattern for this in the app, which is the point.**
 
-The dependency graph used to embed its data as JSON in a
-`<script id="graph-data" type="application/json">` for `nodetree2.js` to
-read and lay out. That whole approach is gone: the
-server now computes every coordinate and sends finished SVG, so the
-graph's data never reaches the browser at all. See
+The server computes every coordinate and sends finished SVG, so the
+dependency graph's data never reaches the browser at all — there is no
+JSON payload for a client script to read and lay out. See
 [`../../architecture/graph-rendering.md`](../../architecture/graph-rendering.md).
 
 What remains is a much smaller need — handing a script a few scalars

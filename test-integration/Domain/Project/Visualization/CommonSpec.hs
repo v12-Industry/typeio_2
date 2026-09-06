@@ -106,10 +106,9 @@ spec = aroundAll withTestDatabase $
         simpleStatus resp `shouldBe` status403
 
       it "rejects a value that names no visualization" $ \pool -> do
-        -- The half of the old GRAPH_VISUALIZATION behaviour worth
-        -- keeping: a value somebody got wrong fails loudly rather than
-        -- falling back, since a silently defaulted visualization
-        -- surfaces much later as "the graph looks wrong".
+        -- A value somebody got wrong fails loudly rather than falling
+        -- back: a silently defaulted visualization surfaces much later
+        -- as "the graph looks wrong".
         pid <- fixture pool
         resp <- graphResponse pool pid [("visualizationMode", Just "Radial")]
 

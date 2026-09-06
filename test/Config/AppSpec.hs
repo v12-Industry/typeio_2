@@ -29,7 +29,6 @@ setValidEnv = do
   setEnv "WEB_INDEX_REDIRECT" "/ui/projects/vw"
   setEnv "WEB_PORT" "8080"
   setEnv "WEB_REQUEST_ID_HEADER" "X-Request-Id"
-  setEnv "GRAPH_VISUALIZATION" "Layered"
 
 spec :: Spec
 spec = around_ (setValidEnv >>) $

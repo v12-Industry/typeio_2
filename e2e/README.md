@@ -72,9 +72,8 @@ when reading `graph.spec.ts`: it asks for `Layered` explicitly rather
 than relying on that default, precisely so it keeps testing the layered
 drawing when a newer one arrives.
 
-Between #240 and #223 this needed a second server on its own port,
-because the visualization came from `GRAPH_VISUALIZATION` at boot. That
-is gone along with the variable — see
+One server serves every drawing, so the whole suite runs against a
+single process — see
 [`visualization-switching.md`](../docs/architecture/visualization-switching.md).
 
 ### Watching it run
