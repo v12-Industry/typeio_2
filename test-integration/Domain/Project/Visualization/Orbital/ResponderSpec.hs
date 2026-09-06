@@ -107,6 +107,18 @@ spec = aroundAll withTestDatabase $
           body `shouldContainStr` discId shared 0
           body `shouldContainStr` discId shared 1
 
+        it "asks the refresh endpoint for the circle's wrap width" $ \pool -> do
+          -- A circle fits fewer characters per line than the layered
+          -- drawing's box, and both share one refresh endpoint, so each
+          -- disc has to say which width it wants. Without it an edited
+          -- label comes back wrapped to the other shape.
+          (projectKey, _) <- sharedDependencyFixture pool
+
+          body <- graphBody pool (fromSqlKey projectKey)
+
+          countStr "wrapWidth=12" body `shouldBe` 4
+          body `shouldNotContainStr` "wrapWidth=18"
+
         it "gives each replica its own label id" $ \pool -> do
           -- Unique per circle, which is what the per-node label
           -- refresh needs once it arrives (#244).
