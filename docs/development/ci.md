@@ -77,7 +77,9 @@ authorization any merge does — `review:approved` on the PR, or
 `CLAUDE.md`'s Git Safety & Branch Boundaries section. Once a PR is
 queued the work is handed to GitHub; there's nothing further to do but
 report it, and a dropped entry (its merge-group `test` failed) is a
-result to investigate, not to blindly re-queue.
+result to investigate, not to blindly re-queue. For the command itself,
+see [Queueing from the command line](#queueing-from-the-command-line)
+below — it is **not** `gh pr merge`.
 
 **Why**: without this, `main`'s branch protection needing `test` to
 pass "up to date" (`required_status_checks.strict`) meant *any* PR
@@ -135,6 +137,44 @@ the original branch protection was before it existed as code (see
 branch protection"). Whenever that infra is actually applied for the
 first time, the import step will need to cover this ruleset too, not
 just the branch protection rule.
+
+### Queueing from the command line
+
+`gh pr merge` does **not** work on this repository:
+
+```
+! The merge strategy for main is set by the merge queue
+GraphQL: Auto merge is not allowed for this repository (enablePullRequestAutoMerge)
+```
+
+On a branch with a merge queue, `gh pr merge` routes through the
+`enablePullRequestAutoMerge` mutation, which requires the repository's
+**Allow auto-merge** setting. That setting is off here, so the command
+fails whatever the PR's state — identically on a PR whose checks are
+still running and on one that is fully green.
+
+The merge queue's own mutation is what works:
+
+```bash
+PRID=$(gh pr view <n> --json id --jq .id)
+gh api graphql -f query='
+  mutation($id: ID!) {
+    enqueuePullRequest(input: {pullRequestId: $id}) {
+      mergeQueueEntry { position state }
+    }
+  }' -f id="$PRID"
+# => {"data":{"enqueuePullRequest":{"mergeQueueEntry":{"position":1,"state":"QUEUED"}}}}
+```
+
+A `position` and a `state` of `QUEUED` in the response is the
+confirmation that it is in.
+
+> ⚠️ **`gh pr merge --admin` is not the fallback.** It is the obvious
+> next thing to reach for when the plain command fails, and it does
+> something different: it bypasses the merge queue and branch
+> protection to merge on the spot, rather than joining the queue. The
+> point of the queue is that `test` runs against what `main` will
+> actually look like; `--admin` skips exactly that.
 
 ## Cache warming
 
