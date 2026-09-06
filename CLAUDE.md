@@ -153,6 +153,19 @@ Quick summary:
 ## Code & Style Conventions
 
 - Explicit type signatures, clear module exports.
+- **Do not add comments to library source code.** Nothing under
+  `lib/src` gets a comment — not explanatory prose, not a Haddock
+  module header, not a `-- ^` on a record field, not a one-line note
+  above a tricky expression. Name things well and let the code read as
+  itself; if a passage needs a paragraph to be understood, that is a
+  signal to restructure it, not to annotate it.
+  - **The only exception is test files**, where a *brief* comment
+    explaining what a non-obvious case is pinning is welcome. Keep those
+    short — a sentence or two, not an essay.
+  - This applies to code an agent writes as much as to code a human
+    writes, and it applies when *editing* an existing file too: don't
+    reintroduce commentary alongside a change.
+  - Language pragmas (`{-# LANGUAGE ... #-}`) are not comments and stay.
 - Responder modules are one file per HTTP verb under
   `responder/api/<Domain>/<Verb>.hs` (e.g. `Get.hs`, `Post.hs`), and one
   `View.hs`/template module per feature under `responder/ui/<Feature>/`.
