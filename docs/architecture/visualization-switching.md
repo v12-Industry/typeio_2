@@ -85,10 +85,18 @@ The two cases are deliberately not the same:
 | Request | Result |
 |---|---|
 | no `visualizationMode` | `defaultVisualization` |
-| `visualizationMode=` (empty) | `defaultVisualization` — an unfilled control, not a wrong answer |
 | `visualizationMode=Orbital` | that drawing |
 | `visualizationMode=Radial` | **403**, `Invalid visualizationMode value` |
 | `visualizationMode=orbital` | **403** — `Read` is case-sensitive on constructor names |
+| `visualizationMode=` (empty) | **403** — present and unparseable, not absent |
+
+That last row is worth knowing because the friendlier reading is
+tempting. `lookupVal` returns `Just ""` for an empty parameter, so it is
+a value that does not parse rather than a missing one, and every other
+optional query parameter in this app already behaves that way —
+`?nodeId=` is rejected the same way by `ProjectManage.View`'s own
+`valRead`. Special-casing this one field would make "empty" mean
+something different depending on which parameter you left blank.
 
 `GRAPH_VISUALIZATION` (#215–#223) had no fallback at all: a missing or
 unparseable value failed at boot, on the reasoning that a server quietly

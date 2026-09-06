@@ -91,14 +91,21 @@ spec = aroundAll withTestDatabase $
 
         implicit `shouldBe` explicit
 
-      it "treats an empty parameter as absent" $ \pool -> do
-        -- `?visualizationMode=` is what an unfilled form control sends.
-        -- It is not a wrong value, so it should not be an error.
+      it "rejects an empty parameter rather than treating it as absent" $ \pool -> do
+        -- `?visualizationMode=` is a value that is present and does not
+        -- parse, not a missing one -- `lookupVal` returns `Just ""` and
+        -- `valRead` rejects it.
+        --
+        -- Asserted because the friendlier reading is tempting and would
+        -- be inconsistent: every other optional query parameter in this
+        -- app behaves this way already (`?nodeId=` is rejected by
+        -- ProjectManage.View's own valRead). Special-casing this one
+        -- field would make "empty" mean something different depending
+        -- on which parameter you left blank.
         pid <- fixture pool
-        blank <- graphBody pool pid [("visualizationMode", Just "")]
-        implicit <- graphBody pool pid []
+        resp <- graphResponse pool pid [("visualizationMode", Just "")]
 
-        blank `shouldBe` implicit
+        simpleStatus resp `shouldBe` status403
 
       it "rejects a value that names no visualization" $ \pool -> do
         -- The half of the old GRAPH_VISUALIZATION behaviour worth
