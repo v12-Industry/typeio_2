@@ -111,6 +111,9 @@ spec = aroundAll withTestDatabase $
           body `shouldContainStr` "/ui/project/node/refresh?nodeId="
           body `shouldNotContainStr` "layout=server"
 
+          body `shouldContainStr` "wrapWidth=18"
+          body `shouldNotContainStr` "wrapWidth=12"
+
       describe "the node-identity contract (#234)" $ do
         it "tags every drawn node with the node it stands for" $ \pool -> do
           -- The one thing a visualization has to publish for the rest

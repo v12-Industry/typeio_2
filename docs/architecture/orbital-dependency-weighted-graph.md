@@ -228,7 +228,7 @@ data OrbitDiagram = OrbitDiagram
 data OrbitConfig = OrbitConfig
   { cfgDiscRadius  :: Double  -- every disc is the same size
   , cfgDiscGap     :: Double  -- minimum arc clearance between discs
-  , cfgMinRingGap  :: Double  -- minimum radial distance between rings
+  , cfgMinRingGap  :: Double  -- minimum clear space between ring rims
   , cfgEyeRadius   :: Double  -- clear space at the centre
   , cfgLabelWidth  :: Int     -- characters per label line
   , cfgLabelLines  :: Int     -- maximum label lines
@@ -345,9 +345,18 @@ discs on it clear each other:
 
 ```
 r₀ = cfgEyeRadius
-rₖ = max (rₖ₋₁ + cfgMinRingGap)
+rₖ = max (rₖ₋₁ + 2 * cfgDiscRadius + cfgMinRingGap)
          ((2 * cfgDiscRadius + cfgDiscGap) / minAngularGapₖ)
 ```
+
+`cfgMinRingGap` is the **clear space between rims**, so the step from
+one ring to the next adds the two radii as well. Treating it as a
+centre-to-centre distance is a trap: the moment it equals the disc
+diameter, radially adjacent discs are exactly tangent and the link
+between them is trimmed to nothing — two touching circles and no
+arrowhead. Every disc-overlap assertion still passes, because tangency
+is not overlap. `LayoutSpec`'s *"gives every link a visible length"* is
+what catches it.
 
 where `minAngularGapₖ` is the smallest angular distance between any two
 adjacent discs on ring `k`. A ring holding one disc imposes no
