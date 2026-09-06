@@ -6,6 +6,7 @@ import Common.Validation
   ( ValidationErr
   , isNotEmpty
   , isThere
+  , orDefault
   , runValidation
   , valRead
   , (.$)
@@ -13,11 +14,10 @@ import Common.Validation
 import Common.Web.Attributes
 import Common.Web.Query (lookupVal)
 import Common.Web.Template.MainHeader (templateNavHeader)
-import Config.Visualization (Visualization)
+import Config.Visualization (Visualization, defaultVisualization)
 import Data.Int (Int64)
 import Data.Text (Text, unpack)
 import Domain.Project.Responder.Ui.ProjectManage.Link
-import Domain.Project.Visualization.Common (validateVisualization)
 import Lucid
 import Network.HTTP.Types (QueryText, status200, status403)
 import Network.HTTP.Types.URI (queryToQueryText)
@@ -26,6 +26,7 @@ import Network.Wai (Application, queryString, responseLBS)
 data ManageProjectForm = ManageProjectForm
   { formNodeId :: Maybe Text
   , formProjectId :: Maybe Text
+  , formVisualizationMode :: Maybe Text
   }
 
 data ManageProjectPayload = ManageProjectPayload
@@ -54,20 +55,19 @@ handleProjectManageView req respond = do
           [("Content-Type", "text/html")]
           (renderBS $ templateProject py)
   where
-    qt = queryToQueryText . queryString $ req
-    {- The visualization first, so a bad `visualizationMode` is rejected
-    here rather than being forwarded into the fragment's link and
-    failing there instead -- one error, at the request that carried the
-    wrong value. -}
-    pidE = do
-      viz <- validateVisualization qt
-      validateForm viz (queryTextToForm qt)
+    pidE =
+      validateForm
+        . queryTextToForm
+        . queryToQueryText
+        . queryString
+        $ req
 
 queryTextToForm :: QueryText -> ManageProjectForm
 queryTextToForm qt =
   ManageProjectForm
     { formNodeId = lookupVal "nodeId" qt
     , formProjectId = lookupVal "projectId" qt
+    , formVisualizationMode = lookupVal "visualizationMode" qt
     }
 
 templateProject :: ManageProjectPayload -> Html ()
@@ -113,11 +113,8 @@ templateProject py = do
     pid = payloadProjectId py
     viz = payloadVisualization py
 
-validateForm ::
-  Visualization ->
-  ManageProjectForm ->
-  Either [ValidationErr] ManageProjectPayload
-validateForm viz fm = runValidation id $ do
+validateForm :: ManageProjectForm -> Either [ValidationErr] ManageProjectPayload
+validateForm fm = runValidation id $ do
   pid <-
     formProjectId fm
       .$ unpack
@@ -128,4 +125,13 @@ validateForm viz fm = runValidation id $ do
     formNodeId fm
       .$ unpack
       >>= valRead "Node id must be valid integer"
-  return $ (\p -> ManageProjectPayload nid p viz) <$> pid
+  {- Optional with a default rather than optional-and-nullable like
+  `nid` above: an absent `visualizationMode` still has to produce a
+  drawing. `orDefault` supplies it without swallowing the error from a
+  value that was present and unrecognised. -}
+  viz <-
+    formVisualizationMode fm
+      .$ unpack
+      >>= valRead "Invalid visualizationMode value"
+      >>= orDefault defaultVisualization
+  return $ ManageProjectPayload nid <$> pid <*> viz

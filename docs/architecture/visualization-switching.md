@@ -106,11 +106,34 @@ somebody got wrong**, which is why an unrecognised mode is an error
 rather than a fallback. It never applied to a value nobody supplied,
 which is just an ordinary link.
 
-This needs `valRead` *without* `isThere`, and deliberately not through
-`runValidation`: that helper reads "no value and no errors" — exactly
-what an absent optional field produces — as a failure, because it is
-built for fields that must end up present. `validateVisualization`
-spells the three cases out instead.
+Expressed as one ordinary `runValidation` pipeline, like every other
+validator in the app:
+
+```haskell
+lookupVal "visualizationMode" qt
+  .$ unpack
+  >>= valRead "Invalid visualizationMode value"
+  >>= orDefault defaultVisualization
+```
+
+`orDefault` is what makes that possible, and it was added to
+`Common.Validation` for this (#223). It is the counterpart to
+`isThere` — that one says "absence is an error", this says "absence is
+fine, use this instead" — and the module could not previously express
+the second. Crucially it **fills a missing value without suppressing a
+bad one**: an error already recorded still fails the whole validation,
+so an absent field takes the default while a present-but-wrong one is
+still rejected. It has to come last in a chain, for the reason its own
+docs give.
+
+Without it, a pipeline ending in an absent optional field hands
+`runValidation` a `(Nothing, [])` — no value and no errors — which it
+reports as `"Unknown error in validation"`, because it is built for
+fields that must end up present. The first version of this change
+worked around that by validating the visualization separately from the
+rest of the form; splitting one pipeline into two to dodge a gap in the
+validation vocabulary was the wrong trade, and the gap is now closed
+instead.
 
 ### The default is "whichever was added most recently"
 

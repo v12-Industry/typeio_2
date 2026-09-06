@@ -10,6 +10,7 @@ import Common.Validation
   ( ValidationErr
   , isNotEmpty
   , isThere
+  , orDefault
   , runValidation
   , valRead
   , (.$)
@@ -22,7 +23,6 @@ import Control.Monad (forM_)
 import Control.Monad.Reader (ReaderT)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Either (hoistEither, runEitherT)
-import Control.Monad.Writer (runWriter)
 import Data.Aeson (encode, object, (.=))
 import Data.Bifunctor (first)
 import Data.Either (notNullEither)
@@ -215,24 +215,19 @@ got /wrong/, and this keeps it — @?visualizationMode=Radial@ is an
 error. It never applied to a value nobody supplied, which is just an
 ordinary link.
 
-__Not__ via 'runValidation', and that is worth knowing before anyone
-tidies it into one: 'runValidation' reads a @(Nothing, [])@ result — no
-value and no errors, which is exactly what an absent optional field
-produces — as @Left "Unknown error in validation"@. It is built for
-fields that must end up present. Here the three cases are genuinely
-distinct and are spelled out.
+One ordinary 'runValidation' pipeline, like every other validator here.
+'orDefault' is what makes that possible: it supplies the value for a
+field that was legitimately absent without suppressing an error for one
+that was present and wrong, so both cases stay expressible in the same
+chain. Its own docs explain why it has to come last.
 -}
 validateVisualization :: QueryText -> Either [ValidationErr] Visualization
 validateVisualization qt =
-  case runWriter parsed of
-    (_, es@(_ : _)) -> Left es
-    (Just viz, []) -> Right viz
-    (Nothing, []) -> Right defaultVisualization
-  where
-    parsed =
-      valRead
-        "Invalid visualizationMode value"
-        (unpack <$> lookupVal "visualizationMode" qt)
+  runValidation id $
+    lookupVal "visualizationMode" qt
+      .$ unpack
+      >>= valRead "Invalid visualizationMode value"
+      >>= orDefault defaultVisualization
 
 handleGraphWith :: RenderGraph -> ConnectionPool -> Application
 handleGraphWith drawGraph pl req respond = do
