@@ -63,17 +63,11 @@ env:
   WEB_REQUEST_ID_HEADER: X-Request-ID
   WEB_REDIRECT_PATH: /api/nodes
   E2E_BASE_URL: http://localhost:3000
-  # Required, no default, since #215 -- Layered is the drawing the app
-  # has always served, and this suite's specs assume it (root nodes,
-  # containment edges, etc.). See
-  # docs/architecture/visualization-switching.md.
-  GRAPH_VISUALIZATION: Layered
-  # The second server (#240), serving the orbital drawing on the same
-  # database. A visualization is chosen at boot, so covering a second
-  # one means running a second process; the orbital spec is pointed at
-  # this port by playwright.config.ts's `orbital` project.
-  ORBITAL_WEB_PORT: '3001'
-  E2E_ORBITAL_BASE_URL: http://localhost:3001
+  # GRAPH_VISUALIZATION is gone as of #223: which drawing to render is a
+  # property of the request (`?visualizationMode=`), not of the process,
+  # so there is nothing to set here and every spec names the drawing it
+  # wants. Specs that name none get Config.Visualization's hardcoded
+  # default. See docs/architecture/visualization-switching.md.
 
 jobs:
   # Cheap precondition job, only for pull_request events -- decides
@@ -225,41 +219,23 @@ jobs:
       - name: Start server
         run: nohup cabal run server > server.log 2>&1 &
 
-      # A second server, on the same database, serving the orbital
-      # drawing (#240). A server chooses its visualization once at boot
-      # from GRAPH_VISUALIZATION, so the orbital spec cannot run against
-      # the Layered one above -- see
-      # docs/architecture/visualization-switching.md.
-      #
-      # Both read the same Postgres, so the seeded fixture is shared and
-      # seeded once, below.
-      #
-      # Temporary in the sense that #223 removes the need for it: once
-      # the visualization is a query parameter rather than a boot-time
-      # config value, one server serves both and this step goes away
-      # along with playwright.config.ts's second project.
-      - name: Start orbital server
+      # One server serves every visualization as of #223 -- the drawing
+      # is a `visualizationMode` query parameter, so orbital.spec.ts
+      # names the one it wants rather than needing a process of its own.
+      # #240 briefly started a second server here for exactly that
+      # reason.
+      - name: Wait for server
         run: |
-          nohup env GRAPH_VISUALIZATION=Orbital WEB_PORT="$ORBITAL_WEB_PORT" \
-            cabal run server > server-orbital.log 2>&1 &
-
-      - name: Wait for servers
-        run: |
-          wait_for () {
-            local port="$1" name="$2" log="$3"
-            for i in $(seq 1 30); do
-              if curl -sf -o /dev/null "http://localhost:$port/ui/projects/vw"; then
-                echo "$name ready"
-                return 0
-              fi
-              sleep 1
-            done
-            echo "::error::$name did not become ready in time"
-            cat "$log"
-            return 1
-          }
-          wait_for "$WEB_PORT" "Layered server" server.log
-          wait_for "$ORBITAL_WEB_PORT" "Orbital server" server-orbital.log
+          for i in $(seq 1 30); do
+            if curl -sf -o /dev/null "http://localhost:$WEB_PORT/ui/projects/vw"; then
+              echo "Server ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::Server did not become ready in time"
+          cat server.log
+          exit 1
 
       # What `make seed-db` does locally -- reusing the app's own
       # existing seeding path (Domain.Central.Responder.Api.Seed) rather
@@ -285,13 +261,6 @@ jobs:
         working-directory: e2e
         run: npm test
 
-      # Both, since a failure in the orbital project says nothing about
-      # the layered server and vice versa -- and a spec failing because
-      # its server never came up is the case these logs exist for.
-      - name: Print server logs
+      - name: Print server log
         if: failure()
-        run: |
-          echo "===== layered server (port $WEB_PORT) ====="
-          cat server.log
-          echo "===== orbital server (port $ORBITAL_WEB_PORT) ====="
-          cat server-orbital.log
+        run: cat server.log

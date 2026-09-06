@@ -59,38 +59,23 @@ spec in `tests/`. To point at a different host/port (e.g. a non-default
 E2E_BASE_URL=http://localhost:4000 npm test
 ```
 
-### The orbital spec needs a second server
+### Specs that need a particular visualization
 
-`orbital.spec.ts` runs as its own Playwright *project*, against a
-separate server started with `GRAPH_VISUALIZATION=Orbital`. A server
-picks its visualization once, at boot (see
-[`visualization-switching.md`](../docs/architecture/visualization-switching.md)),
-so one process cannot serve both drawings and the orbital spec has
-nothing to assert against on a `Layered` one.
+One server serves all of them. A spec that needs a specific drawing puts
+`visualizationMode` on the page URL — `orbital.spec.ts` navigates to
+`/ui/project/vw?projectId=…&visualizationMode=Orbital`, and the page
+forwards it to the htmx request that fetches the graph fragment.
 
-Start it alongside the first, on the same database, in another terminal:
+A spec that names none gets `Config.Visualization`'s hardcoded default,
+which is whichever visualization was added most recently. Worth knowing
+when reading `graph.spec.ts`: it asks for `Layered` explicitly rather
+than relying on that default, precisely so it keeps testing the layered
+drawing when a newer one arrives.
 
-```
-GRAPH_VISUALIZATION=Orbital WEB_PORT=3001 cabal run server
-```
-
-Both servers read the same Postgres, so seed once — the demo project
-(`Public API launch`) the orbital spec uses is the one `make seed-db`
-inserts.
-
-Without that second server the `orbital` project's tests fail to
-connect; the rest of the suite is unaffected. To run only the others:
-
-```
-npx playwright test --project=chromium
-```
-
-Point it elsewhere with `E2E_ORBITAL_BASE_URL`, the same way
-`E2E_BASE_URL` works for the first.
-
-**This is temporary.** #223 replaces the boot-time config value with a
-query parameter; when it lands, one server serves both and this second
-project collapses back into the first.
+Between #240 and #223 this needed a second server on its own port,
+because the visualization came from `GRAPH_VISUALIZATION` at boot. That
+is gone along with the variable — see
+[`visualization-switching.md`](../docs/architecture/visualization-switching.md).
 
 ### Watching it run
 

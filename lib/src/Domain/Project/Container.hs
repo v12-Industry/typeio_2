@@ -1,6 +1,5 @@
 module Domain.Project.Container where
 
-import Config.Visualization (Visualization)
 import Database.Persist.Sql (ConnectionPool)
 import qualified Domain.Project.Responder.Api.Container as Api
 import qualified Domain.Project.Responder.Ui.Container as Ui
@@ -10,14 +9,17 @@ data ProjectContainer = ProjectContainer
   , projectUiContainer' :: Ui.Container
   }
 
-{- | Takes the selected 'Visualization' rather than the whole
-'Config.App.AppConfig': the UI container needs exactly one field of it,
-and the container pattern is about handing each level only what its
-handlers actually use.
+{- | Takes only the pool.
+
+It used to take the selected 'Config.Visualization.Visualization' too,
+threaded down from 'Config.App.AppConfig' so the UI container could bind
+one handler at construction. #223 moved that choice onto the request, so
+there is nothing to thread: every drawing is live in one process and the
+graph endpoint picks per request.
 -}
-defaultContainer :: Visualization -> ConnectionPool -> ProjectContainer
-defaultContainer viz pl =
+defaultContainer :: ConnectionPool -> ProjectContainer
+defaultContainer pl =
   ProjectContainer
     { projectApiContainer' = Api.defaultContainer pl
-    , projectUiContainer' = Ui.defaultContainer viz pl
+    , projectUiContainer' = Ui.defaultContainer pl
     }

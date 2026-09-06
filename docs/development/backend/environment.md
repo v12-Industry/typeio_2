@@ -57,19 +57,17 @@ loaded from its own set of environment variables (`DB_HOST`, `DB_PORT`,
 default (`3000`, see `Config.Web.defaultWebPort`) rather than being
 required.
 
-`GRAPH_VISUALIZATION` selects which dependency-graph visualization the
-app renders — `Layered` or `Rootless`, parsed as the constructor name
-the way `ENV` is. It is **required, with no default**, so an existing
-`.env` needs the line added:
+**There is no environment variable for the dependency-graph
+visualization.** `GRAPH_VISUALIZATION` existed between #215 and #223 and
+is gone: which drawing to render is a property of a *request* now, not
+of the process, chosen by an optional `visualizationMode` query
+parameter. Delete the line if an old `.env` still has it — nothing reads
+it, and leaving it there suggests it does something.
 
-```
-GRAPH_VISUALIZATION=Layered
-```
-
-Defaulting it was considered and rejected: a server quietly drawing a
-different graph than intended does not announce itself, it surfaces much
-later as "the graph looks wrong". See
-[`../../architecture/visualization-switching.md`](../../architecture/visualization-switching.md).
+See
+[`../../architecture/visualization-switching.md`](../../architecture/visualization-switching.md)
+for the mechanism, including why an *absent* parameter takes a default
+while an *unrecognised* one is an error.
 
 Validation is accumulating, not fail-fast: each field is checked
 independently (present, non-empty, parses, in range) and any failure is

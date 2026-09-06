@@ -3,13 +3,14 @@ import { test, expect, Page } from '@playwright/test';
 // E2E coverage for the orbital dependency-weighted visualization (#240,
 // specified in #229).
 //
-// This spec runs against a SECOND server, started with
-// GRAPH_VISUALIZATION=Orbital -- see playwright.config.ts's `orbital`
-// project and e2e/README.md. The visualization is chosen once at boot
-// (docs/architecture/visualization-switching.md), so one server cannot
-// serve both drawings and the layered specs cannot cover this one.
-// #223 would collapse the two servers back into one by making the
-// choice a query parameter.
+// This spec asks for its drawing by name, with `?visualizationMode=
+// Orbital` on the page URL (#223) -- the same server serves every
+// visualization, and the parameter is forwarded from the page to the
+// htmx request that actually fetches the graph fragment.
+//
+// It briefly needed a second server on its own port, back when the
+// choice came from GRAPH_VISUALIZATION at boot; that is gone along with
+// the variable.
 //
 // Everything here is about a node being drawn MORE THAN ONCE, which no
 // other visualization does and therefore no other spec covers:
@@ -47,7 +48,9 @@ async function demoProjectId(page: Page): Promise<string> {
 // uses for `.node`.
 async function openGraph(page: Page): Promise<string> {
   const projectId = await demoProjectId(page);
-  await page.goto(`/ui/project/vw?projectId=${projectId}`);
+  await page.goto(
+    `/ui/project/vw?projectId=${projectId}&visualizationMode=Orbital`
+  );
   await expect(page.locator('#graph-nodes .disc').first()).toBeAttached();
   return projectId;
 }

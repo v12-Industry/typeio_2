@@ -625,15 +625,18 @@ requires.
 `Orbital` joins `Config.Visualization.Visualization`, and the switch in
 `Domain.Project.Responder.Ui.Container` gains a third case.
 
-⚠️ **This interacts with #223.** That issue replaces
-`GRAPH_VISUALIZATION` with a `visualizationMode` query parameter whose
-default is hardcoded to *whichever visualization was added most
-recently*. If #223 has landed by the time this is built, adding
-`Orbital` makes it the new default and that binding must be updated as
-part of the same change — #223 states this explicitly as the
-responsibility of whoever adds a visualization. If #223 has not landed,
-this is an `.env` value like the other two and #223 inherits a third
-constructor.
+Selected per request, `?visualizationMode=Orbital` — on the graph
+fragment, or on the project page, which forwards it.
+
+**It is also the default**, because #223's convention is that a request
+naming no visualization gets whichever was added most recently, and this
+is the most recent. That binding
+(`Config.Visualization.defaultVisualization`) has to be updated by
+whoever adds the next one; nothing fails if it is not.
+
+This landed in the order #238 → #223: `Orbital` was first selected by
+`GRAPH_VISUALIZATION`, and became a query parameter when that variable
+was removed.
 
 ## What this design assumes upstream
 

@@ -74,6 +74,10 @@ library src
       -- Exposed for `test-suite integration`'s GraphSpec, which asserts
       -- on the SVG this renders (#178).
       , Domain.Project.Visualization.Common
+      -- Exposed for the switch's own integration spec (#223), so it
+      -- exercises the real `renderFor` table rather than a copy that
+      -- could drift from it.
+      , Domain.Project.Responder.Ui.Container
       , Domain.Project.Visualization.Layered.Responder
       , Domain.Project.Visualization.Orbital.Responder
       , Domain.Project.Visualization.Orbital.View
@@ -101,7 +105,6 @@ library src
       , Domain.Project.Responder.Api.NodeType.Get
       , Domain.Project.Responder.Api.Project.Get
       , Domain.Project.Responder.Api.Container
-      , Domain.Project.Responder.Ui.Container
       , Domain.Project.Responder.Ui.ProjectManage.Link
       , Domain.Project.Responder.Ui.ProjectManage.Node
       , Domain.Project.Responder.Ui.ProjectManage.Node.Detail
@@ -220,6 +223,7 @@ test-suite integration
       , Domain.Project.Responder.Ui.ProjectManage.Node.DescriptionSpec
       , Domain.Project.Responder.Ui.ProjectManage.Node.StatusSpec
       , Domain.Project.Responder.Ui.ProjectManage.Node.TitleSpec
+      , Domain.Project.Visualization.CommonSpec
       , Domain.Project.Visualization.Orbital.ResponderSpec
       , Domain.Project.Visualization.Rootless.ResponderSpec
     build-tool-depends: hspec-discover:hspec-discover

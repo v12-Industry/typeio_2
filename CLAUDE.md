@@ -98,12 +98,13 @@ Known Gotchas below.)
 - **Build:** `cabal build all`
 - **Run the server:** `cabal run server` (loads config from `.env` — see
   that file for the required variables; none are hardcoded).
-  ⚠️ **`GRAPH_VISUALIZATION` is required as of #215** and has no
-  default, so an existing `.env` needs `GRAPH_VISUALIZATION=Layered`
-  added or the server refuses to start. `Layered` is the drawing the app
-  has always served; `Rootless` omits the project node; `Orbital` is the
-  radial dependency-weighted drawing (#229), which replicates a shared
-  dependency into every work stream that waits on it. See
+  ⚠️ **`GRAPH_VISUALIZATION` no longer exists** — it was required
+  between #215 and #223, and is now gone. Which dependency-graph
+  visualization renders is chosen per request by an optional
+  `visualizationMode` query parameter (`Layered`, `Rootless` or
+  `Orbital`); an absent one takes a hardcoded default, an unrecognised
+  one is a validation error. Delete the line from an old `.env` —
+  nothing reads it. See
   [`docs/architecture/visualization-switching.md`](docs/architecture/visualization-switching.md).
 - **Start Postgres:** `make run-postgres`
 - **Migrations:** `make migrate-up` / `make migrate-down` /

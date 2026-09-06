@@ -6,6 +6,7 @@ import Common.Validation
   ( ValidationErr
   , isNotEmpty
   , isThere
+  , orDefault
   , runValidation
   , valRead
   , (.$)
@@ -13,6 +14,7 @@ import Common.Validation
 import Common.Web.Attributes
 import Common.Web.Query (lookupVal)
 import Common.Web.Template.MainHeader (templateNavHeader)
+import Config.Visualization (Visualization, defaultVisualization)
 import Data.Int (Int64)
 import Data.Text (Text, unpack)
 import Domain.Project.Responder.Ui.ProjectManage.Link
@@ -24,11 +26,17 @@ import Network.Wai (Application, queryString, responseLBS)
 data ManageProjectForm = ManageProjectForm
   { formNodeId :: Maybe Text
   , formProjectId :: Maybe Text
+  , formVisualizationMode :: Maybe Text
   }
 
 data ManageProjectPayload = ManageProjectPayload
   { payloadNodeId :: Maybe Int64
   , payloadProjectId :: Int64
+  , payloadVisualization :: Visualization
+  {- ^ Which drawing to ask the graph endpoint for. Resolved here, from
+  this page's own @visualizationMode@, so that a link naming a drawing
+  actually reaches the fragment that renders it (#223).
+  -}
   }
 
 handleProjectManageView :: Application
@@ -59,6 +67,7 @@ queryTextToForm qt =
   ManageProjectForm
     { formNodeId = lookupVal "nodeId" qt
     , formProjectId = lookupVal "projectId" qt
+    , formVisualizationMode = lookupVal "visualizationMode" qt
     }
 
 templateProject :: ManageProjectPayload -> Html ()
@@ -76,7 +85,7 @@ templateProject py = do
         -- the graph without a pointer now that the zoom buttons are
         -- gone.
         tabindex_ "0"
-      , hxGet_ (graphLink pid)
+      , hxGet_ (graphLink pid viz)
       , hxPushUrl_ False
       , hxSwap_ "innerHTML"
       , hxTrigger_ "load"
@@ -102,6 +111,7 @@ templateProject py = do
     empty = mempty :: Html ()
     nidM = payloadNodeId py
     pid = payloadProjectId py
+    viz = payloadVisualization py
 
 validateForm :: ManageProjectForm -> Either [ValidationErr] ManageProjectPayload
 validateForm fm = runValidation id $ do
@@ -115,4 +125,13 @@ validateForm fm = runValidation id $ do
     formNodeId fm
       .$ unpack
       >>= valRead "Node id must be valid integer"
-  return $ ManageProjectPayload nid <$> pid
+  {- Optional with a default rather than optional-and-nullable like
+  `nid` above: an absent `visualizationMode` still has to produce a
+  drawing. `orDefault` supplies it without swallowing the error from a
+  value that was present and unrecognised. -}
+  viz <-
+    formVisualizationMode fm
+      .$ unpack
+      >>= valRead "Invalid visualizationMode value"
+      >>= orDefault defaultVisualization
+  return $ ManageProjectPayload nid <$> pid <*> viz

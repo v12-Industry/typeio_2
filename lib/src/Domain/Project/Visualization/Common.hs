@@ -10,6 +10,7 @@ import Common.Validation
   ( ValidationErr
   , isNotEmpty
   , isThere
+  , orDefault
   , runValidation
   , valRead
   , (.$)
@@ -17,6 +18,7 @@ import Common.Validation
 import Common.Web.Attributes
 import Common.Web.Elements
 import Common.Web.Query (lookupVal)
+import Config.Visualization (Visualization, defaultVisualization)
 import Control.Monad (forM_)
 import Control.Monad.Reader (ReaderT)
 import Control.Monad.Trans.Class (lift)
@@ -78,6 +80,8 @@ import Network.HTTP.Types.URI (QueryText)
 import Network.Wai
   ( Application
   , Request (queryString)
+  , Response
+  , ResponseReceived
   , responseLBS
   )
 
@@ -150,6 +154,81 @@ queries and the error responses are identical whichever drawing is
 selected, and duplicating them per visualization would just let them
 drift apart.
 -}
+
+{- | The graph endpoint: pick the visualization the request asked for,
+then render with it.
+
+This is the switch (#223). It sits here rather than in the container
+because everything it needs — the query text, the validation vocabulary,
+and the error-response shape — is already here, and because the
+alternative is a second copy of @respondValErrs@ somewhere else.
+
+The parameter is a /function/ from 'Visualization' to 'RenderGraph',
+not a 'Visualization': this module never learns which drawings exist,
+it just applies the table the container hands it. That keeps the
+per-visualization list in one place and keeps this function honest
+about being shared — it is the mechanism, not a branch on identity.
+See @docs/architecture/visualization-switching.md@.
+-}
+handleGraph ::
+  (Visualization -> RenderGraph) ->
+  ConnectionPool ->
+  Application
+handleGraph renderFor pl req respond =
+  case validateVisualization qt of
+    Left es -> respondValErrs respond es
+    Right viz -> handleGraphWith (renderFor viz) pl req respond
+  where
+    qt = queryToQueryText . queryString $ req
+
+{- | A validation failure, in the shape every graph-endpoint error uses.
+
+Top-level rather than a @where@ binding because two callers need it now:
+the project id's validation inside 'handleGraphWith', and the
+visualization's before it (#223). One shape, one place.
+-}
+respondValErrs ::
+  (Response -> IO ResponseReceived) ->
+  [ValidationErr] ->
+  IO ResponseReceived
+respondValErrs respond es =
+  respond
+    . responseLBS
+      status403
+      [("Content-Type", "application/json")]
+    . encode
+    . object
+    $ ["error" .= (mconcat . map (pack . show) $ es)]
+
+{- | The visualization a request asks for, or 'defaultVisualization'.
+
+Optional, so this uses 'valRead' without 'isThere': an absent parameter
+passes straight through with no error and takes the default, while a
+/present but unrecognised/ one is a validation error rather than a
+silent fallback.
+
+That asymmetry is the point. Until #223 the selection came from
+@GRAPH_VISUALIZATION@ and a missing value failed at boot, on the
+reasoning that a silently defaulted visualization surfaces much later
+as "the graph looks wrong". That reasoning applies to a value somebody
+got /wrong/, and this keeps it — @?visualizationMode=Radial@ is an
+error. It never applied to a value nobody supplied, which is just an
+ordinary link.
+
+One ordinary 'runValidation' pipeline, like every other validator here.
+'orDefault' is what makes that possible: it supplies the value for a
+field that was legitimately absent without suppressing an error for one
+that was present and wrong, so both cases stay expressible in the same
+chain. Its own docs explain why it has to come last.
+-}
+validateVisualization :: QueryText -> Either [ValidationErr] Visualization
+validateVisualization qt =
+  runValidation id $
+    lookupVal "visualizationMode" qt
+      .$ unpack
+      >>= valRead "Invalid visualizationMode value"
+      >>= orDefault defaultVisualization
+
 handleGraphWith :: RenderGraph -> ConnectionPool -> Application
 handleGraphWith drawGraph pl req respond = do
   rslt <- flip runSqlPool pl . runEitherT $ do
@@ -169,7 +248,7 @@ handleGraphWith drawGraph pl req respond = do
         $ ns
     pure (pid, ns, ds)
   case rslt of
-    Left (InvalidParams es) -> respondValErrs es
+    Left (InvalidParams es) -> respondValErrs respond es
     Left MissingNodes -> respondMissingNodes
     Right (pid, ns, ds) ->
       respondSuccess $ drawGraph pid ns ds
@@ -182,14 +261,6 @@ handleGraphWith drawGraph pl req respond = do
         . encode
         . object
         $ ["error" .= ("No nodes found for the project" :: Text)]
-    respondValErrs es =
-      respond
-        . responseLBS
-          status403
-          [("Content-Type", "application/json")]
-        . encode
-        . object
-        $ ["error" .= (mconcat . map (pack . show) $ es)]
     respondSuccess =
       respond
         . responseLBS

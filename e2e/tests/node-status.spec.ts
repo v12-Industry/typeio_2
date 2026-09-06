@@ -14,7 +14,7 @@ test("changing a node's status updates and persists it", async ({ page, request 
   const project = await createProject(page, 'E2E node-status project');
   const node = await addNode(request, project.id, 'E2E node-status');
 
-  await page.goto(`/ui/project/vw?projectId=${project.id}&nodeId=${node.id}`);
+  await page.goto(`/ui/project/vw?projectId=${project.id}&nodeId=${node.id}&visualizationMode=Layered`);
   await page.getByRole('button', { name: 'mode_edit' }).click();
 
   // A new node is seeded "active" (Api.Node.Post.handlePostNode always
@@ -59,7 +59,7 @@ test("changing a node's status updates and persists it", async ({ page, request 
   // "active", regardless of the node's real status). Re-navigating
   // (rather than clicking mode_edit again) is deliberate: it forces a
   // fresh GET of the edit panel from the server, not a reused DOM node.
-  await page.goto(`/ui/project/vw?projectId=${project.id}&nodeId=${node.id}`);
+  await page.goto(`/ui/project/vw?projectId=${project.id}&nodeId=${node.id}&visualizationMode=Layered`);
   await page.getByRole('button', { name: 'mode_edit' }).click();
   await expect(page.getByLabel('Status:')).toHaveValue('closed');
 });

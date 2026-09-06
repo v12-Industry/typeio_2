@@ -73,6 +73,45 @@ spec = do
       (runWriter (valRead "bad string" (Just "\"hello\"")) :: (Maybe String, [ValidationErr]))
         `shouldBe` (Just "hello", [])
 
+  describe "orDefault" $ do
+    it "supplies the default for an absent value" $
+      (runWriter (orDefault (7 :: Int) Nothing) :: (Maybe Int, [ValidationErr]))
+        `shouldBe` (Just 7, [])
+
+    it "leaves a present value alone" $
+      (runWriter (orDefault (7 :: Int) (Just 1)) :: (Maybe Int, [ValidationErr]))
+        `shouldBe` (Just 1, [])
+
+    it "records no error of its own, ever" $
+      -- The counterpart to isThere: absence is the expected case here,
+      -- not the failure.
+      (runWriter (orDefault 'x' Nothing) :: (Maybe Char, [ValidationErr]))
+        `shouldBe` (Just 'x', [])
+
+    it "fills the value after a failed parse but does NOT clear the error" $ do
+      -- The property the whole combinator turns on. A field that was
+      -- present and unparseable must still fail overall, even though
+      -- this hands back a value -- otherwise "optional with a default"
+      -- would silently swallow a typo.
+      let w = valRead "bad int" (Just "nope") >>= orDefault (7 :: Int)
+      (runWriter w :: (Maybe Int, [ValidationErr]))
+        `shouldBe` (Just 7, ["bad int"])
+
+    it "makes runValidation succeed on an absent optional field" $
+      -- Without it, a pipeline ending in an absent optional field hands
+      -- runValidation a (Nothing, []) -- no value, no errors -- which it
+      -- reports as "Unknown error in validation".
+      runValidation
+        id
+        (valRead "bad int" Nothing >>= orDefault (7 :: Int))
+        `shouldBe` (Right 7 :: Either [ValidationErr] Int)
+
+    it "still fails overall when the value was present and wrong" $
+      runValidation
+        id
+        (valRead "bad int" (Just "nope") >>= orDefault (7 :: Int))
+        `shouldBe` (Left ["bad int"] :: Either [ValidationErr] Int)
+
   describe "isBetween" $ do
     it "passes an in-range value through with no error" $
       runWriter (isBetween 1 10 "out of range" (Just (5 :: Int))) `shouldBe` (Just 5, [])

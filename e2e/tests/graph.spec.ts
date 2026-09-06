@@ -1,6 +1,15 @@
 import { test, expect } from '@playwright/test';
 import { addNode, createProject } from './helpers';
 
+// Every navigation here asks for `visualizationMode=Layered` explicitly
+// (#223). It is not redundant: which drawing a request with no
+// parameter gets is Config.Visualization's hardcoded default, and that
+// default is "whichever visualization was added most recently" -- so it
+// moves every time one is added. This spec is about the layered
+// drawing's rects, `#node-<id>` ids and derived containment edges, and
+// it should keep testing those rather than silently re-pointing at
+// whatever landed last.
+
 // Fourth and last workflow covered by this suite (#97, follow-up to
 // #94-#96): view the dependency graph, click a node, and
 // confirm its detail panel opens with the `.node-highlight` glow, then
@@ -27,7 +36,7 @@ test("clicking a graph node opens its detail panel and highlights it, closing cl
   const project = await createProject(page, 'E2E graph project');
   const node = await addNode(request, project.id, 'E2E graph node');
 
-  await page.goto(`/ui/project/vw?projectId=${project.id}`);
+  await page.goto(`/ui/project/vw?projectId=${project.id}&visualizationMode=Layered`);
 
   // Settled-state check per the proposal's hazards: the graph arrives
   // by an htmx swap into #tree-container, not synchronously with
@@ -73,7 +82,7 @@ test("the dependency graph lays nodes out on-screen without overlapping them", a
   await addNode(request, project.id, 'E2E layout node B');
   await addNode(request, project.id, 'E2E layout node C');
 
-  await page.goto(`/ui/project/vw?projectId=${project.id}`);
+  await page.goto(`/ui/project/vw?projectId=${project.id}&visualizationMode=Layered`);
   await expect(page.locator('#graph-nodes .node')).toHaveCount(4);
 
   // Boxes now, not circles (#178), and the server places them (#181):
@@ -126,7 +135,7 @@ test("the graph renders server-side, with no client layout script", async ({ pag
   const project = await createProject(page, 'E2E server layout');
   await addNode(request, project.id, 'E2E server node');
 
-  await page.goto(`/ui/project/vw?projectId=${project.id}`);
+  await page.goto(`/ui/project/vw?projectId=${project.id}&visualizationMode=Layered`);
   await expect(page.locator('#graph-nodes .node')).toHaveCount(2);
 
   // Rounded boxes, classed by kind -- what manage-project.css styles.
@@ -161,7 +170,7 @@ test("the project root heads the graph, with arrows into it from its work", asyn
     await addNode(request, project.id, t);
   }
 
-  await page.goto(`/ui/project/vw?projectId=${project.id}`);
+  await page.goto(`/ui/project/vw?projectId=${project.id}&visualizationMode=Layered`);
   await expect(page.locator('#graph-nodes .node')).toHaveCount(3);
 
   const tops = await page.locator('#graph-nodes .node').evaluateAll((els) =>
@@ -215,7 +224,7 @@ test("the graph viewport opens on the project root and zooms", async ({ page, re
     await addNode(request, project.id, t);
   }
 
-  await page.goto(`/ui/project/vw?projectId=${project.id}`);
+  await page.goto(`/ui/project/vw?projectId=${project.id}&visualizationMode=Layered`);
   await expect(page.locator('#graph-nodes .node')).toHaveCount(4);
 
   // The transform only appears once d3-zoom has loaded and applied the
@@ -273,7 +282,7 @@ test("ctrl+wheel zooms about the pointer and a plain wheel pans", async ({ page,
     await addNode(request, project.id, t);
   }
 
-  await page.goto(`/ui/project/vw?projectId=${project.id}`);
+  await page.goto(`/ui/project/vw?projectId=${project.id}&visualizationMode=Layered`);
   await expect(page.locator('#graph-nodes .node')).toHaveCount(3);
   await expect(page.locator('#graph-zoom-layer')).toHaveAttribute(
     'transform',
@@ -313,7 +322,7 @@ test("dragging the canvas pans it without opening a node", async ({ page, reques
     await addNode(request, project.id, t);
   }
 
-  await page.goto(`/ui/project/vw?projectId=${project.id}`);
+  await page.goto(`/ui/project/vw?projectId=${project.id}&visualizationMode=Layered`);
   await expect(page.locator('#graph-nodes .node')).toHaveCount(5);
   await expect(page.locator('#graph-zoom-layer')).toHaveAttribute(
     'transform',

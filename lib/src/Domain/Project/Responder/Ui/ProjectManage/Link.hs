@@ -2,6 +2,7 @@
 
 module Domain.Project.Responder.Ui.ProjectManage.Link where
 
+import Config.Visualization (Visualization)
 import Data.Int (Int64)
 import Data.Text (Text, pack)
 import Data.Text.Util (intToText)
@@ -59,8 +60,27 @@ nodeRefreshLink nid pid wrapWidth clientTitle =
     <> "&clientTitle="
     <> clientTitle
 
-graphLink :: Int64 -> Text
-graphLink pid =
+{- | The graph fragment's own URL, carrying the visualization to draw.
+
+The page is what the browser navigates to; the drawing arrives by a
+separate htmx request to this link. So the choice has to be forwarded
+here or it never reaches the endpoint that acts on it — a
+@visualizationMode@ on the page URL alone would do nothing at all
+(#223).
+
+The value is rendered from a 'Visualization' rather than passed through
+from the request, so what goes into the URL is always a constructor
+name this app knows: whatever the caller was sent, it cannot end up
+concatenated into the link.
+-}
+graphLink :: Int64 -> Visualization -> Text
+graphLink pid viz =
+  graphLinkFor pid
+    <> "&visualizationMode="
+    <> (pack . show $ viz)
+
+graphLinkFor :: Int64 -> Text
+graphLinkFor pid =
   "/ui/project/graph"
     <> "?projectId="
     <> intToText pid
