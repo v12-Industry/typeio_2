@@ -9,9 +9,8 @@ between visualizations), see
 that document is the normative reference for the mechanism; this directory
 is the per-visualization reference for what each one actually draws.
 
-- **Layered** (`viz:layered`) — the project root heads the drawing, with
-  its edges to the work derived. Doc tracked in
-  a doc of its own.
+- [**Layered**](layered.md) — the project root heads the drawing, with
+  its edges to the work derived (`viz:layered`).
 - [**Rootless**](rootless.md) — the work only, with the project root left
   out entirely (`viz:rootless`).
 
