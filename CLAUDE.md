@@ -320,9 +320,9 @@ Quick summary:
   call to apply, never something to add unprompted or infer from
   context (green checks and a finished-looking diff are not
   authorization). With neither: never merge a feature branch *into*
-  `main` and never merge a PR — no `gh pr merge`, no
-  fast-forwarding/merging a branch's work onto `main` by any other
-  means. See [`labels.md`](docs/development/labels.md)'s
+  `main` and never merge a PR — no `gh pr merge`, no adding it to the
+  merge queue, no fast-forwarding/merging a branch's work onto `main`
+  by any other means. See [`labels.md`](docs/development/labels.md)'s
   `review:approved` and `review:pre-approve` sections.
   - **`review:approved` (on a PR)** — after-the-fact: the user has
     reviewed *that diff* and wants it merged.
@@ -340,16 +340,32 @@ Quick summary:
     findings still get their own issue rather than being folded in.
   - **How to merge, under either label:** rebase the branch onto
     current `main` first if it's behind (the same pull-in-onto-itself
-    mechanism above), push, wait for required checks to pass, then
-    `gh pr merge --merge` (a merge commit, matching this repo's history
-    — not squash/rebase-merge). Note that `main` is behind a **merge
-    queue**, so that command *enqueues* the PR rather than merging it
-    on the spot — GitHub re-runs `test` against the merge group and
-    lands it from there. That's the "queue for merge" step, and it's
-    done: don't sit on the queue. If the entry gets dropped (its
-    merge-group `test` failed), report that rather than blindly
-    re-queueing. See [`ci.md`](docs/development/ci.md)'s "Merge queue"
-    section.
+    mechanism above), push, wait for required checks to pass, then add
+    the PR to `main`'s **merge queue**:
+
+    ```bash
+    PRID=$(gh pr view <n> --json id --jq .id)
+    gh api graphql -f query='
+      mutation($id: ID!) {
+        enqueuePullRequest(input: {pullRequestId: $id}) {
+          mergeQueueEntry { position state }
+        }
+      }' -f id="$PRID"
+    ```
+
+    **`gh pr merge` does not work here** — it routes through
+    auto-merge, which is disabled on this repository, so it fails on
+    any PR whatever its state. **`gh pr merge --admin` is not the
+    fallback either**: it bypasses the queue and branch protection
+    instead of joining the queue. The mutation above is the only
+    correct path.
+
+    GitHub then re-runs `test` against the merge group and lands the
+    PR from there, as a merge commit. A `state` of `QUEUED` means the
+    "queue for merge" step is done: don't sit on the queue. If the
+    entry gets dropped (its merge-group `test` failed), report that
+    rather than blindly re-queueing. See
+    [`ci.md`](docs/development/ci.md)'s "Merge queue" section.
 - **NEVER check out `main` to edit it directly.** Only check it out to
   sync (`git checkout main && git pull`) before branching.
 - **NEVER push directly to `main` or `master`.**

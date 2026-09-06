@@ -107,9 +107,11 @@ Applied by the user to an **issue**, ahead of the work: it authorizes
 merging whichever PR closes that issue, before that PR exists. On a
 pre-approved issue, the Hand-off Rule's "open a PR and stop" doesn't
 apply — the PR is opened, required checks are waited on, and then it's
-queued for merge (`gh pr merge --merge`, which enqueues into this
-repo's [merge queue](ci.md#merge-queue)) without waiting for a separate
-`review:approved` on the PR.
+queued for merge — added to this repo's
+[merge queue](ci.md#merge-queue) with the `enqueuePullRequest` mutation
+in [Queueing from the command line](ci.md#queueing-from-the-command-line),
+not `gh pr merge` — without waiting for a separate `review:approved` on
+the PR.
 
 The point is latency: for work whose shape the user already agreed to
 when filing the ticket, a second round-trip to label the PR adds a wait
