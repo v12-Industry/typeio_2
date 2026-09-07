@@ -93,6 +93,18 @@ implemented. Always check the doc's own `Status` line, and cross-check
 against `docs/development/` for whether it actually happened, before
 treating a proposal as current guidance.
 
+**A solution proposal is written once and then left alone.** It is not a
+living document, and keeping it current is explicitly not a goal — it
+records what was decided *at that moment*, and its value is that it
+still says what was believed then. So when a later decision supersedes
+one, including a question the proposal itself deferred, do **not** go
+back and append a new section, revise its conclusion, or shift its tense
+to match what has since happened. The new outcome belongs in
+`docs/development/`, which is what a reader is told to cross-check
+against anyway; the reasoning behind it belongs in the PR and the git
+log. A proposal that says a question was left open is not stale — it is
+still telling the truth about the day it was written.
+
 ## Setup & Local Development
 
 - **Build:** `cabal build all`
@@ -187,9 +199,13 @@ Quick summary:
   - **The exception is `docs/solution-proposals/`**, which are
     deliberately point-in-time records of a decision at the moment it
     was taken. Their issue references and rejected alternatives are the
-    content, and they are left alone.
-  - History that is genuinely worth keeping belongs in a solution
-    proposal or in the git log, not scattered through reference docs.
+    content, and they are left alone — meaning not just un-scrubbed of
+    their history, but **not maintained at all**. See the doc-directory
+    write-up above: a proposal is never edited to reflect what happened
+    after it was written.
+  - History that is genuinely worth keeping belongs in the git log, or
+    in a *new* proposal recording a *new* decision — never appended to
+    an existing one, and never scattered through reference docs.
 - Responder modules are one file per HTTP verb under
   `responder/api/<Domain>/<Verb>.hs` (e.g. `Get.hs`, `Post.hs`), and one
   `View.hs`/template module per feature under `responder/ui/<Feature>/`.
