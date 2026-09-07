@@ -33,64 +33,65 @@ defaultVisualization :: Visualization
 defaultVisualization = Orbital
 ```
 
-Parsed with `valRead`, so the value is the constructor name, exactly how
+Parsed by `Read`, so the value is the constructor name, exactly how
 `ENV` parses into `Config.App.EnvironmentName`. `Orbital` is the only
 value that selects a drawing built on something other than the layered
 engine — see
 [`orbital-dependency-weighted-graph.md`](orbital-dependency-weighted-graph.md).
 
-### Absent takes the default; wrong is an error
+### Absent takes the default; wrong is corrected
 
-The two cases are deliberately not the same:
+Both end up drawing the default, but only one of them is worth telling
+the caller about:
 
 | Request | Result |
 |---|---|
-| no `visualizationMode` | `defaultVisualization` |
+| no `visualizationMode` | `defaultVisualization`, drawn directly |
 | `visualizationMode=Orbital` | that drawing |
-| `visualizationMode=Radial` | **403**, `Invalid visualizationMode value` |
-| `visualizationMode=orbital` | **403** — `Read` is case-sensitive on constructor names |
-| `visualizationMode=` (empty) | **403** — present and unparseable, not absent |
+| `visualizationMode=Radial` | **302** to the same URL with the default |
+| `visualizationMode=orbital` | **302** — `Read` is case-sensitive on constructor names |
+| `visualizationMode=` (empty) | **302** — present and unparseable, not absent |
 
-A value somebody got **wrong** fails loudly rather than falling back,
-because a server quietly drawing the wrong graph does not announce
-itself — it surfaces much later as "the graph looks wrong". A value
-nobody supplied is not that; it is an ordinary link, and it takes the
-default.
+A value nobody supplied is an ordinary link, so it is answered on the
+spot. A value somebody got **wrong** is answered too, but by redirecting
+to the corrected URL rather than drawing something different from what
+was asked for under the original address. The redirect is what keeps a
+wrong value from being silently absorbed: the parameter in the address
+bar always names the drawing actually on screen, so "the graph looks
+wrong" cannot be caused by a typo the server quietly swallowed.
 
-The empty case is worth knowing because the friendlier reading is
-tempting. `lookupVal` returns `Just ""` for an empty parameter, so it is
-a value that does not parse rather than a missing one, and every other
-optional query parameter in this app behaves that way — `?nodeId=` is
-rejected the same way by `ProjectManage.View`'s own `valRead`.
-Special-casing this one field would make "empty" mean something
-different depending on which parameter you left blank.
+The empty case follows the same path. `lookupVal` returns `Just ""` for
+an empty parameter, so it is a value that does not parse rather than a
+missing one, and it is corrected like any other unparseable value.
 
-Expressed as one ordinary `runValidation` pipeline, like every other
-validator in the app:
+Resolution is a pure function on the raw parameter, in
+`Config.Visualization`:
 
 ```haskell
-lookupVal "visualizationMode" qt
-  .$ unpack
-  >>= valRead "Invalid visualizationMode value"
-  >>= orDefault defaultVisualization
+data VisualizationChoice
+  = AsRequested Visualization
+  | FellBack Visualization
+
+resolveVisualization :: Maybe Text -> VisualizationChoice
 ```
 
-`orDefault` is what makes that possible. It is the counterpart to
-`isThere` — that one says "absence is an error", this says "absence is
-fine, use this instead". Crucially it **fills a missing value without
-suppressing a bad one**: an error already recorded still fails the whole
-validation, so an absent field takes the default while a
-present-but-wrong one is still rejected.
+The two constructors are the whole point: both carry a visualization to
+draw, and they differ only in whether the caller asked for it. That is
+what lets one call site decide between rendering and redirecting without
+re-deriving why.
 
-**It has to come last in the chain.** Everything upstream of it still
-sees `Nothing` for an absent field and passes it through untouched;
-everything downstream sees the default and has nothing left to complain
-about. Ordering it first quietly disables every check after it.
+This deliberately does not go through `runValidation` the way other
+query parameters do. A validator's job is to decide whether a request is
+acceptable, and this parameter can no longer make one unacceptable —
+every input resolves to a drawing. Keeping it as a validator would mean
+a pipeline whose failure branch is unreachable.
 
-Without it, a pipeline ending in an absent optional field hands
-`runValidation` a `(Nothing, [])` — no value and no errors — which it
-reports as `"Unknown error in validation"`, because it is built for
-fields that must end up present.
+**Where the redirect points.** `setQueryParam` replaces the parameter in
+place and leaves every other one alone, so `projectId` and `nodeId`
+survive the correction. It targets the *explicit* default rather than
+dropping the parameter, so the answer is visible in the URL rather than
+implied by its absence — and because the target is a value that resolves
+to `AsRequested`, the redirect cannot loop.
 
 ### The default is "whichever was added most recently"
 
@@ -124,7 +125,7 @@ handleGraph :: (Visualization -> RenderGraph) -> ConnectionPool -> Application
 ```
 
 `handleGraph` takes a **function**, not a `Visualization`: the shared
-module never learns which drawings exist, it validates the parameter and
+module never learns which drawings exist, it resolves the parameter and
 applies the table it was handed. The list of visualizations stays in one
 place, and the shared request handling stays honest about being shared.
 

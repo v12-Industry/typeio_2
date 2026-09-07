@@ -6,27 +6,34 @@ import Common.Validation
   ( ValidationErr
   , isNotEmpty
   , isThere
-  , orDefault
   , runValidation
   , valRead
   , (.$)
   )
 import Common.Web.Attributes
-import Common.Web.Query (lookupVal)
+import Common.Web.Query (lookupVal, setQueryParam)
 import Common.Web.Template.MainHeader (templateNavHeader)
-import Config.Visualization (Visualization, defaultVisualization)
+import Config.Visualization
+  ( Visualization
+  , VisualizationChoice (..)
+  , resolveVisualization
+  )
+import Data.ByteString (ByteString)
 import Data.Int (Int64)
-import Data.Text (Text, unpack)
+import Data.Text (Text, pack, unpack)
 import Domain.Project.Responder.Ui.ProjectManage.Link
 import Lucid
-import Network.HTTP.Types (QueryText, status200, status403)
-import Network.HTTP.Types.URI (queryToQueryText)
-import Network.Wai (Application, queryString, responseLBS)
+import Network.HTTP.Types (QueryText, status200, status302, status403)
+import Network.HTTP.Types.URI (queryTextToQuery, queryToQueryText, renderQuery)
+import Network.Wai
+  ( Application
+  , Request (queryString, rawPathInfo)
+  , responseLBS
+  )
 
 data ManageProjectForm = ManageProjectForm
   { formNodeId :: Maybe Text
   , formProjectId :: Maybe Text
-  , formVisualizationMode :: Maybe Text
   }
 
 data ManageProjectPayload = ManageProjectPayload
@@ -36,34 +43,43 @@ data ManageProjectPayload = ManageProjectPayload
   }
 
 handleProjectManageView :: Application
-handleProjectManageView req respond = do
-  case pidE of
-    Left _ -> do
+handleProjectManageView req respond =
+  case resolveVisualization (lookupVal "visualizationMode" qt) of
+    FellBack viz ->
       respond $
         responseLBS
-          status403
-          [("Content-Type", "text/html")]
-          "Bad project id"
-    Right py -> do
-      respond $
-        responseLBS
-          status200
-          [("Content-Type", "text/html")]
-          (renderBS $ templateProject py)
+          status302
+          [("Location", visualizationLocation req qt viz)]
+          mempty
+    AsRequested viz ->
+      case validateForm viz (queryTextToForm qt) of
+        Left _ ->
+          respond $
+            responseLBS
+              status403
+              [("Content-Type", "text/html")]
+              "Bad project id"
+        Right py ->
+          respond $
+            responseLBS
+              status200
+              [("Content-Type", "text/html")]
+              (renderBS $ templateProject py)
   where
-    pidE =
-      validateForm
-        . queryTextToForm
-        . queryToQueryText
-        . queryString
-        $ req
+    qt = queryToQueryText . queryString $ req
+
+visualizationLocation :: Request -> QueryText -> Visualization -> ByteString
+visualizationLocation req qt viz =
+  rawPathInfo req
+    <> renderQuery True (queryTextToQuery corrected)
+  where
+    corrected = setQueryParam "visualizationMode" (pack (show viz)) qt
 
 queryTextToForm :: QueryText -> ManageProjectForm
 queryTextToForm qt =
   ManageProjectForm
     { formNodeId = lookupVal "nodeId" qt
     , formProjectId = lookupVal "projectId" qt
-    , formVisualizationMode = lookupVal "visualizationMode" qt
     }
 
 templateProject :: ManageProjectPayload -> Html ()
@@ -105,8 +121,11 @@ templateProject py = do
     pid = payloadProjectId py
     viz = payloadVisualization py
 
-validateForm :: ManageProjectForm -> Either [ValidationErr] ManageProjectPayload
-validateForm fm = runValidation id $ do
+validateForm ::
+  Visualization ->
+  ManageProjectForm ->
+  Either [ValidationErr] ManageProjectPayload
+validateForm viz fm = runValidation id $ do
   pid <-
     formProjectId fm
       .$ unpack
@@ -117,10 +136,4 @@ validateForm fm = runValidation id $ do
     formNodeId fm
       .$ unpack
       >>= valRead "Node id must be valid integer"
-
-  viz <-
-    formVisualizationMode fm
-      .$ unpack
-      >>= valRead "Invalid visualizationMode value"
-      >>= orDefault defaultVisualization
-  return $ ManageProjectPayload nid <$> pid <*> viz
+  return $ ManageProjectPayload nid <$> pid <*> pure viz
