@@ -314,23 +314,45 @@ that validation existing. See
 
 ### 3. Allocate angles — `Orbit.Layout`
 
-Leaves of the forest are the unit of angular space. With `L` leaves in
-total, each leaf gets `2π / L`, assigned in the traversal order fixed by
-phase 2, so every stream ends up owning one contiguous wedge.
+**Every stream owns an equal wedge.** With `n` heads, each gets
+`2π / n`, in the traversal order fixed by phase 2, so every stream ends
+up owning one contiguous wedge of the same width as its neighbours'.
 
-A non-leaf disc's angle is the **mean of its children's angles**. An
-even number of children therefore centres a parent between them, which
-is the commonest shape and the one an alternative rule would visibly get
-wrong — the same argument `Graph.Coord` makes for averaging the middle
-two neighbours rather than picking one.
+**A head sits at the middle of its own wedge**, so heads are exactly
+evenly spaced around the innermost ring at any head count. This is the
+one disc placed by position rather than by its children, and it is
+deliberate: head spacing should say nothing about how much work hangs
+underneath, because a reader cannot help reading uneven spacing as
+meaningful. Sizing wedges by leaf count instead — the obvious
+alternative, since leaves are what actually need room — makes a stream
+with one extra leaf push its neighbours away, and the eye reads that as
+carelessness rather than as information.
 
-Because a mean of angles is a convex combination of them, a disc always
-lands inside its own subtree's wedge. That is what makes the drawing
-planar, and it is stated as an invariant below rather than left implied.
+*Inside* a stream the wedge is still divided by leaf count: a subtree
+gets a share of its parent's wedge proportional to the leaves beneath
+it, so the room goes where the work is. Only the top-level split is
+equal.
 
-**Guarantees:** sibling subtrees occupy disjoint angular spans; a
+A non-leaf disc below the head takes the **mean of its children's
+angles**. An even number of children therefore centres a parent between
+them, which is the commonest shape and the one an alternative rule would
+visibly get wrong — the same argument `Graph.Coord` makes for averaging
+the middle two neighbours rather than picking one.
+
+Because a mean of angles is a convex combination of them, such a disc
+always lands inside its own subtree's wedge; a head lands inside its own
+by construction. That is what makes the drawing planar, and it is stated
+as an invariant below rather than left implied.
+
+**Links cannot cross between streams even with the head off its
+subtree's centroid**, because a link only ever joins consecutive rings:
+a head-to-child link spans radii `r₀` to `r₁`, and everything deeper in
+a sibling stream lives at `r₁` or beyond. The radial banding does the
+work that the centroid rule would otherwise have to.
+
+**Guarantees:** streams occupy disjoint angular spans of equal width; a
 stream's span is contiguous; every disc's angle lies within its own
-subtree's span.
+subtree's span; consecutive heads are `2π / n` apart.
 
 #### The single-head case
 

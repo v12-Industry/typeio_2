@@ -44,26 +44,31 @@ leafCount t
   | otherwise = sum (map leafCount (otChildren t))
 
 angles :: [OrbitTree] -> [Angled]
-angles forest = snd (goMany (0 :: Int) forest)
+angles [] = []
+angles forest = zipWith headOfWedge [0 ..] forest
   where
-    total = max 1 (sum (map leafCount forest))
-    slice = 2 * pi / fromIntegral total
+    wedge = 2 * pi / fromIntegral (length forest)
 
-    goMany i [] = (i, [])
-    goMany i (t : rest) =
-      let (i', a) = go i t
-          (i'', as) = goMany i' rest
-       in (i'', a : as)
+    headOfWedge i t =
+      let start = fromIntegral (i :: Int) * wedge
+       in (placeTree start wedge t) {anAngle = start + wedge / 2}
 
-    go i t = case otChildren t of
-      [] ->
-        ( i + 1
-        , Angled t ((fromIntegral i + 0.5) * slice) []
-        )
-      kids ->
-        let (i', as) = goMany i kids
-            theta = sum (map anAngle as) / fromIntegral (length as)
-         in (i', Angled t theta as)
+placeTree :: Double -> Double -> OrbitTree -> Angled
+placeTree start width t = case otChildren t of
+  [] -> Angled t (start + width / 2) []
+  kids ->
+    let as = placeForest start width kids
+        theta = sum (map anAngle as) / fromIntegral (length as)
+     in Angled t theta as
+
+placeForest :: Double -> Double -> [OrbitTree] -> [Angled]
+placeForest start width ts = go start ts
+  where
+    total = max 1 (sum (map leafCount ts))
+    go _ [] = []
+    go s (t : rest) =
+      let w = width * fromIntegral (leafCount t) / fromIntegral total
+       in placeTree s w t : go (s + w) rest
 
 data Angled = Angled
   { anTree :: OrbitTree

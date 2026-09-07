@@ -59,6 +59,12 @@ headsOnly n = orbit cfg (map node [1 .. n]) []
 innerRadius :: OrbitDiagram -> Double
 innerRadius d = minimum (map radiusOf (odDiscs d))
 
+-- | Gaps between neighbours on a circle, including the wrap-around.
+consecutiveGaps :: [Double] -> [Double]
+consecutiveGaps [] = []
+consecutiveGaps as =
+  zipWith (-) (tail as) as <> [2 * pi - (last as - head as)]
+
 -- | The closest edge-to-edge distance between two discs on ring 0.
 innerGap :: OrbitDiagram -> Double
 innerGap d =
@@ -216,6 +222,30 @@ spec = do
 
     it "still puts a lone head at the centre rather than on a ring" $
       innerRadius (headsOnly 1) `shouldBe` 0
+
+    it "spaces the heads evenly, whatever their subtrees weigh" $
+      -- Each stream owns an equal wedge and its head sits at the middle
+      -- of it, so head spacing says nothing about how much work hangs
+      -- underneath. Sizing wedges by leaf count instead made a stream
+      -- with one extra leaf push its neighbours away, which read as
+      -- careless rather than as information.
+      let lopsided =
+            orbit
+              cfg
+              (map node [1 .. 8])
+              -- head 1 carries a four-deep chain, heads 2 and 3 nothing.
+              [dep 1 4, dep 4 5, dep 5 6, dep 6 7, dep 6 8]
+          headAngles = sort [dAngle d | d <- odDiscs lopsided, dRing d == 0]
+          gaps = consecutiveGaps headAngles
+       in all (\g -> abs (g - 2 * pi / 3) < 1e-9) gaps `shouldBe` True
+
+    it "spaces the heads evenly at every head count" $
+      [ n
+      | n <- [2 .. 8]
+      , let as = sort [dAngle d | d <- odDiscs (headsOnly n), dRing d == 0]
+      , any (\g -> abs (g - 2 * pi / fromIntegral n) > 1e-9) (consecutiveGaps as)
+      ]
+        `shouldBe` []
 
     it "keeps the outer rings on the ordinary disc gap" $
       -- Only the innermost ring is drawn tight; a ring of dependencies
