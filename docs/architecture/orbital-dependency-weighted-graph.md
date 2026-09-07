@@ -229,9 +229,9 @@ data OrbitDiagram = OrbitDiagram
 
 data OrbitConfig = OrbitConfig
   { cfgDiscRadius  :: Double  -- every disc is the same size
-  , cfgDiscGap     :: Double  -- minimum arc clearance between discs
+  , cfgDiscGap     :: Double  -- minimum clearance between discs on a ring
   , cfgMinRingGap  :: Double  -- minimum clear space between ring rims
-  , cfgEyeRadius   :: Double  -- clear space at the centre
+  , cfgEyeGap      :: Double  -- clearance between the heads themselves
   , cfgLabelWidth  :: Int     -- characters per label line
   , cfgLabelLines  :: Int     -- maximum label lines
   , cfgMargin      :: Double  -- padding around the whole drawing
@@ -239,7 +239,7 @@ data OrbitConfig = OrbitConfig
 
 defaultOrbitConfig = OrbitConfig
   { cfgDiscRadius = 45, cfgDiscGap    = 24, cfgMinRingGap = 55
-  , cfgEyeRadius  = 130
+  , cfgEyeGap     = 10
   , cfgLabelWidth = 12, cfgLabelLines = 3,  cfgMargin     = 60
   }
 ```
@@ -352,10 +352,34 @@ Rings are placed outward from the eye, each one far enough out that the
 discs on it clear each other:
 
 ```
-r₀ = cfgEyeRadius
 rₖ = max (rₖ₋₁ + 2 * cfgDiscRadius + cfgMinRingGap)
-         ((2 * cfgDiscRadius + cfgDiscGap) / minAngularGapₖ)
+         ((2 * cfgDiscRadius + gapₖ) / (2 * sin (minAngularGapₖ / 2)))
+
+gapₖ = cfgEyeGap  when k == 0
+       cfgDiscGap otherwise
 ```
+
+**There is no fixed eye radius.** Ring 0's radius is derived the same
+way every other ring's is — from what actually has to fit on it. A
+fixed radius cannot serve both counts: large enough that eight heads
+clear each other leaves two heads marooned at opposite ends of an empty
+circle, and small enough to suit two overlaps at eight.
+
+**The innermost ring is drawn tighter than the rest**, via `cfgEyeGap`
+rather than `cfgDiscGap`. The heads are the deliverables the project is
+actually driving at, and drawing them as one cluster at the centre says
+so; spacing them like any other ring reads as several unrelated
+drawings that happen to share a page. The rings outside them keep the
+roomier `cfgDiscGap`, so the eye stays the focus.
+
+**The divisor is a chord, not an arc.** For discs `minAngularGapₖ`
+apart on a ring of radius `r`, the distance between their centres is
+`2r·sin(g/2)`, not `r·g`. Arc length is the easier expression and is a
+good approximation for small angles, but it *overestimates* the
+distance, and the error grows as the angle does — worst on exactly the
+ring with fewest discs, which is the innermost one. Two heads sit half
+a turn apart, where the arc reading places them `2/π` of the required
+distance from each other; they would overlap.
 
 `cfgMinRingGap` is the **clear space between rims**, so the step from
 one ring to the next adds the two radii as well. Treating it as a
@@ -383,7 +407,11 @@ evenly-spaced discs never touch, applied to every ring — is rejected for
 producing an enormous empty eye on any project with many leaves.
 
 **Guarantees:** radius strictly increases with ring index; no two discs
-on the same ring are closer than `2 * cfgDiscRadius + cfgDiscGap`.
+on ring 0 are closer than `2 * cfgDiscRadius + cfgEyeGap`, and no two on
+any ring beyond it are closer than `2 * cfgDiscRadius + cfgDiscGap`.
+These hold as equalities whenever the ring's own demand sets its radius,
+which is what makes the innermost spacing constant regardless of how
+many heads there are.
 
 ### 5. Place and link — `Orbit.Layout`
 

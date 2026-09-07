@@ -139,7 +139,10 @@ so sharing a class would make every layered tweak a change here too.
 - **Rings are not evenly spaced.** Each ring's radius is derived from
   the angular crowding on that particular ring, which keeps the centre
   small on shallow projects instead of sizing everything for the worst
-  ring.
+  ring. The innermost ring is drawn deliberately tighter than the rest
+  (`cfgEyeGap`, not `cfgDiscGap`), so the heads read as one cluster of
+  deliverables at the centre rather than as separate drawings sharing a
+  page.
 - **Adding one dependency can redraw the whole picture.** The drawing is
   deterministic for a given input, but a new edge can re-partition the
   streams. This is a known cost of unfolding, not a defect.
