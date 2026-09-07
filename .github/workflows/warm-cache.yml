@@ -10,7 +10,7 @@ name: Warm Cache
 # of an identical-key cache already existing elsewhere in the repo --
 # see docs/solution-proposals/ci-cache-warming.md for the full
 # diagnosis (confirmed with real run timing/log data, not just
-# reasoning) and #159/#160.
+# reasoning).
 #
 # Deliberately its own workflow, not folded into test.yml: different
 # trigger (push, not pull_request/merge_group) and a different job

@@ -20,7 +20,7 @@ the two mechanisms are for and how to act on what they find.
 | What it is | A GitHub repo feature, not a CI workflow | A GitHub Actions workflow (Google's OSV-Scanner) |
 | Ecosystems covered | npm only — GitHub has no Hackage/Cabal support (tracked upstream in `dependabot/dependabot-core#2745`, not shipped as of this writing) | Both: reads a scan-time-generated `cabal.project.freeze` for Haskell, and `package-lock.json` for npm |
 | Config | `.github/dependabot.yml` | `.github/workflows/security-scan.yml` |
-| Trigger | Continuous, run by GitHub itself | A weekly schedule only (`0 5 * * 1`) — no longer per-PR, see below |
+| Trigger | Continuous, run by GitHub itself | A weekly schedule only (`0 5 * * 1`), not per-PR — see below |
 | Where findings show up | Security tab → Dependabot alerts; auto-opened PRs for fixes | The workflow run's job summary |
 | Blocking? | No — alerts, not merge gates | No — `continue-on-error: true`, not a required check |
 

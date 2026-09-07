@@ -50,8 +50,8 @@ spec = do
 
     it "attaches the root to a chain's head only" $ do
       -- 3 depends on 2 depends on 1, so 3 is the top of the chain and
-      -- 1 and 2 reach the root through it. This is #211: every one of
-      -- these used to get its own root edge, burying the chain.
+      -- 1 and 2 reach the root through it. A root edge on each would
+      -- bury the chain under three redundant edges.
       targets [root, node 1, node 2, node 3] [dep 10 1 2, dep 11 2 3]
         `shouldBe` [3]
 
@@ -131,8 +131,8 @@ spec = do
 
     it "draws the root above the work it holds" $ do
       -- The root is the upper end: that is what puts it at the head of
-      -- the drawing, and reversing it is what sank it to the bottom for
-      -- eight issues (#198).
+      -- the drawing. Reversed, layering works correctly and sinks the
+      -- root to the bottom, which is not visibly a bug in the layout.
       let es = containmentEdges [root, node 1] []
       map (\e -> (leUpper e, leLower e)) es `shouldBe` [(NodeId 0, NodeId 1)]
 
@@ -150,8 +150,8 @@ spec = do
       sort ids `shouldBe` [-3, -2, -1]
 
     it "emits one edge per head, not one per node" $ do
-      -- The regression #211 is about, stated in the terms the bug was
-      -- reported in: five work nodes in a chain, one root edge.
+      -- Stated as a reader would notice it: five work nodes in a
+      -- chain, one root edge.
       let lns = root : map node [1 .. 5]
           les = [dep 10 1 2, dep 11 2 3, dep 12 3 4, dep 13 4 5]
       length (containmentEdges lns les) `shouldBe` 1

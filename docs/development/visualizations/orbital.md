@@ -33,7 +33,7 @@ The consequence worth stating plainly: **there are no crossing edges at
 all.** Not minimised — structurally absent, because every drawn node has
 exactly one dependent and every tree owns a disjoint wedge of the
 circle. That is the trade this drawing makes, and the price is that one
-circle no longer means one node.
+circle does not mean one node.
 
 ## Reading the drawing
 

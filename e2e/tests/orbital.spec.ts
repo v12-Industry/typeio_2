@@ -1,16 +1,12 @@
 import { test, expect, Page } from '@playwright/test';
 
-// E2E coverage for the orbital dependency-weighted visualization (#240,
-// specified in #229).
+// E2E coverage for the orbital dependency-weighted visualization.
 //
 // This spec asks for its drawing by name, with `?visualizationMode=
-// Orbital` on the page URL (#223) -- the same server serves every
+// Orbital` on the page URL -- the same server serves every
 // visualization, and the parameter is forwarded from the page to the
-// htmx request that actually fetches the graph fragment.
-//
-// It briefly needed a second server on its own port, back when the
-// choice came from GRAPH_VISUALIZATION at boot; that is gone along with
-// the variable.
+// htmx request that actually fetches the graph fragment. No server of
+// its own is needed.
 //
 // Everything here is about a node being drawn MORE THAN ONCE, which no
 // other visualization does and therefore no other spec covers:
@@ -22,9 +18,9 @@ import { test, expect, Page } from '@playwright/test';
 //     the right one of several, and that the discs are actually
 //     clickable where they were placed.
 //
-// The fixture is the seeded demo project (#243) rather than one built
-// here: replication needs a node with several dependents, and until
-// #205 there is no way to create a dependency through the app at all.
+// The fixture is the seeded demo project rather than one built here:
+// replication needs a node with several dependents, and no UI flow
+// creates a dependency.
 
 // Title of the demo project the seed inserts. Its shape is deliberate
 // -- three heads and one node three separate outcomes wait on -- see
@@ -189,7 +185,7 @@ test('editing a title updates the label on every replica', async ({ page }) => {
 
   // The assertion this test exists for. An hx-target swaps exactly one
   // element however many match, so this only passes if each replica
-  // carries its own hook aimed at its own label -- the whole of #244.
+  // carries its own hook aimed at its own label.
   for (let i = 0; i < count; i++) {
     await expect(discs.nth(i).locator('text')).toContainText('Orbital e2e');
   }
@@ -227,7 +223,7 @@ test('the viewport pans the drawing without reloading it', async ({ page }) => {
   await openGraph(page);
 
   // graph-viewport.js is shared and unmodified by this visualization --
-  // it arrives from the same graphFrame (#242). Worth one check that it
+  // it arrives from the same graphFrame. Worth one check that it
   // is actually wired up here, since a drawing that renders but cannot
   // be navigated is not much use on a large project.
   const layer = page.locator('#graph-zoom-layer');

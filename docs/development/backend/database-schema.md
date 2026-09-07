@@ -169,11 +169,10 @@ exists, is enforced in application code, not the database.
 **A row here means work ordering, and nothing else.** It does *not*
 record that a node belongs to a project — `node.project_id` does that.
 
-Worth knowing because it used to do both. `POST /api/project/nodes`
-wrote a row per new node pointing at the project root, to mean
-"belongs to this project", duplicating `project_id` into a table that
-means something else entirely. The graph read those rows as real
-dependencies and drew the project root beneath every node in the
+Writing a row per node pointing at the project root to mean "belongs to
+this project" duplicates `project_id` into a table that means something
+else entirely. The graph reads such rows as real dependencies and draws
+the project root beneath every node in the
 project. Migration `000009` removed them, and nothing writes
 them now; the graph derives membership from `project_id` instead. If
 you are adding a writer here, it should be recording a genuine

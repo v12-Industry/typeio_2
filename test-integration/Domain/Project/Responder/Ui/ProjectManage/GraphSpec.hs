@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 {- | Integration coverage for the node chrome the server-computed graph
-renders (#178).
+renders.
 
 These assertions are deliberately about markup rather than geometry.
 The layout engine's own output is unit-tested
@@ -61,8 +61,7 @@ spec = aroundAll withTestDatabase $
           body `shouldContainStr` "<rect class=\"work\""
           -- Rounded, per the reference images' shape.
           body `shouldContainStr` "rx=\"6\""
-          -- ...and no circles left behind. That was the old renderer's
-          -- shape, removed outright in #182.
+          -- ...and no circles: this renderer draws rects only.
           body `shouldNotContainStr` "<circle"
 
         it "leaves the node's fill and stroke to the stylesheet" $ \pool -> do
@@ -105,16 +104,16 @@ spec = aroundAll withTestDatabase $
 
           body <- serverGraphBody pool (fromSqlKey projectKey)
 
-          -- The `layout=server` half of this link went with the flag in
-          -- #181: one renderer, so one wrap width, so nothing left to
-          -- tell the endpoint apart from the node itself.
+          -- No `layout=server` on this link: one renderer, so one wrap
+          -- width, so nothing left to tell the endpoint apart from the
+          -- node itself.
           body `shouldContainStr` "/ui/project/node/refresh?nodeId="
           body `shouldNotContainStr` "layout=server"
 
           body `shouldContainStr` "wrapWidth=18"
           body `shouldNotContainStr` "wrapWidth=12"
 
-      describe "the node-identity contract (#234)" $ do
+      describe "the node-identity contract" $ do
         it "tags every drawn node with the node it stands for" $ \pool -> do
           -- The one thing a visualization has to publish for the rest
           -- of the Project Manage UI to work with it. The panel
@@ -137,7 +136,7 @@ spec = aroundAll withTestDatabase $
           body
             `shouldContainStr` ("id=\"node-" <> show (fromSqlKey rootKey) <> "\"")
 
-      describe "viewport (#208)" $ do
+      describe "viewport" $ do
         it "emits the drawing's natural size" $ \pool -> do
           (projectKey, rootKey) <- seedProjectWithRootNode pool
           workKey <- seedWorkNode pool projectKey "Build the thing"
@@ -183,9 +182,9 @@ spec = aroundAll withTestDatabase $
 
           body <- serverGraphBody pool (fromSqlKey projectKey)
 
-          -- #208 removed the button cluster in favour of gestures. The
-          -- drawing is what the viewport is for; three permanent
-          -- buttons sitting on top of it are what it is not.
+          -- Gestures, not a button cluster. The drawing is what the
+          -- viewport is for; three permanent buttons sitting on top of
+          -- it are what it is not.
           body `shouldNotContainStr` "id=\"graph-zoom-in\""
           body `shouldNotContainStr` "id=\"graph-zoom-out\""
           body `shouldNotContainStr` "id=\"graph-zoom-reset\""
@@ -196,18 +195,17 @@ spec = aroundAll withTestDatabase $
 
           body <- serverGraphBody pool (fromSqlKey projectKey)
 
-          -- #182 deleted a d3 that the *page* loaded, app-wide. #208's
           -- d3 is reached by a dynamic import inside
-          -- graph-viewport.js, so it still must not appear in any
-          -- markup the server emits -- not as a <script> here, and not
-          -- as an inlined bundle.
+          -- graph-viewport.js, and must not appear in any markup the
+          -- server emits -- not as a <script> here, and not as an
+          -- inlined bundle. It is never loaded app-wide.
           --
           -- This is the tripwire that would catch d3 being promoted
           -- back to something the page itself pulls in, which is how
           -- it got onto every page in the app last time.
           body `shouldNotContainStr` "d3"
 
-      describe "containment (#198)" $ do
+      describe "containment" $ do
         it "draws the project root above its work" $ \pool -> do
           (projectKey, _) <- seedProjectWithRootNode pool
           _ <- seedWorkNode pool projectKey "Build the thing"
@@ -215,11 +213,10 @@ spec = aroundAll withTestDatabase $
 
           body <- graphBody pool (fromSqlKey projectKey) []
 
-          -- The root's box must have the smallest y of any node. This
-          -- is the assertion that would have caught #198 for eight
-          -- issues: the layout engine was right, but membership was
-          -- being handed to it as a dependency, so the root sank below
-          -- everything in the project.
+          -- The root's box must have the smallest y of any node.
+          -- Hand membership to the engine as a dependency and the
+          -- engine, working correctly, sinks the root below everything
+          -- in the project. This is the assertion that catches that.
           let rootTops = nodeTops "root" body
               workTops = nodeTops "work" body
           length rootTops `shouldBe` 1
@@ -245,15 +242,15 @@ spec = aroundAll withTestDatabase $
 
           -- A project's completion depends on its work being complete,
           -- so the root is waiting on every node under it and the edge
-          -- carries the same arrow as any dependency (#206). Its head
+          -- carries the same arrow as any dependency. Its head
           -- lands on the root, which `LayoutSpec` pins geometrically.
           body `shouldContainStr` "link-contains"
           body `shouldContainStr` "marker-end"
 
         it "gives a real dependency its arrowhead" $ \pool -> do
-          -- The positive case, which nothing pinned before #206: the
-          -- suite only asserted the *absence* of an arrow, so inverting
-          -- the renderer's condition would have gone unnoticed.
+          -- The positive case. Asserting only the *absence* of an
+          -- arrow elsewhere would let an inverted condition in the
+          -- renderer go unnoticed.
           (projectKey, rootKey) <- seedProjectWithRootNode pool
           workKey <- seedWorkNode pool projectKey "Build the thing"
           seedDependency pool rootKey workKey
@@ -262,12 +259,12 @@ spec = aroundAll withTestDatabase $
 
           -- A stored row recording that the root waits on this work,
           -- drawn with a head. No containment edge is derived beside
-          -- it: the root already sits above that node, and #211 stopped
-          -- adding a second edge saying so.
+          -- it: the root already sits above that node, so a second
+          -- edge saying so would be redundant.
           body `shouldContainStr` "class=\"link\""
           body `shouldContainStr` "marker-end=\"url(#arrow)\""
 
-      describe "containment reaches the work through its own shape (#211)" $ do
+      describe "containment reaches the work through its own shape" $ do
         it "attaches the root to a chain's head only" $ \pool -> do
           -- The bug as reported: on a chain, every node got its own
           -- root edge on top of the chain that already described the
@@ -302,7 +299,7 @@ spec = aroundAll withTestDatabase $
           -- The chain's head, and the lone node.
           countStr "link link-contains" body `shouldBe` 2
 
-      describe "the cutover (#181)" $ do
+      describe "the server-computed cutover" $ do
         it "serves the computed layout with no query parameter" $ \pool -> do
           (projectKey, _) <- seedProjectWithRootNode pool
 
@@ -319,7 +316,7 @@ spec = aroundAll withTestDatabase $
 
           body <- graphBody pool (fromSqlKey projectKey) []
 
-          -- The graph no longer leaves the server as data at all: it
+          -- The graph never leaves the server as data at all: it
           -- leaves as finished SVG, so there is nothing for a client
           -- layout script to read.
           body `shouldNotContainStr` "graph-data"
@@ -373,10 +370,10 @@ shouldNotContainStr haystack needle =
 
 {- | How many times @needle@ occurs in @haystack@, counting overlaps.
 
-Presence alone is not enough for the containment rule (#211): the bug
-was that the root drew an edge to /every/ node rather than to the heads,
-and a `shouldContainStr` passes just as happily either way. What is
-being asserted is a count.
+Presence alone is not enough for the containment rule: a root drawing
+an edge to /every/ node rather than to the heads passes
+`shouldContainStr` just as happily as a correct one. What is being
+asserted is a count.
 -}
 countStr :: String -> String -> Int
 countStr needle = length . filter (needle `isPrefixOf`) . tails
@@ -402,8 +399,8 @@ nodeTextTarget nid = "hx-target=\"#node-text-" <> show nid <> "\""
 class, read straight out of the rendered SVG.
 
 Deliberately parsing the markup rather than calling @layout@ directly:
-the layout engine's own placement is unit-tested, and what #198 broke
-was the /responder's/ conversion — which relationship it handed the
+the layout engine's own placement is unit-tested, and what these pin
+is the /responder's/ conversion — which relationship it hands the
 engine. That only shows up in the finished document.
 
 Each node renders as

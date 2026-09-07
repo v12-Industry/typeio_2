@@ -1,13 +1,13 @@
 name: Integration Test
 
 # Runs the Docker-backed integration test suite
-# (docs/solution-proposals/integration-testing.md, #65) on every PR into
+# (docs/solution-proposals/integration-testing.md) on every PR into
 # main. Deliberately a SEPARATE workflow from test.yml's `test` job, and
-# NOT (yet) a required status check -- see docs/development/ci.md for
-# why: this suite is new, slower, and needs Docker on the runner, and a
-# required check has no bypass on this repo (`enforce_admins: true`).
-# Prove it out as informational first; promote it to required later, in
-# its own deliberate branch-protection change, once it's been reliable
+# NOT a required status check -- see docs/development/ci.md for why:
+# this suite is slower and needs Docker on the runner, and a required
+# check has no bypass on this repo (`enforce_admins: true`). It runs as
+# informational; promoting it to required is its own deliberate
+# branch-protection change, once it's been reliable
 # for a while.
 #
 # Because it's not required, a plain top-level `paths:` filter is safe

@@ -1,15 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-{- | Integration coverage for the demo project the seed inserts (#243).
+{- | Integration coverage for the demo project the seed inserts.
 
 Worth pinning rather than eyeballing, because the thing that makes this
-fixture useful is its /shape/, not its size. Before it existed no
-project had a single dependency — @Api.Node.Post@ was the only writer of
-@project.dependency@ and #198 removed the rows it wrote — so every graph
-in the app was a set of disconnected nodes and every visualization
-looked much the same.
+fixture useful is its /shape/, not its size. It is the only source of
+@project.dependency@ rows in the app, and without it every graph is a
+set of disconnected nodes that every visualization draws much the same
+way.
 
-The assertions here are the properties the later orbital issues depend
+The assertions here are the properties the orbital visualization depends
 on: a shared bottleneck (so a node is replicated at all), a replicated
 subtree beneath it, more than one head, and idempotency, since this runs
 against a database somebody may already have seeded.
@@ -61,8 +60,7 @@ spec =
   -- fresh Postgres per example, which is how this suite went from ~45
   -- seconds to nine minutes and began failing with "Bad response from
   -- Docker engine" once enough containers were in flight. Every other
-  -- spec here already does it this way; this one was the outlier
-  -- (introduced in #243, found in #244).
+  -- spec here does it this way.
   aroundAll withTestDatabase
     . beforeWith resetBetweenTests
     $ describe "seedDemoProject (integration)"

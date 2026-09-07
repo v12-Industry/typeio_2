@@ -1,19 +1,16 @@
 // Pan-and-zoom viewport for the server-rendered dependency graph,
 // driven by d3-zoom.
 //
-// The graph is still laid out entirely server-side (#173-#183): d3 here
-// is a *gesture* library, not a layout one. It writes a single
-// `transform` onto #graph-zoom-layer and never looks at the graph's
-// structure, so the "no client-side layout code, no graph data sent to
-// the browser" rule in docs/architecture/graph-rendering.md still
-// holds.
+// The graph is laid out entirely server-side: d3 here is a *gesture*
+// library, not a layout one. It writes a single `transform` onto
+// #graph-zoom-layer and never looks at the graph's structure, so the
+// "no client-side layout code, no graph data sent to the browser" rule
+// in docs/architecture/graph-rendering.md holds.
 //
-// This replaces the hand-rolled scroll/zoom viewport from #179, which
-// panned by scrolling the container and zoomed by rewriting the SVG's
-// width/height. That approach needed on-screen +/- buttons and a
-// recentre button to be usable; a transform-based viewport gets the
-// same reach from ordinary canvas gestures, so the button cluster is
-// gone.
+// Panning by transform rather than by scrolling the container is what
+// makes the gesture set below sufficient on its own: a transform-based
+// viewport gets its whole reach from ordinary canvas gestures, so there
+// is no on-screen +/- or recentre button cluster to maintain.
 //
 // Gestures:
 //   drag                 pan
@@ -25,9 +22,9 @@
 //   + / - / 0            zoom, reset   there are no buttons)
 //
 // d3 is loaded only from here, and this file is loaded only by the
-// graph fragment -- see the note on the <script> tag in Graph.hs. #182
-// removed the previous d3 for being a ~280KB script on every page in
-// the app; this bundle is ~47KB and arrives only with a graph.
+// graph fragment -- see the note on the <script> tag in Graph.hs. That
+// scoping is the point: this bundle is ~47KB and arrives only with a
+// graph, never app-wide.
 //
 // This file is loaded by the graph fragment itself, so it re-runs on
 // every htmx swap into #tree-container. Everything below is written to

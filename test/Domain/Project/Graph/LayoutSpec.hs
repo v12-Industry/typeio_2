@@ -210,14 +210,12 @@ spec = do
   packingSpec
 
 {- | Disconnected components are drawn side by side, not through each
-other (#214).
+other.
 
-#174 scoped "disconnected components packed left to right by bounding
-box" and shipped without it; the architecture doc recorded it as done
-anyway. The fixture below is what that costs: a component one node wide
-at the top and four wide two rows down spreads out underneath its
-neighbour, and the neighbour ends up inside its span — two independent
-graphs drawn as one tangle.
+The fixture below is what packing them left to right by bounding box
+buys: without it, a component one node wide at the top and four wide
+two rows down spreads out underneath its neighbour, and the neighbour
+ends up inside its span — two independent graphs drawn as one tangle.
 -}
 packingSpec :: Spec
 packingSpec = describe "layout, component packing" $ do
@@ -258,14 +256,13 @@ packingSpec = describe "layout, component packing" $ do
     centreX (placed d 1)
       `shouldBe` (centreX (placed d 2) + centreX (placed d 3)) / 2
 
-{- | The project root heads the graph because it /contains/ its work
-(#198).
+{- | The project root heads the graph because it /contains/ its work.
 
-For eight issues it did the opposite. Membership was stored as a
-@project.dependency@ row per node pointing at the root, layering
-correctly drew each dependent above what it waits on, and so the root
-sank beneath everything in the project. The rule was right; the
-relationship it was given was wrong.
+Store membership as a @project.dependency@ row per node pointing at the
+root and it does the opposite: layering correctly draws each dependent
+above what it waits on, and so the root sinks beneath everything in the
+project. The layout rule is not what breaks; the relationship it is
+handed is.
 
 These pin the distinction: containment puts the container above, a
 dependency puts the dependent above, and a graph with both still gets
@@ -296,8 +293,8 @@ containmentSpec = describe "layout, containment" $ do
     topOf (placed d 1) `shouldBe` minimum (map topOf (diagramNodes d))
 
   it "tags each edge with where it came from" $ do
-    -- Both kinds render identically (#206); the tag records provenance,
-    -- which is what tells a derived edge from one with a row behind it.
+    -- Both kinds render identically; the tag records provenance, which
+    -- is what tells a derived edge from one with a row behind it.
     let d = layout cfg [rootNode 1, node 2, node 3] [holds 10 1 2, dep 11 2 3]
         kindOf i = peKind (head (filter ((== EdgeId i) . peId) (diagramEdges d)))
     kindOf 10 `shouldBe` Contains
@@ -305,8 +302,8 @@ containmentSpec = describe "layout, containment" $ do
 
   it "ends a containment edge on the root, where its arrowhead goes" $ do
     -- The project is what waits on the work, so the head belongs on the
-    -- root end. Geometry has to agree with that or the arrow restored
-    -- in #206 would point the wrong way.
+    -- root end. Geometry has to agree with that, or the arrowhead
+    -- points the wrong way.
     let d = layout cfg [rootNode 1, node 2] [holds 10 1 2]
         e = head (diagramEdges d)
         rootBox = placed d 1
@@ -315,7 +312,7 @@ containmentSpec = describe "layout, containment" $ do
       `shouldSatisfy` \y ->
         y >= topOf rootBox && y <= topOf rootBox + szH (pnSize rootBox)
 
-{- | No two edges drawn on top of each other (#190).
+{- | No two edges drawn on top of each other.
 
 Distinct from the crossing count in "Domain.Project.Graph.OrderSpec":
 a crossing is two edges meeting at a point, which is expected and is
@@ -384,7 +381,7 @@ data Axis = Vertical | Horizontal
 data Run = Run Axis Double Double Double
   deriving (Eq, Show)
 
-{- | Line jumps through the whole pipeline (#180).
+{- | Line jumps through the whole pipeline.
 
 "Domain.Project.Graph.RouteSpec" pins the jump geometry itself, on
 hand-built polylines. This pins what that fixture cannot: that a real

@@ -2,7 +2,7 @@ name: Release
 
 # Watches for a version bump landing on main and, when one does, creates
 # a matching git tag + GitHub Release with auto-generated notes.
-# docs/solution-proposals/release-management.md (#58) decided:
+# docs/solution-proposals/release-management.md decided:
 # - versioning is manual: a normal PR bumps typeio.cabal's `version:`
 #   field -- that's the one real judgment call (major/minor/patch), not
 #   automated.

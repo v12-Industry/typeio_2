@@ -6,7 +6,7 @@
 # alignment) couldn't be preserved by any actively-maintained formatter.
 
 # Number of spaces per indentation step -- this codebase indents 2, not
-# Fourmolu's own default of 4 (see e.g. IndexRender.hs pre-#6).
+# Fourmolu's own default of 4.
 indentation: 2
 
 # Max line length for automatic line breaking

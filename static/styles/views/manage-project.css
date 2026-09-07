@@ -161,9 +161,9 @@ svg {
 /* Keyboard panning needs the container focusable, and a focus ring on
    a whole panel is noise -- but removing it outright would leave a
    keyboard user with no idea where focus is, so it shows only for
-   keyboard focus. With the zoom buttons gone, the arrow/+/-/0 keys
-   graph-viewport.js binds here are the only non-pointer way around the
-   graph, which makes this focus target load-bearing. */
+   keyboard focus. The arrow/+/-/0 keys graph-viewport.js binds here
+   are the only non-pointer way around the graph, which makes this
+   focus target load-bearing. */
 #tree-container:focus {
   outline: none;
 }
@@ -190,12 +190,6 @@ svg {
   cursor: grabbing;
 }
 
-/* The zoom/recentre button cluster that used to sit in the viewport's
-   corner (`#graph-controls`, `.graph-controls-inner`, `.graph-control`)
-   is gone along with the markup that carried it. The d3-zoom viewport
-   recentres on double-click and takes zoom from the wheel, so the
-   drawing is no longer covered by three permanent buttons. */
-
 #tree-container .link {
   stroke: #999;
   stroke-opacity: 0.6;
@@ -212,11 +206,11 @@ svg {
    distinction is real -- there is no row behind one, so nothing can
    delete it -- but it is not a visual one: a project's completion does
    depend on its work being complete, so these read as dependencies and
-   should look like them (#206).
+   should look like them.
 
    The class stays as the hook for when that provenance does need to
-   show, and because #205 will need to tell a derived edge from a
-   user-declared one. */
+   show, and because telling a derived edge from a user-declared one is
+   a distinction the UI needs available. */
 
 /* `.link-shared` deliberately has no styling of its own: a shared
    dependency is an ordinary dependency and reads better drawn like any
@@ -235,10 +229,9 @@ svg {
 
 /* Every rule below is about the node's shape rather than which element
    it is, so they're keyed off the `.root`/`.work` class the shape
-   carries. That was originally so one set of rules could style both the
-   circle and the rect while both renderers existed (#178); it cost
-   nothing when #182 removed the circle, which is the point -- element
-   names in selectors are what makes a swap like that expensive. */
+   carries. One set of rules can then style whatever element the shape
+   happens to be, and swapping that element costs nothing -- element
+   names in selectors are what makes such a swap expensive. */
 
 #tree-container .node.node-highlight .root,
 #tree-container .node.node-highlight .work {
@@ -270,7 +263,7 @@ svg {
 }
 
 /* ------------------------------------------------------------------
-   The orbital visualization (#229, selectable since #238).
+   The orbital visualization.
 
    Its own block rather than extra selectors bolted onto the `.node`
    rules above, and deliberately so: `.disc` does not inherit `.node`'s
@@ -289,11 +282,10 @@ svg {
      - `#tree-container .link`, the edges.
 
    That is the payoff of keying rules off the shape's class rather than
-   its element name, which is the same thing that made removing the old
-   circle in #182 cost almost nothing.
+   its element name.
    ------------------------------------------------------------------ */
 
-/* Per-node colour (#239). The server emits `--node-hue` on each disc --
+/* Per-node colour. The server emits `--node-hue` on each disc --
    a datum saying which node it is -- and everything about how that
    becomes a colour stays here: saturation, lightness, and the theme.
 
@@ -362,7 +354,7 @@ svg {
   pointer-events: none;
 }
 
-/* Opts out of global.css's #view scroll region (#210): #tree-container
+/* Opts out of global.css's #view scroll region: #tree-container
    is a fixed window that pans by transform, not by scrolling, and a
    scrollbar on #view behind it would be a second way to move the same
    content, fighting the first. Nothing on this page needs #view itself

@@ -192,7 +192,7 @@ spec = do
       routedEdges r `shouldBe` []
       sort (M.keys (routedLayerTops r)) `shouldBe` [0]
 
--- Line jumps (#180). These use `addJumps` on hand-built polylines
+-- Line jumps. These use `addJumps` on hand-built polylines
 -- rather than driving `routeEdges`: the property under test is pure
 -- segment geometry, and a fixture that states its own crossing is a far
 -- clearer statement of intent than a graph contrived to produce one.

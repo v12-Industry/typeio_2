@@ -66,11 +66,11 @@ page-specific `<link rel="stylesheet">` (see [styles.md](styles.md)).
 
 `#view` also owns each page's scroll region: `global.css` sets
 `overflow-y: auto` here, since `#container` above never can (see
-`#container`, above). Before this, nothing in the ancestor chain was
-ever set to scroll — a page taller than the viewport was clipped by
-`#container`'s `overflow: hidden` with no user-facing way to reach the
-rest, only `#container.scrollTop = ...` from a script, which
-`overflow: hidden` still permits but no real user has a path to.
+`#container`, above). Something in the ancestor chain has to scroll, or
+a page taller than the viewport is clipped by `#container`'s
+`overflow: hidden` with no user-facing way to reach the rest — only
+`#container.scrollTop = ...` from a script, which `overflow: hidden`
+still permits but no real user has a path to.
 
 A page whose own content must not scroll natively opts out in its own
 scoped stylesheet — the dependency graph does this in

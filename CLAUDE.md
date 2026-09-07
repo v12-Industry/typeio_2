@@ -98,12 +98,10 @@ treating a proposal as current guidance.
 - **Build:** `cabal build all`
 - **Run the server:** `cabal run server` (loads config from `.env` — see
   that file for the required variables; none are hardcoded).
-  ⚠️ **There is no environment variable for the graph visualization.**
   Which dependency-graph visualization renders is chosen per request by
   an optional `visualizationMode` query parameter (`Layered`,
-  `Rootless` or `Orbital`); an absent one takes a hardcoded default, an
-  unrecognised one is a validation error. If an old `.env` still has a
-  `GRAPH_VISUALIZATION` line, delete it — nothing reads it. See
+  `Rootless` or `Orbital`) — not by configuration; an absent one takes a
+  hardcoded default, an unrecognised one is a validation error. See
   [`docs/architecture/visualization-switching.md`](docs/architecture/visualization-switching.md).
 - **Start Postgres:** `make run-postgres`
 - **Migrations:** `make migrate-up` / `make migrate-down` /
@@ -115,8 +113,8 @@ treating a proposal as current guidance.
   runs it on every PR into `main` (GitHub Actions,
   `.github/workflows/test.yml` — see
   [`docs/development/ci.md`](docs/development/ci.md)), so running it
-  locally before pushing is no longer required — the PR is the
-  enforcement point. A separate integration test suite also exists
+  locally before pushing is optional — the PR is the enforcement
+  point. A separate integration test suite also exists
   (`cabal test integration` / `make test-integration`, needs Docker
   locally) and runs on every PR via a second workflow,
   `.github/workflows/integration-test.yml` — informational only, not
@@ -172,6 +170,14 @@ Quick summary:
   did Y", no status markers recording when something was built. A
   reader should be able to learn what the app does without the issue
   tracker open, and without being told about states it is no longer in.
+  - **The same applies to every comment that survives in the repo** —
+    test files, stylesheets, client scripts, workflow YAML, `.cabal`
+    and config files. A comment is documentation that happens to live
+    next to code, and it goes stale the same way. An `it`/`describe`
+    string is not a place for an issue number either. A reference to
+    an *upstream* project's issue (e.g.
+    `dependabot/dependabot-core#2745`) is fine — that is a pointer to
+    someone else's tracker, not this repo's history.
   - **Keep the rule, drop the story.** A constraint that exists because
     something once went wrong is still a constraint: state it in the
     present tense as a fact about the code. "The arrowhead sits on the

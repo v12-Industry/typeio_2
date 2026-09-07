@@ -26,8 +26,7 @@ nid :: Int -> NodeId
 nid = NodeId . fromIntegral
 
 {- | The worked example from
-@docs/architecture/orbital-dependency-weighted-graph.md@, which is the
-drawing in #229's reference images.
+@docs/architecture/orbital-dependency-weighted-graph.md@.
 
 Nodes 1-7 stand for A-G:
 
@@ -146,9 +145,9 @@ spec = do
 
   describe "unfold, on input that should not exist" $ do
     it "terminates on a cycle" $ do
-      -- Cycles are rejected upstream (#205); this is the backstop that
-      -- stops one hanging the request if it arrives by seed script or
-      -- direct SQL.
+      -- Cycles are rejected upstream; this is the backstop that stops
+      -- one hanging the request if it arrives by seed script or direct
+      -- SQL.
       let f = unfold (map node [1, 2]) [dep 1 2, dep 2 1]
       length (discs f) `shouldSatisfy` (> 0)
 

@@ -3,14 +3,12 @@ updates:
   # No Hackage/cabal entry: GitHub's Dependabot doesn't support the
   # ecosystem yet (tracked upstream in dependabot/dependabot-core#2745,
   # not shipped as of this writing). See
-  # docs/solution-proposals/security-scanning.md (#62) §3 --
-  # OSV-Scanner (.github/workflows/security-scan.yml, #101) is the
-  # gap-filler for Haskell dependencies until Dependabot supports it
-  # natively.
+  # docs/solution-proposals/security-scanning.md §3 --
+  # OSV-Scanner (.github/workflows/security-scan.yml) is the gap-filler
+  # for Haskell dependencies until Dependabot supports it natively.
   #
-  # This npm entry has nothing to scan today -- the orphaned
-  # package.json/package-lock.json were removed in #100 -- but it's
-  # ready to go the moment real JS dependencies exist again.
+  # This npm entry has nothing to scan today -- the repo has no JS
+  # dependencies -- but it's ready to go the moment some exist.
   - package-ecosystem: npm
     directory: /
     schedule:

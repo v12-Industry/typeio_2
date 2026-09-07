@@ -126,15 +126,13 @@ after import.
 This exact sequence (import + zero-diff plan, plus the `repository_id`
 fix above) was verified against the real, live `main` branch protection
 during development, using a temporary local-backend override that was
-never committed, both against HCP Terraform originally and again after
-switching to OpenTofu — the same is expected to hold against GCS once
-the account exists, since only the backend, not the resource
-configuration, changed.
+never committed. The same is expected to hold against GCS once the
+account exists, since the backend does not affect the resource
+configuration.
 
 **Not yet covered by this module**: `main`'s merge-queue ruleset (see
 [`ci.md`](ci.md#merge-queue)) was configured directly via the API, the
-same hand-first-then-import path branch protection took before it was
-code here. The `github-repo` module only wraps
+same hand-first-then-import path branch protection takes. The `github-repo` module only wraps
 `github_branch_protection` today, not `github_repository_ruleset` —
 whoever does the first real `terragrunt apply` should add a
 `github_repository_ruleset` resource for it (and import the live

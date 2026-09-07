@@ -132,7 +132,7 @@ the comments in the workflow file itself for the fallback logic.
 module (`infrastructure/modules/github-repo`) only wraps
 `github_branch_protection` today, not `github_repository_ruleset` — the
 merge-queue ruleset was configured by hand via the API, the same way
-the original branch protection was before it existed as code (see
+branch protection itself was handled before being imported (see
 [`infrastructure.md`](infrastructure.md)'s "Importing the existing
 branch protection"). Whenever that infra is actually applied for the
 first time, the import step will need to cover this ruleset too, not
@@ -189,11 +189,11 @@ certain trigger types (`push`, `workflow_dispatch`,
 `repository_dispatch`, `delete`, `registry_package`, `schedule`) are
 allowed to *write* into that default-branch scope. `test.yml` only
 triggers on `pull_request`/`merge_group`, neither of which qualifies —
-so before this workflow existed, no run had ever written a cache into
-`main`'s actual scope, and every genuinely new ref (a PR's first push,
-or every merge-queue entry on its own synthetic branch) paid a full
-cold `cabal build all` regardless of an identical-key cache already
-existing elsewhere in the repo.
+so `test.yml` cannot write a cache into `main`'s actual scope. Without
+this workflow, every genuinely new ref (a PR's first push, or every
+merge-queue entry on its own synthetic branch) pays a full cold
+`cabal build all` regardless of an identical-key cache already existing
+elsewhere in the repo.
 
 Every merge lands as a single merge commit (the merge queue's own
 `merge_method: MERGE` — see [Merge queue](#merge-queue) above; direct
@@ -463,9 +463,9 @@ required approvals, so it's about the PR requirement, not review) and
 this `test` check to pass, with `enforce_admins: true` (no bypass, for
 anyone) — plus, as of the merge queue (see [Merge
 queue](#merge-queue) above), a ruleset requiring every merge to
-actually go through the queue rather than a direct merge at all. It was
-previously just `CLAUDE.md`'s "never push directly to main" rule for
-agents, which bound agents but not humans or GitHub itself — see the
+actually go through the queue rather than a direct merge at all. That
+ruleset is what binds humans and GitHub itself, not just agents
+following `CLAUDE.md`'s "never push directly to main" rule — see the
 note above about what configuring this actually required from the
 workflow.
 
@@ -497,9 +497,8 @@ its own weekly `schedule` and an on-demand `workflow_dispatch` — see
 
 ## Running the same checks locally
 
-Before CI existed, running `cabal test`/`make test` locally before
-pushing was part of the standard workflow. It no longer has to be — the
-PR itself is the enforcement point now — but it's still the fastest way
+Running `cabal test`/`make test` locally before pushing is optional —
+the PR itself is the enforcement point — but it's still the fastest way
 to find a failure before waiting on a CI run:
 
 ```

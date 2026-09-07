@@ -1,10 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-{- | Integration coverage for 'handleProjectSubmit' (#69), building on
-the infrastructure and pattern established in #65's pilot
+{- | Integration coverage for 'handleProjectSubmit', building on the
+infrastructure and pattern established in the pilot
 ('Domain.Project.Responder.Api.Node.PostSpec').
 
-Unlike the other mutating-responder tests (#66-#68), this handler
+Unlike the other mutating-responder tests, this handler
 doesn't mutate an existing 'M.Node' -- it's the flow that *creates* a
 'M.Project' and its root 'M.Node' in the first place, so there's no
 'Integration.Support.seedProjectWithRootNode' fixture to seed first;

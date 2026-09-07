@@ -58,11 +58,9 @@ required. That number is duplicated in `make seed-db`, which falls back
 to the same `3000` when `WEB_PORT` is unset — changing one without the
 other leaves the seed target posting at a port nothing is listening on.
 
-**There is no environment variable for the dependency-graph
-visualization.** Which drawing to render is a property of a *request*,
-not of the process: an optional `visualizationMode` query parameter. If
-an old `.env` still carries a `GRAPH_VISUALIZATION` line, delete it —
-nothing reads it, and leaving it there suggests it does something.
+Which dependency-graph drawing to render is **not** among them: it is a
+property of a *request*, not of the process — an optional
+`visualizationMode` query parameter.
 
 See
 [`../../architecture/visualization-switching.md`](../../architecture/visualization-switching.md)

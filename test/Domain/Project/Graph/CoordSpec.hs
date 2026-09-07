@@ -112,7 +112,7 @@ spec = do
       assign M.empty [] `shouldBe` M.empty
 
   describe "assignX, component packing" $ do
-    {- The fixture from #214: component A is one node wide at the top
+    {- Component A is one node wide at the top
     and four wide two rows down, so without packing its lower row
     spreads out underneath B and B ends up sitting inside A's span
     rather than beside it. -}

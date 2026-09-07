@@ -1,7 +1,7 @@
 import { APIRequestContext, Page, expect } from '@playwright/test';
 
 // Shared setup helpers for this suite's specs -- reused rather than
-// duplicated across specs, per each ticket's "reuse #94's Playwright
+// duplicated across specs -- reuse the existing Playwright
 // setup" call.
 
 export interface CreatedProject {
@@ -23,9 +23,8 @@ export async function createProject(page: Page, titlePrefix: string): Promise<Cr
   await page.goto('/ui/projects/vw');
   await page.getByRole('button', { name: 'Create Project' }).click();
 
-  // getByLabel() -- ProjectCreate.View's inputs used to have no `id`
-  // matching their <label for="...">, so this had to scope by `name`
-  // instead; fixed in #118, which gave each control the matching `id`.
+  // getByLabel() works because ProjectCreate.View's inputs each carry
+  // an `id` matching their <label for="...">.
   await page.getByLabel('Title:').fill(title);
   await page.getByLabel('Description:').fill(description);
   await page.getByRole('button', { name: 'Submit' }).click();
@@ -33,11 +32,8 @@ export async function createProject(page: Page, titlePrefix: string): Promise<Cr
   // Not page.locator('#project-index').filter(...): #project-index is
   // the single list container (one match, so filter() has nothing to
   // narrow among) -- .project-item is the per-card div's class.
-  // ProjectIndex.List used to render every card with the same literal
-  // *id* here (invalid HTML -- fixed in #119; each card's id is now
-  // unique, per-project), so this now scopes by the shared class
-  // instead, which still resolves to every card, then narrows to the
-  // one containing this title.
+  // Scoping by the shared class resolves to every card, then narrows
+  // to the one containing this title.
   const card = page.locator('.project-item').filter({ hasText: title });
   await expect(card.getByRole('heading', { name: title, level: 3 })).toBeVisible();
 
@@ -55,7 +51,7 @@ export interface CreatedNode {
 // Adds a node to an existing project via a direct API call
 // (Domain.Project.Responder.Api.Node.Post), not a UI interaction: the
 // app has no UI affordance to create a node anywhere -- checked the
-// client script, the graph template, and the node panel (see #95's PR
+// client script, the graph template, and the node panel (see the PR
 // description for the full finding). Every spec that needs *a* node to
 // exist but isn't testing node creation itself calls this instead of
 // reimplementing the API-plus-lookup dance.
@@ -76,7 +72,7 @@ export async function addNode(
 
   // The POST response above is just "Ok" -- no created-node id -- so
   // fetch it back to find the id. Domain.Project.Responder.Api.Node.Get
-  // returns every node in the database, unfiltered by project (#114,
+  // returns every node in the database, unfiltered by project (
   // filed as a follow-up, not fixed here); the timestamped title is
   // what actually picks out the right one.
   const allNodes = await request.get('/api/project/nodes').then(r => r.json());
@@ -92,7 +88,7 @@ export async function addNode(
 // add-project form submits to
 // (Domain.Project.Responder.Ui.ProjectCreate.Submit), bypassing the UI
 // form -- same reasoning as addNode() above: this is setup, not the
-// thing being tested. project-index-scroll.spec.ts (#210) needs enough
+// thing being tested. project-index-scroll.spec.ts needs enough
 // rows to overflow a screen, and driving 30 of them through the real
 // form (createProject()) would only add slow, irrelevant setup time.
 //
