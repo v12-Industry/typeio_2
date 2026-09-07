@@ -3,9 +3,20 @@
 module Platform.Web.MiddlewareSpec (spec) where
 
 import qualified Data.ByteString as BS
-import Network.Wai.Middleware.Static (FileMeta (..))
-import Platform.Web.Middleware (staticCacheHeaders)
+import Network.HTTP.Types (RequestHeaders)
+import Network.Wai.Middleware.Static (CachingStrategy (..), FileMeta (..))
+import Platform.Web.Middleware (staticCachingStrategy)
 import Test.Hspec
+
+-- The headers are defined inline with the strategy, so reach them the
+-- way the middleware does: through the strategy value itself. Anything
+-- other than CustomCaching is a real failure, not a test-setup detail
+-- -- NoCaching sends nothing, and PublicStaticCaching carries a
+-- max-age.
+staticCacheHeaders :: FileMeta -> RequestHeaders
+staticCacheHeaders = case staticCachingStrategy of
+  CustomCaching f -> f
+  _ -> error "expected staticCachingStrategy to be CustomCaching"
 
 sampleMeta :: FileMeta
 sampleMeta =

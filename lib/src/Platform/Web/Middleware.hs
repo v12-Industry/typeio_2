@@ -10,7 +10,6 @@ import Domain.System.Middleware.Logging.Request (requestLogMiddleware)
 import Domain.System.Middleware.Logging.Response (responseLogMiddleware)
 import Domain.System.Middleware.RequestId (requestIdMiddleware)
 import Environment.Env (Env (..))
-import Network.HTTP.Types (RequestHeaders)
 import Network.Wai (Middleware)
 import Network.Wai.Middleware.Static
   ( CacheContainer
@@ -28,10 +27,7 @@ withMiddleware ev ct k = do
   k (allMiddleware ev ct cc)
 
 staticCachingStrategy :: CachingStrategy
-staticCachingStrategy = CustomCaching staticCacheHeaders
-
-staticCacheHeaders :: FileMeta -> RequestHeaders
-staticCacheHeaders fm =
+staticCachingStrategy = CustomCaching $ \fm ->
   [ ("Cache-Control", "no-cache")
   , ("ETag", fm_etag fm)
   , ("Last-Modified", fm_lastModified fm)
