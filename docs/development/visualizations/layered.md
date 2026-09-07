@@ -54,8 +54,8 @@ fragment directly, or on the project page, which forwards it:
 ```
 
 A request naming no visualization gets the hardcoded default, which is
-`Orbital`, not this one. An unrecognised value is a validation error
-rather than a silent fallback. See
+`Orbital`, not this one. An unrecognised value redirects to the default
+rather than failing. See
 [`../../architecture/visualization-switching.md`](../../architecture/visualization-switching.md).
 
 ## Where the code lives

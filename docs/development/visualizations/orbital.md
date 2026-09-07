@@ -67,8 +67,8 @@ fragment directly, or on the project page, which forwards it:
 /ui/project/vw?projectId=1&visualizationMode=Orbital
 ```
 
-**This is the default**: a request naming no visualization gets it. An
-unrecognised value is a validation error rather than a silent fallback.
+**This is the default**: a request naming no visualization gets it, and
+an unrecognised value redirects here rather than failing.
 See
 [`../../architecture/visualization-switching.md`](../../architecture/visualization-switching.md).
 

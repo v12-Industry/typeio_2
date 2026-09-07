@@ -10,21 +10,25 @@ import Common.Validation
   ( ValidationErr
   , isNotEmpty
   , isThere
-  , orDefault
   , runValidation
   , valRead
   , (.$)
   )
 import Common.Web.Attributes
 import Common.Web.Elements
-import Common.Web.Query (lookupVal)
-import Config.Visualization (Visualization, defaultVisualization)
+import Common.Web.Query (lookupVal, setQueryParam)
+import Config.Visualization
+  ( Visualization
+  , VisualizationChoice (..)
+  , resolveVisualization
+  )
 import Control.Monad (forM_)
 import Control.Monad.Reader (ReaderT)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Either (hoistEither, runEitherT)
 import Data.Aeson (encode, object, (.=))
 import Data.Bifunctor (first)
+import Data.ByteString (ByteString)
 import Data.Either (notNullEither)
 import Data.Int (Int64)
 import Data.List (sort)
@@ -75,11 +79,11 @@ import qualified Domain.Project.Model as M
   )
 import Domain.Project.Responder.Ui.ProjectManage.Link
 import Lucid
-import Network.HTTP.Types (queryToQueryText, status200, status403)
-import Network.HTTP.Types.URI (QueryText)
+import Network.HTTP.Types (queryToQueryText, status200, status302, status403)
+import Network.HTTP.Types.URI (QueryText, queryTextToQuery, renderQuery)
 import Network.Wai
   ( Application
-  , Request (queryString)
+  , Request (queryString, rawPathInfo)
   , Response
   , ResponseReceived
   , responseLBS
@@ -113,11 +117,31 @@ handleGraph ::
   ConnectionPool ->
   Application
 handleGraph renderFor pl req respond =
-  case validateVisualization qt of
-    Left es -> respondValErrs respond es
-    Right viz -> handleGraphWith (renderFor viz) pl req respond
+  case resolveVisualization (lookupVal "visualizationMode" qt) of
+    FellBack viz -> respondVisualizationFallback respond req qt viz
+    AsRequested viz -> handleGraphWith (renderFor viz) pl req respond
   where
     qt = queryToQueryText . queryString $ req
+
+respondVisualizationFallback ::
+  (Response -> IO ResponseReceived) ->
+  Request ->
+  QueryText ->
+  Visualization ->
+  IO ResponseReceived
+respondVisualizationFallback respond req qt viz =
+  respond $
+    responseLBS
+      status302
+      [("Location", visualizationLocation req qt viz)]
+      mempty
+
+visualizationLocation :: Request -> QueryText -> Visualization -> ByteString
+visualizationLocation req qt viz =
+  rawPathInfo req
+    <> renderQuery True (queryTextToQuery corrected)
+  where
+    corrected = setQueryParam "visualizationMode" (pack (show viz)) qt
 
 respondValErrs ::
   (Response -> IO ResponseReceived) ->
@@ -131,14 +155,6 @@ respondValErrs respond es =
     . encode
     . object
     $ ["error" .= (mconcat . map (pack . show) $ es)]
-
-validateVisualization :: QueryText -> Either [ValidationErr] Visualization
-validateVisualization qt =
-  runValidation id $
-    lookupVal "visualizationMode" qt
-      .$ unpack
-      >>= valRead "Invalid visualizationMode value"
-      >>= orDefault defaultVisualization
 
 handleGraphWith :: RenderGraph -> ConnectionPool -> Application
 handleGraphWith drawGraph pl req respond = do

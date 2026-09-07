@@ -64,9 +64,8 @@ spec = around_ (setValidEnv >>) $
     -- No visualization cases here: which drawing to render is a
     -- property of a request, not of the process, so there is nothing
     -- for loadAppConfig to read or reject. That coverage lives in
-    -- Domain.Project.Visualization.Common's validateVisualization and
-    -- its integration spec, including an unrecognised value being an
-    -- error rather than a silent fallback.
+    -- Config.VisualizationSpec and the switch's integration spec,
+    -- including an unrecognised value redirecting to the default.
 
     it "succeeds even when WEB_PORT is unset, defaulting to 3000 (see Config.Web.defaultWebPort)" $ do
       unsetEnv "WEB_PORT"

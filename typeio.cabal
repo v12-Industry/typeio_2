@@ -93,10 +93,12 @@ library src
       -- caching headers are a pure function of a file's metadata, and
       -- the suite covers them.
       , Platform.Web.Middleware
+      -- Exposed for the same reason: the query-parameter helpers are
+      -- pure, and the redirect built on them is covered by the suite.
+      , Common.Web.Query
     other-modules:
       Common.Web.Attributes
       , Common.Web.Elements
-      , Common.Web.Query
       , Common.Web.Template.MainHeader
       , Container.Build
       , Container.Root
@@ -184,8 +186,10 @@ test-suite spec
     hs-source-dirs:     test
     other-modules:
       Common.ValidationSpec
+      , Common.Web.QuerySpec
       , Config.AppSpec
       , Config.DbSpec
+      , Config.VisualizationSpec
       , Config.WebSpec
       , Data.EitherSpec
       , Data.HashTreeSpec

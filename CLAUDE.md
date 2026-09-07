@@ -113,7 +113,7 @@ still telling the truth about the day it was written.
   Which dependency-graph visualization renders is chosen per request by
   an optional `visualizationMode` query parameter (`Layered`,
   `Rootless` or `Orbital`) — not by configuration; an absent one takes a
-  hardcoded default, an unrecognised one is a validation error. See
+  hardcoded default, an unrecognised one redirects to the default. See
   [`docs/architecture/visualization-switching.md`](docs/architecture/visualization-switching.md).
 - **Start Postgres:** `make run-postgres`
 - **Migrations:** `make migrate-up` / `make migrate-down` /

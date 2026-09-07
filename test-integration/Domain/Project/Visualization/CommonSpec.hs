@@ -8,10 +8,12 @@ process: an optional @visualizationMode@ query parameter, defaulting to
 environment, so none of this belongs in @Config.AppSpec@.
 
 The point of testing it at this tier rather than by calling
-'validateVisualization' directly is that the interesting failure is not
+'resolveVisualization' directly is that the interesting failure is not
 "does the string parse" but "does the right drawing come back". So each
 case asserts on the rendered markup, and the three drawings are told
-apart by things only one of them emits.
+apart by things only one of them emits. A value that names no
+visualization is answered with a redirect to the default rather than an
+error, so those cases assert on the Location header instead.
 
 This deliberately drives 'handleGraph' with the real
 'Domain.Project.Responder.Ui.Container.renderFor' table, not a copy: a
@@ -35,7 +37,7 @@ import Integration.Support
   , seedWorkNode
   , withTestDatabase
   )
-import Network.HTTP.Types (Query, methodGet, status200, status403)
+import Network.HTTP.Types (Query, methodGet, status200, status302)
 import Network.Wai (Request, defaultRequest, queryString, requestMethod)
 import Network.Wai.Test
   ( SResponse (..)
@@ -89,41 +91,66 @@ spec = aroundAll withTestDatabase $
 
         implicit `shouldBe` explicit
 
-      it "rejects an empty parameter rather than treating it as absent" $ \pool -> do
+      it "redirects an empty parameter to the default rather than treating it as absent" $ \pool -> do
         -- `?visualizationMode=` is a value that is present and does not
-        -- parse, not a missing one -- `lookupVal` returns `Just ""` and
-        -- `valRead` rejects it.
-        --
-        -- Asserted because the friendlier reading is tempting and would
-        -- be inconsistent: every other optional query parameter in this
-        -- app behaves this way already (`?nodeId=` is rejected by
-        -- ProjectManage.View's own valRead). Special-casing this one
-        -- field would make "empty" mean something different depending
-        -- on which parameter you left blank.
+        -- parse, not a missing one -- `lookupVal` returns `Just ""`.
+        -- An absent parameter is answered directly; this one is
+        -- corrected, so the caller can see what they actually got.
         pid <- fixture pool
         resp <- graphResponse pool pid [("visualizationMode", Just "")]
 
-        simpleStatus resp `shouldBe` status403
+        simpleStatus resp `shouldBe` status302
+        locationOf resp `shouldBe` Just (defaultModeLocation pid)
 
-      it "rejects a value that names no visualization" $ \pool -> do
-        -- A value somebody got wrong fails loudly rather than falling
-        -- back: a silently defaulted visualization surfaces much later
-        -- as "the graph looks wrong".
+      it "redirects a value that names no visualization" $ \pool -> do
         pid <- fixture pool
         resp <- graphResponse pool pid [("visualizationMode", Just "Radial")]
 
-        simpleStatus resp `shouldBe` status403
-        LC8.unpack (simpleBody resp)
-          `shouldContainStr` "Invalid visualizationMode value"
+        simpleStatus resp `shouldBe` status302
+        locationOf resp `shouldBe` Just (defaultModeLocation pid)
 
-      it "rejects a known constructor in the wrong case" $ \pool -> do
+      it "redirects a known constructor in the wrong case" $ \pool -> do
         -- `Read` is case-sensitive on constructor names, the same way
-        -- ENV is (see Common.ValidationSpec). Worth pinning: this is
-        -- the most likely way to get the parameter wrong by hand.
+        -- ENV is (see Common.ValidationSpec). This is the most likely
+        -- way to get the parameter wrong by hand.
         pid <- fixture pool
         resp <- graphResponse pool pid [("visualizationMode", Just "orbital")]
 
-        simpleStatus resp `shouldBe` status403
+        simpleStatus resp `shouldBe` status302
+        locationOf resp `shouldBe` Just (defaultModeLocation pid)
+
+      it "keeps the other parameters when it redirects" $ \pool -> do
+        -- The correction must not lose the project or node the caller
+        -- asked for.
+        pid <- fixture pool
+        resp <-
+          graphResponse
+            pool
+            pid
+            [("visualizationMode", Just "Radial"), ("nodeId", Just "7")]
+
+        locationOf resp
+          `shouldBe` Just
+            ( "?projectId="
+                <> C8.pack (show pid)
+                <> "&visualizationMode="
+                <> C8.pack (show defaultVisualization)
+                <> "&nodeId=7"
+            )
+
+      it "redirects somewhere that does not redirect again" $ \pool -> do
+        -- A correction pointing at another invalid value would loop the
+        -- browser rather than draw anything.
+        pid <- fixture pool
+        first <- graphResponse pool pid [("visualizationMode", Just "Radial")]
+        simpleStatus first `shouldBe` status302
+
+        second <-
+          graphResponse
+            pool
+            pid
+            [("visualizationMode", Just (C8.pack (show defaultVisualization)))]
+        simpleStatus second `shouldBe` status200
 
 {- | A project with a root, two work nodes and a real dependency —
 enough for every drawing to render something distinguishable.
@@ -164,3 +191,13 @@ shouldNotContainStr haystack needle =
   if needle `isInfixOf` haystack
     then expectationFailure ("expected the response not to contain " <> show needle)
     else pure ()
+
+locationOf :: SResponse -> Maybe C8.ByteString
+locationOf = lookup "Location" . simpleHeaders
+
+defaultModeLocation :: Int64 -> C8.ByteString
+defaultModeLocation pid =
+  "?projectId="
+    <> C8.pack (show pid)
+    <> "&visualizationMode="
+    <> C8.pack (show defaultVisualization)
