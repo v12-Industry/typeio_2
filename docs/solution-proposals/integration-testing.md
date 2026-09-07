@@ -168,12 +168,49 @@ is fine and simpler — the constraint only bites for a *required* check.
 **Resolved (#72):** a separate workflow,
 `.github/workflows/integration-test.yml`, runs `cabal test integration`
 on every PR touching Haskell-relevant files, kept **informational, not
-required** for now (so the required-check/`paths:`-filter trap above
-doesn't apply — a plain top-level `paths:` filter is used, deliberately,
-per the "not required" branch above). Promoting it to required is left
+required** at first (so the required-check/`paths:`-filter trap above
+didn't apply — a plain top-level `paths:` filter was used, deliberately,
+per the "not required" branch above). Promoting it to required was left
 as a separate, later, deliberate branch-protection decision once the
-suite has proven reliable. See `docs/development/ci.md` for the current
-detail.
+suite had proven reliable.
+
+**Resolved (#79) — promoted to required.** The evidence used, recorded
+here because "has it proven reliable?" was explicitly a judgment call
+rather than a fixed metric:
+
+- **60 consecutive workflow runs** (2026-08-31 → 2026-09-07): 56
+  success, 2 failure, 2 cancelled. The cancellations were the
+  concurrency group replacing a superseded run after a second push —
+  intended behaviour, not a fault.
+- **No infrastructure flakiness at all** in that window: no
+  `testcontainers` start/teardown failure, no runner Docker problem, no
+  spurious red. This was the specific risk that justified holding off,
+  and it did not materialise.
+- **Both failures were true positives.** One caught a handler answering
+  `403` where the spec expected `200`; the other caught a graph viewport
+  control missing from the rendered HTML. Both were real defects on
+  work-in-progress branches, and both went green on the next push —
+  i.e. the suite failed exactly when it should have, which is the
+  argument *for* requiring it.
+- **Runtime is comparable to the unit check.** ~3.6 min median and
+  ~4.5 min worst case across successful runs, against `test`'s ~2.9 min
+  median / ~4.8 min worst case. Far inside the merge queue's 60-minute
+  `check_response_timeout_minutes`, so requiring it does not
+  meaningfully slow a merge.
+
+Two workflow changes were required by the promotion itself, both direct
+consequences of the constraint described earlier in this section:
+
+1. The top-level `paths:` filter was replaced by the always-run +
+   `if:`-skip pattern — the trap this section warned about, now live.
+2. A `merge_group:` trigger was added. `main` sits behind a merge queue,
+   which evaluates required checks against a synthetic merge-group ref
+   that fires no `pull_request` event; without the trigger the check
+   would read as permanently missing and the queue would never clear.
+   (This constraint post-dates the original write-up above, which
+   predates the merge queue.)
+
+See `docs/development/ci.md` for the current detail.
 
 ## 9. Cross-reference: #17's E2E spike
 

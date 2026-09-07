@@ -2,36 +2,44 @@ name: Integration Test
 
 # Runs the Docker-backed integration test suite
 # (docs/solution-proposals/integration-testing.md) on every PR into
-# main. Deliberately a SEPARATE workflow from test.yml's `test` job, and
-# NOT a required status check -- see docs/development/ci.md for why:
-# this suite is slower and needs Docker on the runner, and a required
-# check has no bypass on this repo (`enforce_admins: true`). It runs as
-# informational; promoting it to required is its own deliberate
-# branch-protection change, once it's been reliable
-# for a while.
+# main, and on every entry into main's merge queue -- not on push to
+# main. Anything landing on main only got there via a PR (or a
+# merge-queue group) that already passed this same check, so re-running
+# it there is redundant. See docs/development/ci.md.
 #
-# Because it's not required, a plain top-level `paths:` filter is safe
-# here -- unlike test.yml, which deliberately avoids one. A required
-# check that a path filter prevents from ever running gets stuck
-# "missing" forever and blocks merging with no bypass; that trap only
-# bites required checks (see docs/development/ci.md's "Why it always
-# runs" writeup for the incident this comes from). An informational
-# check just... doesn't run, which is fine.
+# Deliberately a SEPARATE workflow from test.yml's `test` job: this
+# suite is slower and needs Docker on the runner, so keeping it out of
+# the fast, DB-free unit check lets either one be promoted or demoted
+# on its own. Both are required status checks on main.
+#
+# `merge_group` matters here because this is a required check -- the
+# merge queue evaluates required checks against a synthetic merge-group
+# ref, which does NOT fire a `pull_request` event. Without this trigger,
+# `integration-test` would never run for a queued entry, GitHub would
+# see it as permanently missing (not failing), and nothing would ever
+# clear the queue.
+#
+# Deliberately NOT path-filtered at the workflow level (see the
+# "changes" step below for why): branch protection requires this check
+# to pass before merging, and a required check that a path filter
+# prevents from ever running can never be satisfied -- GitHub has no
+# concept of "this check doesn't apply here," only "passed" or
+# "missing," and "missing" blocks the merge forever, with no bypass
+# (`enforce_admins: true`). Every PR, including docs-only ones, needs
+# this workflow to at least run and report a result.
 on:
   pull_request:
     branches: [main]
-    paths:
-      - '**/*.hs'
-      - '*.cabal'
-      - 'cabal.project'
-      - 'migrations/**'
-      - 'test-integration/**'
-      - '.github/workflows/integration-test.yml'
+  merge_group:
 
-# Same reasoning as test.yml: a second push to the same PR should
-# replace the first run, not queue a second one alongside it.
+# Without this, pushing a second commit to the same PR (or the queue
+# re-forming a merge group) starts a second, fully concurrent run rather
+# than replacing the first. `github.event.merge_group` has no
+# `pull_request.number`, so fall back to its own unique `head_ref` (per
+# merge-group entry), then finally `github.ref` -- the same
+# fallback-chain pattern test.yml's concurrency group uses.
 concurrency:
-  group: integration-test-${{ github.workflow }}-${{ github.event.pull_request.number }}
+  group: integration-test-${{ github.workflow }}-${{ github.event.pull_request.number || github.event.merge_group.head_ref || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -44,8 +52,43 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # need the base branch's history to diff against below
+
+      # The job itself always runs (so the required check always exists
+      # and can report success quickly for e.g. docs-only PRs), but the
+      # expensive steps below are skipped unless something that could
+      # actually affect the result changed. Keep this pattern in sync
+      # with anything the later steps depend on. The paths are test.yml's
+      # plus `migrations/` and `test-integration/`, which cannot affect
+      # the unit suite but do affect this one.
+      #
+      # `github.base_ref` is only set for pull_request events -- empty
+      # for merge_group, which carries the base ref at
+      # `github.event.merge_group.base_ref` instead (as a full ref, e.g.
+      # `refs/heads/main`, not a bare branch name). HEAD for a
+      # merge_group run is the merge group's own combined ref (main plus
+      # every PR queued ahead of this one), so this diffs the whole
+      # group against main -- correctly relevant=true if anything queued
+      # touches those paths, not just this one entry's own changes.
+      - name: Check for integration-relevant changes
+        id: changes
+        run: |
+          if [ "${{ github.event_name }}" = "merge_group" ]; then
+            base_ref="${{ github.event.merge_group.base_ref }}"
+            base="origin/${base_ref#refs/heads/}"
+          else
+            base="origin/${{ github.base_ref }}"
+          fi
+          if git diff --name-only "$base...HEAD" \
+              | grep -qE '\.hs$|\.cabal$|^cabal\.project$|^migrations/|^test-integration/|^\.github/workflows/integration-test\.yml$'; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "relevant=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - id: setup
+        if: steps.changes.outputs.relevant == 'true'
         uses: haskell-actions/setup@v2
         with:
           # Same pinned versions as test.yml -- see typeio.cabal's
@@ -54,6 +97,7 @@ jobs:
           cabal-version: '3.12.1.0'
 
       - uses: actions/cache@v6
+        if: steps.changes.outputs.relevant == 'true'
         with:
           path: |
             ${{ steps.setup.outputs.cabal-store }}
@@ -63,7 +107,9 @@ jobs:
             ${{ runner.os }}-cabal-
 
       - name: cabal build all
+        if: steps.changes.outputs.relevant == 'true'
         run: cabal build all
 
       - name: cabal test integration
+        if: steps.changes.outputs.relevant == 'true'
         run: cabal test integration --test-show-details=streaming

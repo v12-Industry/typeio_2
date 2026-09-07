@@ -7,7 +7,8 @@ There are six GitHub Actions workflows:
   against every merge-queue entry — see [Merge queue](#merge-queue)
   below.
 - `.github/workflows/integration-test.yml` — runs the Docker-backed
-  integration test suite. Informational only, not required — see
+  integration test suite. **Required** to merge into `main`, on the
+  same terms as `test` (merge-queue run included) — see
   [Integration test workflow](#integration-test-workflow) below.
 - `.github/workflows/security-scan.yml` — scans dependencies for known
   vulnerabilities with OSV-Scanner. Informational only, not required —
@@ -99,8 +100,12 @@ GitHub's classic branch-protection API (REST or GraphQL) has no merge
 queue field, and confirmed by hitting it directly: the only way to
 enable a merge queue is a repository ruleset (`POST
 /repos/{owner}/{repo}/rulesets`) with a `merge_queue` rule, paired with
-its own `required_status_checks` rule naming `test` (the two rules
-travel together — a bare `merge_queue` rule 422s on its own). That
+its own `required_status_checks` rule naming `test` and
+`integration-test` (the two rules travel together — a bare
+`merge_queue` rule 422s on its own). **That ruleset's list is separate
+from classic branch protection's `contexts` list**, and both name the
+same two checks: a check is only genuinely required if it appears in
+*both*, so any change to what's required has to be made twice. That
 ruleset's `required_status_checks_policy.strict` is deliberately
 `false` too, same reasoning as above: the queue's `ALLGREEN` grouping
 strategy already re-tests each entry against a fresh `main`, so a
@@ -113,20 +118,21 @@ Enterprise Cloud) — not personal-account repos. This repo moved from a
 personal account (`jordan-stor-z`) to the `v12-Industry` organization
 specifically to unlock this.
 
-**Why `test.yml` needed a new trigger, and nothing else did**: the
-queue evaluates required checks against the synthetic merge-group ref,
-which fires a `merge_group` event, not `pull_request`. `test` is the
-only workflow in `required_status_checks` (both the classic contexts
-list and the ruleset's own), so it's the only one that needed
-`merge_group:` added to its `on:` — without it, `test` would never run
-for a queued entry, GitHub would treat it as permanently missing (not
-failing), and nothing would ever clear the queue. `security-scan.yml`
-and `e2e-test.yml` aren't required checks, so they don't need it.
-`test.yml`'s own base-ref diffing (the "Check for Haskell-relevant
-changes" step) and concurrency group both had to account for
-`merge_group`'s different event shape too — `github.base_ref` and
+**Which workflows need a `merge_group:` trigger, and why**: the queue
+evaluates required checks against the synthetic merge-group ref, which
+fires a `merge_group` event, not `pull_request`. Every workflow in
+`required_status_checks` therefore needs `merge_group:` in its `on:` —
+`test.yml` and `integration-test.yml` both have it. Without it, that
+check would never run for a queued entry, GitHub would treat it as
+permanently missing (not failing), and nothing would ever clear the
+queue. `security-scan.yml` and `e2e-test.yml` aren't required checks,
+so they don't need it.
+
+Both required workflows' base-ref diffing (their "Check for … changes"
+steps) and concurrency groups also have to account for `merge_group`'s
+different event shape — `github.base_ref` and
 `github.event.pull_request.number` are both empty for that event; see
-the comments in the workflow file itself for the fallback logic.
+the comments in the workflow files themselves for the fallback logic.
 
 **Not yet reflected in `infrastructure/`**: the Terraform/OpenTofu
 module (`infrastructure/modules/github-repo`) only wraps
@@ -137,6 +143,13 @@ branch protection itself was handled before being imported (see
 branch protection"). Whenever that infra is actually applied for the
 first time, the import step will need to cover this ruleset too, not
 just the branch protection rule.
+
+A practical consequence: the module's
+`required_status_check_contexts` input covers only the classic
+contexts list. The ruleset's own copy of that list is still maintained
+by hand through the API, so adding or removing a required check means
+editing both — the Terragrunt input *and* the ruleset — or the change
+only half-applies.
 
 ### Queueing from the command line
 
@@ -215,35 +228,52 @@ what landed.
 ## Integration test workflow
 
 `.github/workflows/integration-test.yml` runs `cabal test integration`
-(the suite from `docs/solution-proposals/integration-testing.md` §11
-) on every PR into `main` that touches Haskell-relevant files —
-following the pattern the solution proposal's §8 had
-left open.
+(the suite from `docs/solution-proposals/integration-testing.md` §11)
+on every PR into `main`, and against every merge-queue entry. It is a
+**required** check, on the same terms as `test`: both must pass before
+a PR can be queued, and both are re-run against the merge group before
+anything lands.
 
-A few ways this deliberately differs from the `test` workflow above:
+Structurally it mirrors `test.yml` — always triggers, diffs against the
+base ref to decide whether the work is relevant, and skips the
+expensive steps via `if:` when it isn't. Being required is why it must
+work that way rather than using a top-level `paths:` filter; see [Why it
+always runs](#why-it-always-runs-and-skips-internally-instead-of-using-paths)
+below.
+
+Where it deliberately differs from the `test` workflow:
 
 - **A separate workflow file**, not a second job in `test.yml` — keeps
   this suite's different needs (Docker, longer runtime) isolated from
-  the required, fast, DB-free `test` job, and makes it trivial to
-  promote or demote independently later.
-- **Not a required check (yet).** This is a newer, Docker-dependent
-  suite; requiring it immediately, on a repo with `enforce_admins: true`
-  and therefore no bypass, was judged too much risk before it's proven
-  reliable. Once it's been stable for a while, promoting it to required
-  is a separate, deliberate branch-protection change — not bundled into
-  standing the workflow up.
-- **A plain top-level `paths:` filter**, unlike `test.yml`'s
-  always-runs-and-skips-internally pattern. That pattern exists
-  specifically to protect a *required* check from the "stuck missing
-  forever" trap (see [Why it always runs](#why-it-always-runs-and-skips-internally-instead-of-using-paths)
-  below) — a trap that only bites required checks. Since this workflow
-  isn't required, a docs-only PR simply not triggering it at all is
-  fine.
+  the fast, DB-free `test` job, and lets either one be promoted or
+  demoted without disturbing the other.
+- **A wider relevance filter.** Its `changes` step counts everything
+  `test.yml`'s does (`**/*.hs`, `*.cabal`, `cabal.project`, its own
+  workflow file) plus `migrations/**` and `test-integration/**` — paths
+  that can't affect the unit suite but can certainly affect this one.
+  The two steps are otherwise near-identical and are meant to stay in
+  sync.
 - **No `migrate` CLI setup step.** GitHub-hosted Ubuntu runners already
   have Docker running, and migrations apply themselves from inside the
   disposable container (`test-integration/Integration/Support.hs`'s
   `docker-entrypoint-initdb.d` approach) — nothing extra to install on
   the runner beyond the same GHC/cabal setup `test.yml` already uses.
+
+**Runtime**: a full run (build cache warm, expensive steps not skipped)
+sits at roughly three and a half to four and a half minutes, close
+enough to `test`'s own range that requiring it doesn't meaningfully
+change how long a merge takes. That is well inside the merge queue's
+`check_response_timeout_minutes` of 60.
+
+**Adding another required check later**: land the workflow change on
+`main` first, then add the context to the required-checks lists — both
+of them (see [Merge queue](#merge-queue) above for why there are two).
+Doing it in the other order blocks every open PR whose branch predates
+the workflow change: the check has never run there, a never-run
+required check reads as missing rather than failing, and missing blocks
+the merge with no bypass. Open PRs may still need a rebase onto `main`
+afterwards, since a `pull_request` run uses the workflow file from the
+PR's own head rather than the base branch's.
 
 ## Security scan workflow
 
@@ -324,9 +354,11 @@ bump landing):
   below) — it's reacting to a version bump that already landed there.
 - **Not a required check**, for the same structural reason it isn't a
   check at all: nothing about it can fail a PR.
-- Still uses a plain top-level `paths: ['typeio.cabal']` filter, same as
-  `integration-test.yml` — safe here for the same reason (not required,
-  so nothing gets stuck permanently missing). That's only a cheap
+- Still uses a plain top-level `paths: ['typeio.cabal']` filter — safe
+  precisely because it is not a required check, so nothing can get
+  stuck permanently missing (the required workflows can't do this; see
+  [Why it always runs](#why-it-always-runs-and-skips-internally-instead-of-using-paths)
+  below). That's only a cheap
   pre-filter, though: `typeio.cabal` changes for reasons that have
   nothing to do with the version, so the actual check — did the
   `version:` line itself change — happens in the workflow's "Check
@@ -449,6 +481,12 @@ even an admin override can't get past it). The fix is the job-level
 runs, so it can always report a real result, while the actual expensive
 work is still skipped when it isn't needed.
 
+This is the rule for **every** required check, not a quirk of one
+workflow: `test.yml` and `integration-test.yml` both follow it. A
+top-level `paths:` filter is only safe on a workflow that is not
+required — which is why promoting a check to required means converting
+its filter to this pattern at the same time.
+
 ## Why pull requests only, not `main`
 
 Anything that lands on `main` only got there via a PR that already ran
@@ -460,7 +498,8 @@ workflow triggers on `pull_request` only.
 except through a checked PR. That's now actually enforced, not just a
 convention — `main` has branch protection requiring a pull request (0
 required approvals, so it's about the PR requirement, not review) and
-this `test` check to pass, with `enforce_admins: true` (no bypass, for
+both the `test` and `integration-test` checks to pass, with
+`enforce_admins: true` (no bypass, for
 anyone) — plus, as of the merge queue (see [Merge
 queue](#merge-queue) above), a ruleset requiring every merge to
 actually go through the queue rather than a direct merge at all. That
@@ -469,8 +508,10 @@ following `CLAUDE.md`'s "never push directly to main" rule — see the
 note above about what configuring this actually required from the
 workflow.
 
-`integration-test.yml` triggers on `pull_request` only too, for the
-same reason — it's just not part of what branch protection enforces.
+`integration-test.yml` has exactly the same triggers as `test.yml`, and
+for the same reasons — `pull_request` plus `merge_group`, and no `push`
+to `main`, since it too is a required check the queue has to be able to
+evaluate.
 
 `security-scan.yml`, `release.yml`, and `warm-cache.yml` are the three
 workflows that don't trigger on `pull_request` at all, for three
@@ -507,14 +548,16 @@ cabal test spec   # or: make test
 ```
 
 This is the unit suite only, matching the required `test` job. The
-integration suite is separate:
+integration suite is a separate command, and is required in CI too —
+both have to pass before a PR can merge, so both are worth running
+locally when the change is one they could plausibly break:
 
 ```
 cabal test integration   # or: make test-integration
 ```
 
 It needs Docker locally (see [Integration test workflow](#integration-test-workflow)
-above for what it runs in CI — informational only, not required). See
+above for what it runs in CI). See
 [`integration-testing.md`](integration-testing.md) for the full
 write-up of how the suite works and what it covers.
 

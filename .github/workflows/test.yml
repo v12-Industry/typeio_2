@@ -5,10 +5,11 @@ name: Test
 # PR (or a merge-queue group) that already passed this same check, so
 # re-running it there is redundant. See docs/development/ci.md.
 #
-# `merge_group` matters here specifically because `test` is the one
-# check in main's `required_status_checks` (both the classic branch
+# `merge_group` matters here specifically because `test` is one of the
+# checks in main's `required_status_checks` (both the classic branch
 # protection contexts list and the "main merge queue" ruleset's own
-# required_status_checks rule) -- the merge queue evaluates required
+# required_status_checks rule; `integration-test` is the other) -- the
+# merge queue evaluates required
 # checks against a synthetic merge-group ref, which does NOT fire a
 # `pull_request` event. Without this trigger, `test` would never run for
 # a queued entry, GitHub would see it as permanently missing (not
@@ -107,11 +108,11 @@ jobs:
 
       # Scoped to `spec` specifically, not a bare `cabal test` -- a bare
       # `cabal test` builds and runs every test-suite in the package,
-      # which now also includes `integration`
+      # which also includes `integration`
       # (docs/solution-proposals/integration-testing.md). That suite has
-      # its own separate, non-required workflow
-      # (integration-test.yml) -- keep this required job scoped to the
-      # fast, DB-free unit suite only.
+      # its own separate workflow (integration-test.yml) -- keep this
+      # job scoped to the fast, DB-free unit suite only, so a Docker
+      # dependency never leaks into it.
       - name: cabal test
         if: steps.changes.outputs.relevant == 'true'
         run: cabal test spec --test-show-details=streaming

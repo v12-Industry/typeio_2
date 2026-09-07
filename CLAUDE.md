@@ -117,8 +117,9 @@ treating a proposal as current guidance.
   point. A separate integration test suite also exists
   (`cabal test integration` / `make test-integration`, needs Docker
   locally) and runs on every PR via a second workflow,
-  `.github/workflows/integration-test.yml` — informational only, not
-  yet a required check (see `docs/development/ci.md`). See
+  `.github/workflows/integration-test.yml` — also a required check, so
+  both suites must pass before a PR can merge (see
+  `docs/development/ci.md`). See
   [`docs/development/integration-testing.md`](docs/development/integration-testing.md)
   for how to run it and what it covers, and
   `docs/solution-proposals/integration-testing.md` for the rationale
