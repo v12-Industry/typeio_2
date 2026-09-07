@@ -28,9 +28,6 @@ webPort = "WEB_PORT"
 webRequestIdHeader :: String
 webRequestIdHeader = "WEB_REQUEST_ID_HEADER"
 
-{- | Used when WEB_PORT isn't set at all. Matches the port already
-hardcoded in `make seed-db`/`local/script/seed-database.sh`.
--}
 defaultWebPort :: String
 defaultWebPort = "3000"
 

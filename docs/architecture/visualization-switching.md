@@ -80,8 +80,12 @@ lookupVal "visualizationMode" qt
 fine, use this instead". Crucially it **fills a missing value without
 suppressing a bad one**: an error already recorded still fails the whole
 validation, so an absent field takes the default while a
-present-but-wrong one is still rejected. It has to come last in a chain,
-for the reason its own docs give.
+present-but-wrong one is still rejected.
+
+**It has to come last in the chain.** Everything upstream of it still
+sees `Nothing` for an absent field and passes it through untouched;
+everything downstream sees the default and has nothing left to complain
+about. Ordering it first quietly disables every check after it.
 
 Without it, a pipeline ending in an absent optional field hands
 `runValidation` a `(Nothing, [])` — no value and no errors — which it

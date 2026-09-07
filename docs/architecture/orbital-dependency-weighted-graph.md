@@ -589,6 +589,12 @@ without the parameter an edited label comes back wrapped to the other
 shape. The caller knows its own geometry and the endpoint does not, so
 the caller says.
 
+It says *how wide the asking shape is*, not *which drawing is asking* —
+two visualizations that happen to draw the same size pass the same
+number and want the same answer, which is the test that tells a
+measurement from a flag. The parameter is optional: a request that omits
+it re-wraps to the layered box's width rather than to nothing.
+
 **The response is label lines and nothing else.** It carries no copy of
 the hook that requested it: the drawing's hook is a sibling of the label
 rather than a child, so it survives the swap untouched. A hook inside

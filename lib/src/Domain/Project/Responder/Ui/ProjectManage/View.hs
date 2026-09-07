@@ -33,10 +33,6 @@ data ManageProjectPayload = ManageProjectPayload
   { payloadNodeId :: Maybe Int64
   , payloadProjectId :: Int64
   , payloadVisualization :: Visualization
-  {- ^ Which drawing to ask the graph endpoint for. Resolved here, from
-  this page's own @visualizationMode@, so that a link naming a drawing
-  actually reaches the fragment that renders it (#223).
-  -}
   }
 
 handleProjectManageView :: Application
@@ -80,11 +76,7 @@ templateProject py = do
   div_ [id_ "view"] $ do
     div_
       [ id_ "tree-container"
-      , -- The graph's viewport. Focusable because graph-viewport.js
-        -- binds the arrow/+/-/0 keys here, which is the only way around
-        -- the graph without a pointer now that the zoom buttons are
-        -- gone.
-        tabindex_ "0"
+      , tabindex_ "0"
       , hxGet_ (graphLink pid viz)
       , hxPushUrl_ False
       , hxSwap_ "innerHTML"
@@ -125,10 +117,7 @@ validateForm fm = runValidation id $ do
     formNodeId fm
       .$ unpack
       >>= valRead "Node id must be valid integer"
-  {- Optional with a default rather than optional-and-nullable like
-  `nid` above: an absent `visualizationMode` still has to produce a
-  drawing. `orDefault` supplies it without swallowing the error from a
-  value that was present and unrecognised. -}
+
   viz <-
     formVisualizationMode fm
       .$ unpack

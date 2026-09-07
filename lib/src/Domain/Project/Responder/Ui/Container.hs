@@ -40,23 +40,6 @@ data Container = Container
   , submitProject :: Application
   }
 
-{- | Which drawing each 'Visualization' is.
-
-The whole of what this module knows about visualizations, and the one
-place a new one has to be added — alongside the constructor itself and
-'Config.Visualization.defaultVisualization'.
-
-Selection moved from construction time to request time in #223: the
-graph endpoint now reads an optional @visualizationMode@ query
-parameter, so all three drawings are live in one process and a link can
-name the one it wants. Before that this was applied once, at boot, to a
-value read from @GRAPH_VISUALIZATION@.
-
-The table is here rather than in "Domain.Project.Visualization.Common"
-so that the shared request handling never learns which drawings exist —
-it takes this function and applies it. See
-@docs/architecture/visualization-switching.md@.
--}
 renderFor :: Visualization -> RenderGraph
 renderFor Layered = Layered.renderGraph
 renderFor Rootless = Rootless.renderGraph

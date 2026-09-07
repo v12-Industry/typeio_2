@@ -100,20 +100,7 @@ handlePostNode pl req respond = do
         >>= hoistMaybe MissingType
     let nd = toNode now pyl pr st tp
     ky <- lift . insert $ nd
-    -- No @project.dependency@ row is written here any more (#198).
-    --
-    -- One used to be, pointing the new node at the project root, to say
-    -- "this node belongs to this project". But @node.project_id@ — set
-    -- on the row just inserted — already records exactly that, so the
-    -- edge was duplicate data in a table that means something else. The
-    -- graph read it as a real dependency, correctly drew the dependent
-    -- above what it waits on, and so put the project root underneath
-    -- every node in the project.
-    --
-    -- The graph now derives containment from @project_id@ instead, and
-    -- migration 000009 removes the rows this used to write. A row in
-    -- @project.dependency@ means a genuine ordering between two pieces
-    -- of work, and nothing else.
+
     pure $ Entity ky nd
   case rslt of
     Right _ ->

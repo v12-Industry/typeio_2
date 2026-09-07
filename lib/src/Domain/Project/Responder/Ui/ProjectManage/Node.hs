@@ -67,20 +67,7 @@ templateNodePanel :: Int64 -> Int64 -> Html ()
 templateNodePanel nid pid = do
   div_
     [ class_ "panel-actions"
-    , {- Highlight the node this panel is about, for as long as the
-      panel is open.
-
-      Selects on `data-node-id` rather than `#node-<id>` (#234). An id
-      names exactly one element, which was true while every
-      visualization drew a node once -- the orbital one draws it once
-      per dependent, and hyperscript applies `to <selector/>` to every
-      match, so the same line highlights one element or five without
-      knowing which drawing is on screen.
-
-      The selector stays inline here rather than moving into a shared
-      helper: this is the behaviour of this element, and it belongs
-      where the element is. -}
-      h_ $
+    , h_ $
         "init add .node-highlight to "
           <> nodeSel
           <> " on htmx:beforeCleanupElement remove .node-highlight from "
@@ -132,8 +119,7 @@ templateNodePanel nid pid = do
     empty
   where
     empty = mempty :: Html ()
-    -- A hyperscript query literal, matching every element the current
-    -- drawing rendered for this node.
+
     nodeSel = "<[data-node-id='" <> intToText nid <> "']/>"
 
 validateForm :: GetNodePanelForm -> Either [ValidationErr] GetNodePanelPayload
