@@ -9,14 +9,6 @@ data ProjectContainer = ProjectContainer
   , projectUiContainer' :: Ui.Container
   }
 
-{- | Takes only the pool.
-
-It used to take the selected 'Config.Visualization.Visualization' too,
-threaded down from 'Config.App.AppConfig' so the UI container could bind
-one handler at construction. #223 moved that choice onto the request, so
-there is nothing to thread: every drawing is live in one process and the
-graph endpoint picks per request.
--}
 defaultContainer :: ConnectionPool -> ProjectContainer
 defaultContainer pl =
   ProjectContainer

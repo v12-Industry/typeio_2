@@ -54,7 +54,9 @@ this `Env`.
 (`DB_HOST`, `DB_PORT`, `WEB_REQUEST_ID_HEADER`, etc. — see `.env` for
 the full list) via `lookupEnv`, never hardcoded. `WEB_PORT` is the one exception with a
 default (`3000`, see `Config.Web.defaultWebPort`) rather than being
-required.
+required. That number is duplicated in `make seed-db`, which falls back
+to the same `3000` when `WEB_PORT` is unset — changing one without the
+other leaves the seed target posting at a port nothing is listening on.
 
 **There is no environment variable for the dependency-graph
 visualization.** Which drawing to render is a property of a *request*,

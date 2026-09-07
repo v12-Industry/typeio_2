@@ -52,15 +52,8 @@ data GetNodeRefreshPayload = GetNodeRefreshPayload
   , payloadProjectId :: Int64
   , payloadClientNodeTitle :: Text
   , payloadWrapWidth :: Int
-  -- ^ Characters per line in the shape that asked. See 'defaultWrapWidth'.
   }
 
-{- | What to wrap to when the request does not say.
-
-The layered drawing's own box, so a request from before @wrapWidth@
-existed — a page loaded across a deploy, say — still re-wraps to what it
-was originally drawn at rather than to nothing.
--}
 defaultWrapWidth :: Int
 defaultWrapWidth = cfgLabelWidth defaultLayoutConfig
 
@@ -142,12 +135,7 @@ templateRefresh wrapWidth (Entity k e) = do
     empty
   where
     empty = mempty :: Html ()
-    {- Flash every element the current drawing rendered for this node.
 
-    Selects on `data-node-id` rather than `#node-<id>` (#234): an id
-    names one element, and the orbital visualization draws a node once
-    per dependent. Hyperscript applies `to <selector/>` to every match,
-    so this line is unchanged in shape and now correct for both. -}
     nsel =
       "<[data-node-id='"
         <> (intToText . fromSqlKey $ k)
@@ -176,10 +164,7 @@ validatePayload form =
         .$ id
         >>= isThere "Node title is required"
         >>= isNotEmpty "Node title cannot be empty"
-    {- Optional, so no `isThere`: `valRead` passes a Nothing straight
-    through without recording an error, and only flags a value that is
-    present but unparseable. An absent `wrapWidth` falls back to
-    'defaultWrapWidth'; a nonsense one is still a bad request. -}
+
     wrp <-
       formWrapWidth form
         .$ unpack
