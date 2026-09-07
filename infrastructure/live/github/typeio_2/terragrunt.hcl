@@ -49,7 +49,13 @@ inputs = {
   repository = "typeio_2"
   branch     = "main"
 
-  required_status_check_contexts  = ["test"]
+  # Both CI checks that gate a merge into main -- see
+  # docs/development/ci.md. This covers only the *classic branch
+  # protection* contexts list; the "main merge queue" ruleset carries
+  # its own, separate required_status_checks rule naming the same two
+  # checks, and this module doesn't manage rulesets, so that list is
+  # maintained by hand. Changing what's required means changing both.
+  required_status_check_contexts  = ["test", "integration-test"]
   required_status_check_strict    = true
   required_approving_review_count = 0
   dismiss_stale_reviews           = false
