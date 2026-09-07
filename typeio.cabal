@@ -39,6 +39,9 @@ library src
       warnings
     exposed-modules:
       Platform.Web
+      -- Exposed so `test-suite spec` can import it, same as the modules
+      -- below: a test-suite only sees a library's exposed-modules.
+      , Platform.Build
       , Common.Validation
       , Config.App
       , Config.Db
@@ -142,6 +145,7 @@ library src
       , dotenv
       , esqueleto
       , fast-logger
+      , gitrev
       , hashable
       , http-types
       , lucid2
@@ -191,10 +195,12 @@ test-suite spec
       , Domain.Project.Graph.RouteSpec
       , Domain.Project.Orbit.LayoutSpec
       , Domain.Project.Orbit.UnfoldSpec
+      , Platform.BuildSpec
     build-tool-depends: hspec-discover:hspec-discover
     build-depends:
       base ^>=4.18.3.0
       , src
+      , aeson
       , bytestring
       , case-insensitive
       , hashable
