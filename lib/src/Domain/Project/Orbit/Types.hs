@@ -79,7 +79,7 @@ data OrbitConfig = OrbitConfig
   { cfgDiscRadius :: Double
   , cfgDiscGap :: Double
   , cfgMinRingGap :: Double
-  , cfgEyeRadius :: Double
+  , cfgEyeGap :: Double
   , cfgLabelWidth :: Int
   , cfgLabelLines :: Int
   , cfgMargin :: Double
@@ -92,7 +92,7 @@ defaultOrbitConfig =
     { cfgDiscRadius = 45
     , cfgDiscGap = 24
     , cfgMinRingGap = 55
-    , cfgEyeRadius = 130
+    , cfgEyeGap = 10
     , cfgLabelWidth = 12
     , cfgLabelLines = 3
     , cfgMargin = 60

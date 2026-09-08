@@ -49,6 +49,30 @@ dist (Point x1 y1) (Point x2 y2) = sqrt (dx * dx + dy * dy)
 radiusOf :: Disc -> Double
 radiusOf d = dist (Point 0 0) (dCentre d)
 
+{- | @n@ independent heads and nothing else, so ring 0 holds exactly
+@n@ discs and the drawing is the innermost ring on its own.
+-}
+headsOnly :: Int -> OrbitDiagram
+headsOnly n = orbit cfg (map node [1 .. n]) []
+
+-- | The radius of the innermost ring of a drawing.
+innerRadius :: OrbitDiagram -> Double
+innerRadius d = minimum (map radiusOf (odDiscs d))
+
+-- | Gaps between neighbours on a circle, including the wrap-around.
+consecutiveGaps :: [Double] -> [Double]
+consecutiveGaps [] = []
+consecutiveGaps as =
+  zipWith (-) (tail as) as <> [2 * pi - (last as - head as)]
+
+-- | The closest edge-to-edge distance between two discs on ring 0.
+innerGap :: OrbitDiagram -> Double
+innerGap d =
+  minimum
+    [ dist (dCentre a) (dCentre b) - 2 * cfgDiscRadius cfg
+    | (a, b) <- pairs [x | x <- odDiscs d, dRing x == 0]
+    ]
+
 pairs :: [a] -> [(a, a)]
 pairs xs = [(a, b) | (a : rest) <- tails xs, b <- rest]
 
@@ -164,6 +188,76 @@ spec = do
     it "leaves the centre empty when there is more than one stream" $
       -- Three heads, so nothing sits at the eye.
       minimum (map radiusOf (odDiscs drawing)) `shouldSatisfy` (> 0)
+
+  describe "orbit, the innermost ring" $ do
+    it "draws the heads nearly touching, at every head count" $
+      -- The point of the eye gap: the closest pair on ring 0 is the
+      -- same distance apart whether there are two heads or eight. It
+      -- used to depend entirely on how many there were, because the
+      -- ring sat at a fixed radius and the discs spread around it.
+      [ (n, round (innerGap (headsOnly n)) :: Int)
+      | n <- [2 .. 8]
+      ]
+        `shouldBe` [(n, round (cfgEyeGap cfg) :: Int) | n <- [2 .. 8]]
+
+    it "keeps the heads clear of each other, at every head count" $
+      -- Nearly touching, never touching.
+      [n | n <- [2 .. 8], innerGap (headsOnly n) < 1e-6] `shouldBe` []
+
+    it "sizes the eye from the heads rather than from a fixed radius" $
+      -- More heads need more room, so the ring grows with them. A fixed
+      -- eye radius could not do this without being too large for two.
+      let radii = [innerRadius (headsOnly n) | n <- [2 .. 8]]
+       in and (zipWith (<) radii (tail radii)) `shouldBe` True
+
+    it "separates by the chord between discs, not the arc" $
+      -- Arc length overestimates how far apart two discs actually are,
+      -- and the overestimate is worst when few discs are spread widely
+      -- -- exactly the inner ring. Two heads sit half a turn apart, so
+      -- the arc reading would place them 2/pi of the needed distance
+      -- from each other, and they would overlap.
+      let two = headsOnly 2
+          need = 2 * cfgDiscRadius cfg + cfgEyeGap cfg
+       in innerRadius two `shouldSatisfy` \r -> abs (2 * r - need) < 1e-6
+
+    it "still puts a lone head at the centre rather than on a ring" $
+      innerRadius (headsOnly 1) `shouldBe` 0
+
+    it "spaces the heads evenly, whatever their subtrees weigh" $
+      -- Each stream owns an equal wedge and its head sits at the middle
+      -- of it, so head spacing says nothing about how much work hangs
+      -- underneath. Sizing wedges by leaf count instead made a stream
+      -- with one extra leaf push its neighbours away, which read as
+      -- careless rather than as information.
+      let lopsided =
+            orbit
+              cfg
+              (map node [1 .. 8])
+              -- head 1 carries a four-deep chain, heads 2 and 3 nothing.
+              [dep 1 4, dep 4 5, dep 5 6, dep 6 7, dep 6 8]
+          headAngles = sort [dAngle d | d <- odDiscs lopsided, dRing d == 0]
+          gaps = consecutiveGaps headAngles
+       in all (\g -> abs (g - 2 * pi / 3) < 1e-9) gaps `shouldBe` True
+
+    it "spaces the heads evenly at every head count" $
+      [ n
+      | n <- [2 .. 8]
+      , let as = sort [dAngle d | d <- odDiscs (headsOnly n), dRing d == 0]
+      , any (\g -> abs (g - 2 * pi / fromIntegral n) > 1e-9) (consecutiveGaps as)
+      ]
+        `shouldBe` []
+
+    it "keeps the outer rings on the ordinary disc gap" $
+      -- Only the innermost ring is drawn tight; a ring of dependencies
+      -- keeps the roomier spacing, so the eye reads as the focus.
+      let d = orbit cfg (map node [1 .. 5]) [dep 1 3, dep 1 4, dep 2 5]
+          ring1 = [x | x <- odDiscs d, dRing x == 1]
+          closest =
+            minimum
+              [ dist (dCentre a) (dCentre b) - 2 * cfgDiscRadius cfg
+              | (a, b) <- pairs ring1
+              ]
+       in closest `shouldSatisfy` (>= cfgDiscGap cfg - 1e-6)
 
     it "keeps a disc inside its own subtree's angular span" $
       -- What makes the drawing planar: a parent is the mean of its

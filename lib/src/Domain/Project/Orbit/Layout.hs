@@ -34,7 +34,7 @@ orbit cfg ns es =
     labels = M.fromList [(onId n, onLabel n) | n <- ns]
 
     angled = angles forest
-    radii = ringRadii cfg (length forest) angled
+    radii = ringRadii cfg angled
     placed = map (place cfg labels radii) (flattenAngled angled)
     links = concatMap (treeLinks cfg radii) angled
 
@@ -44,26 +44,31 @@ leafCount t
   | otherwise = sum (map leafCount (otChildren t))
 
 angles :: [OrbitTree] -> [Angled]
-angles forest = snd (goMany (0 :: Int) forest)
+angles [] = []
+angles forest = zipWith headOfWedge [0 ..] forest
   where
-    total = max 1 (sum (map leafCount forest))
-    slice = 2 * pi / fromIntegral total
+    wedge = 2 * pi / fromIntegral (length forest)
 
-    goMany i [] = (i, [])
-    goMany i (t : rest) =
-      let (i', a) = go i t
-          (i'', as) = goMany i' rest
-       in (i'', a : as)
+    headOfWedge i t =
+      let start = fromIntegral (i :: Int) * wedge
+       in (placeTree start wedge t) {anAngle = start + wedge / 2}
 
-    go i t = case otChildren t of
-      [] ->
-        ( i + 1
-        , Angled t ((fromIntegral i + 0.5) * slice) []
-        )
-      kids ->
-        let (i', as) = goMany i kids
-            theta = sum (map anAngle as) / fromIntegral (length as)
-         in (i', Angled t theta as)
+placeTree :: Double -> Double -> OrbitTree -> Angled
+placeTree start width t = case otChildren t of
+  [] -> Angled t (start + width / 2) []
+  kids ->
+    let as = placeForest start width kids
+        theta = sum (map anAngle as) / fromIntegral (length as)
+     in Angled t theta as
+
+placeForest :: Double -> Double -> [OrbitTree] -> [Angled]
+placeForest start width ts = go start ts
+  where
+    total = max 1 (sum (map leafCount ts))
+    go _ [] = []
+    go s (t : rest) =
+      let w = width * fromIntegral (leafCount t) / fromIntegral total
+       in placeTree s w t : go (s + w) rest
 
 data Angled = Angled
   { anTree :: OrbitTree
@@ -74,8 +79,8 @@ data Angled = Angled
 flattenAngled :: [Angled] -> [Angled]
 flattenAngled = concatMap (\a -> a : flattenAngled (anChildren a))
 
-ringRadii :: OrbitConfig -> Int -> [Angled] -> M.Map Int Double
-ringRadii cfg treeCount as = foldl step M.empty [0 .. maxRing]
+ringRadii :: OrbitConfig -> [Angled] -> M.Map Int Double
+ringRadii cfg as = foldl step M.empty [0 .. maxRing]
   where
     everyDisc = flattenAngled as
     maxRing =
@@ -83,22 +88,23 @@ ringRadii cfg treeCount as = foldl step M.empty [0 .. maxRing]
         then -1
         else maximum (map (otRing . anTree) everyDisc)
 
-    singleHead = treeCount == 1
-
     step acc k = M.insert k r acc
       where
         ringStep = 2 * cfgDiscRadius cfg + cfgMinRingGap cfg
-        prev = maybe start (+ ringStep) (M.lookup (k - 1) acc)
-        start
-          | singleHead = 0
-          | otherwise = cfgEyeRadius cfg
+        prev = maybe 0 (+ ringStep) (M.lookup (k - 1) acc)
         r = max prev (demand k)
 
     demand k = case minGapOn k of
       Nothing -> 0
       Just g
         | g <= 0 -> 0
-        | otherwise -> (2 * cfgDiscRadius cfg + cfgDiscGap cfg) / g
+        | otherwise -> separation k / (2 * sin (g / 2))
+
+    separation k = 2 * cfgDiscRadius cfg + gapOn k
+
+    gapOn k
+      | k == 0 = cfgEyeGap cfg
+      | otherwise = cfgDiscGap cfg
 
     minGapOn k = case sort [anAngle a | a <- everyDisc, otRing (anTree a) == k] of
       [] -> Nothing

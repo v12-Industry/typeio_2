@@ -83,9 +83,10 @@ Two trees, and the split between them is the point:
     its `defaultOrbitConfig`.
   - `Orbit.Unfold` — `heads`, and `unfold`, which turns the dependency
     DAG into the forest of in-trees and numbers each node's replicas.
-  - `Orbit.Layout` — `orbit`, the entry point: allocate angles by leaf
-    count, derive each ring's radius from what actually has to fit on
-    it, place the discs and trim the links.
+  - `Orbit.Layout` — `orbit`, the entry point: give each stream an equal
+    wedge and divide it by leaf count within, derive each ring's radius
+    from what actually has to fit on it, place the discs and trim the
+    links.
 - `Domain.Project.Visualization.Orbital.*` — the web-facing half.
   - `Orbital.Responder` — drops the project root, keeps the dependency
     edges whose both ends survive, and calls `orbit`.
@@ -139,7 +140,14 @@ so sharing a class would make every layered tweak a change here too.
 - **Rings are not evenly spaced.** Each ring's radius is derived from
   the angular crowding on that particular ring, which keeps the centre
   small on shallow projects instead of sizing everything for the worst
-  ring.
+  ring. The innermost ring is drawn deliberately tighter than the rest
+  (`cfgEyeGap`, not `cfgDiscGap`), so the heads read as one cluster of
+  deliverables at the centre rather than as separate drawings sharing a
+  page.
+- **The heads are evenly spaced; everything below them is not.** Streams
+  split the circle equally, so head spacing carries no meaning and
+  cannot be misread as one. Inside a stream, room is shared out by leaf
+  count, so a branch with more work under it does get a wider span.
 - **Adding one dependency can redraw the whole picture.** The drawing is
   deterministic for a given input, but a new edge can re-partition the
   streams. This is a known cost of unfolding, not a defect.

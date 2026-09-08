@@ -229,9 +229,9 @@ data OrbitDiagram = OrbitDiagram
 
 data OrbitConfig = OrbitConfig
   { cfgDiscRadius  :: Double  -- every disc is the same size
-  , cfgDiscGap     :: Double  -- minimum arc clearance between discs
+  , cfgDiscGap     :: Double  -- minimum clearance between discs on a ring
   , cfgMinRingGap  :: Double  -- minimum clear space between ring rims
-  , cfgEyeRadius   :: Double  -- clear space at the centre
+  , cfgEyeGap      :: Double  -- clearance between the heads themselves
   , cfgLabelWidth  :: Int     -- characters per label line
   , cfgLabelLines  :: Int     -- maximum label lines
   , cfgMargin      :: Double  -- padding around the whole drawing
@@ -239,7 +239,7 @@ data OrbitConfig = OrbitConfig
 
 defaultOrbitConfig = OrbitConfig
   { cfgDiscRadius = 45, cfgDiscGap    = 24, cfgMinRingGap = 55
-  , cfgEyeRadius  = 130
+  , cfgEyeGap     = 10
   , cfgLabelWidth = 12, cfgLabelLines = 3,  cfgMargin     = 60
   }
 ```
@@ -314,23 +314,45 @@ that validation existing. See
 
 ### 3. Allocate angles — `Orbit.Layout`
 
-Leaves of the forest are the unit of angular space. With `L` leaves in
-total, each leaf gets `2π / L`, assigned in the traversal order fixed by
-phase 2, so every stream ends up owning one contiguous wedge.
+**Every stream owns an equal wedge.** With `n` heads, each gets
+`2π / n`, in the traversal order fixed by phase 2, so every stream ends
+up owning one contiguous wedge of the same width as its neighbours'.
 
-A non-leaf disc's angle is the **mean of its children's angles**. An
-even number of children therefore centres a parent between them, which
-is the commonest shape and the one an alternative rule would visibly get
-wrong — the same argument `Graph.Coord` makes for averaging the middle
-two neighbours rather than picking one.
+**A head sits at the middle of its own wedge**, so heads are exactly
+evenly spaced around the innermost ring at any head count. This is the
+one disc placed by position rather than by its children, and it is
+deliberate: head spacing should say nothing about how much work hangs
+underneath, because a reader cannot help reading uneven spacing as
+meaningful. Sizing wedges by leaf count instead — the obvious
+alternative, since leaves are what actually need room — makes a stream
+with one extra leaf push its neighbours away, and the eye reads that as
+carelessness rather than as information.
 
-Because a mean of angles is a convex combination of them, a disc always
-lands inside its own subtree's wedge. That is what makes the drawing
-planar, and it is stated as an invariant below rather than left implied.
+*Inside* a stream the wedge is still divided by leaf count: a subtree
+gets a share of its parent's wedge proportional to the leaves beneath
+it, so the room goes where the work is. Only the top-level split is
+equal.
 
-**Guarantees:** sibling subtrees occupy disjoint angular spans; a
+A non-leaf disc below the head takes the **mean of its children's
+angles**. An even number of children therefore centres a parent between
+them, which is the commonest shape and the one an alternative rule would
+visibly get wrong — the same argument `Graph.Coord` makes for averaging
+the middle two neighbours rather than picking one.
+
+Because a mean of angles is a convex combination of them, such a disc
+always lands inside its own subtree's wedge; a head lands inside its own
+by construction. That is what makes the drawing planar, and it is stated
+as an invariant below rather than left implied.
+
+**Links cannot cross between streams even with the head off its
+subtree's centroid**, because a link only ever joins consecutive rings:
+a head-to-child link spans radii `r₀` to `r₁`, and everything deeper in
+a sibling stream lives at `r₁` or beyond. The radial banding does the
+work that the centroid rule would otherwise have to.
+
+**Guarantees:** streams occupy disjoint angular spans of equal width; a
 stream's span is contiguous; every disc's angle lies within its own
-subtree's span.
+subtree's span; consecutive heads are `2π / n` apart.
 
 #### The single-head case
 
@@ -352,10 +374,34 @@ Rings are placed outward from the eye, each one far enough out that the
 discs on it clear each other:
 
 ```
-r₀ = cfgEyeRadius
 rₖ = max (rₖ₋₁ + 2 * cfgDiscRadius + cfgMinRingGap)
-         ((2 * cfgDiscRadius + cfgDiscGap) / minAngularGapₖ)
+         ((2 * cfgDiscRadius + gapₖ) / (2 * sin (minAngularGapₖ / 2)))
+
+gapₖ = cfgEyeGap  when k == 0
+       cfgDiscGap otherwise
 ```
+
+**There is no fixed eye radius.** Ring 0's radius is derived the same
+way every other ring's is — from what actually has to fit on it. A
+fixed radius cannot serve both counts: large enough that eight heads
+clear each other leaves two heads marooned at opposite ends of an empty
+circle, and small enough to suit two overlaps at eight.
+
+**The innermost ring is drawn tighter than the rest**, via `cfgEyeGap`
+rather than `cfgDiscGap`. The heads are the deliverables the project is
+actually driving at, and drawing them as one cluster at the centre says
+so; spacing them like any other ring reads as several unrelated
+drawings that happen to share a page. The rings outside them keep the
+roomier `cfgDiscGap`, so the eye stays the focus.
+
+**The divisor is a chord, not an arc.** For discs `minAngularGapₖ`
+apart on a ring of radius `r`, the distance between their centres is
+`2r·sin(g/2)`, not `r·g`. Arc length is the easier expression and is a
+good approximation for small angles, but it *overestimates* the
+distance, and the error grows as the angle does — worst on exactly the
+ring with fewest discs, which is the innermost one. Two heads sit half
+a turn apart, where the arc reading places them `2/π` of the required
+distance from each other; they would overlap.
 
 `cfgMinRingGap` is the **clear space between rims**, so the step from
 one ring to the next adds the two radii as well. Treating it as a
@@ -383,7 +429,11 @@ evenly-spaced discs never touch, applied to every ring — is rejected for
 producing an enormous empty eye on any project with many leaves.
 
 **Guarantees:** radius strictly increases with ring index; no two discs
-on the same ring are closer than `2 * cfgDiscRadius + cfgDiscGap`.
+on ring 0 are closer than `2 * cfgDiscRadius + cfgEyeGap`, and no two on
+any ring beyond it are closer than `2 * cfgDiscRadius + cfgDiscGap`.
+These hold as equalities whenever the ring's own demand sets its radius,
+which is what makes the innermost spacing constant regardless of how
+many heads there are.
 
 ### 5. Place and link — `Orbit.Layout`
 
