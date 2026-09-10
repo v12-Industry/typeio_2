@@ -111,6 +111,13 @@ covered:
   comments for a severe app bug found while writing the first of these
   (the graph never positioned any node past the first one, long
   since fixed).
+- **`tests/manage-layout.spec.ts`** — the Manage Project view's layout,
+  which is entirely a CSS result and so invisible to the other two
+  suites: that `#tree-container` fills `#view` in both axes, that `#view`
+  is a real region sized against the viewport rather than a strip
+  collapsed to whatever the drawing happened to be, that the closed node
+  panel takes no box at all, and that the open one overlaps the canvas
+  without changing its size.
 - **`tests/project-index-scroll.spec.ts`** — a bug fix's regression
   test, not one of the four candidate workflows above. Seeds
   enough projects to overflow the viewport and asserts the project

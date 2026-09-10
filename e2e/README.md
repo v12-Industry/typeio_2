@@ -102,6 +102,9 @@ fact, action by action, not just pass/fail.
   node-detail panel's status dropdown.
 - `tests/graph.spec.ts` — clicks a node in the D3-rendered dependency
   graph and asserts its detail panel opens/highlights/clears correctly.
+- `tests/manage-layout.spec.ts` — the Manage Project view's layout: the
+  graph canvas fills the view, and the node detail panel floats over it
+  rather than taking a column beside it.
 - `tests/project-index-scroll.spec.ts` — a project index with more rows
   than fit on screen can be scrolled to the last one (#210), and the
   graph page's own viewport doesn't gain a competing scrollbar.
