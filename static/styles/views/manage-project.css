@@ -69,12 +69,24 @@
 /* The view's own toolbar row, between the shared nav header and the
    graph. It sits outside #view rather than inside it, because #view is
    a flex row the graph and its panels divide between them -- a toolbar
-   in that row would be a third column, not a band above it. */
+   in that row would be a third column, not a band above it.
+
+   Being outside #view means it takes its height out of the room left
+   for the graph, so it publishes that height as a token for #view to
+   subtract, and `border-box` keeps the token the whole story rather
+   than the height before the border is added. A band that takes space
+   without being subtracted pushes the bottom of the canvas past the
+   fold, where it is clipped rather than scrolled to. */
+:root {
+  --manage-toolbar-block-size: 45px;
+}
+
 #manage-toolbar {
   align-items: center;
   border-bottom: 1px solid var(--border-color);
+  box-sizing: border-box;
   display: flex;
-  height: 44px;
+  height: var(--manage-toolbar-block-size);
   padding: 0 2rem;
 }
 
