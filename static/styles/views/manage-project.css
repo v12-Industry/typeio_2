@@ -120,10 +120,10 @@ svg {
    positioned against #view -- which is why #view establishes a
    containing block below.
 
-   It gets a surface of its own (the card treatment from global.css's
-   `.card-grid`, plus a border and a shadow) because it now sits on top
-   of the drawing rather than in a region of its own: without one, node
-   labels would read straight through the panel's text. */
+   It gets an opaque surface of its own, plus a border and a shadow,
+   because it sits on top of the drawing rather than in a region of its
+   own: anything translucent lets node shapes and dependency edges read
+   straight through the panel's text. */
 #node-panel {
   position: absolute;
   top: 1rem;
@@ -136,11 +136,10 @@ svg {
   overflow-y: auto;
   box-sizing: border-box;
   padding: 1rem;
-  background: var(--surface);
-  backdrop-filter: blur(4px);
+  background: var(--surface-raised);
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
 }
 
 /* Closed is *empty*, not hidden: htmx swaps this element's innerHTML in
@@ -390,9 +389,15 @@ svg {
    `100%`, because nothing in the ancestor chain has a resolved height
    for a percentage to resolve against -- `#container`'s own `height:
    100%` sits inside a `body` sized by its content. Left alone, the
-   canvas would be as tall as whatever the graph happened to draw. The
-   header is the only thing above it, and `--nav-block-size` is exactly
-   what that occupies.
+   canvas would be as tall as whatever the graph happened to draw.
+
+   Every band this view puts above the canvas has to come out of that
+   subtraction, so each one publishes its own block size as a token and
+   is named here. A band that occupies space without being subtracted
+   pushes the bottom of the canvas past the fold, where `overflow:
+   hidden` clips it silently -- no scrollbar, just an edge the user
+   cannot reach. `--manage-toolbar-block-size` falls back to `0px` so
+   this stays correct on a page with no toolbar.
 
    `overflow: hidden` opts out of global.css's #view scroll region:
    #tree-container is a fixed window that pans by transform, not by
@@ -411,8 +416,8 @@ svg {
   position: relative;
   overflow: hidden;
   padding: 0;
-  height: calc(100vh - var(--nav-block-size));
-  height: calc(100dvh - var(--nav-block-size));
+  height: calc(100vh - var(--nav-block-size) - var(--manage-toolbar-block-size, 0px));
+  height: calc(100dvh - var(--nav-block-size) - var(--manage-toolbar-block-size, 0px));
 }
 
 /* Scoped to the node shape, not to `.flash *`: the keyframe animates

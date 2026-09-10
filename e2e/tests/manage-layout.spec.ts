@@ -37,6 +37,13 @@ test('the graph canvas fills the view', async ({ page, request }) => {
   const viewport = page.viewportSize();
   if (!viewport) throw new Error('no viewport size');
   expect(view.height).toBeGreaterThan(viewport.height * 0.6);
+
+  // ...and no taller than the room it actually has. #view's height is
+  // a subtraction naming every band above it, and #view clips rather
+  // than scrolls, so a band left out of that sum doesn't show up as a
+  // scrollbar -- the bottom of the canvas just falls past the fold and
+  // becomes unreachable. Pinning the bottom edge is what catches it.
+  expect(view.y + view.height).toBeLessThanOrEqual(viewport.height);
 });
 
 test('the closed node panel does not sit over the canvas', async ({ page, request }) => {
