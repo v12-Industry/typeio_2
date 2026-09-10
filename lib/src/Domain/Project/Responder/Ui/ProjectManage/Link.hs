@@ -56,3 +56,6 @@ graphLinkFor pid =
 
 projectLink :: Int64 -> Text
 projectLink = (<>) "/ui/project/vw?projectId=" . intToText
+
+projectIndexLink :: Text
+projectIndexLink = "/ui/projects/vw"

@@ -90,6 +90,7 @@ templateProject py = do
     [ rel_ "stylesheet"
     , href_ "/static/styles/views/manage-project.css"
     ]
+  templateToolbar
   div_ [id_ "view"] $ do
     div_
       [ id_ "tree-container"
@@ -121,6 +122,22 @@ templateProject py = do
     nidM = payloadNodeId py
     pid = payloadProjectId py
     viz = payloadVisualization py
+
+templateToolbar :: Html ()
+templateToolbar =
+  nav_ [id_ "manage-toolbar"]
+    $ button_
+      [ class_ "back-link"
+      , type_ "button"
+      , ariaLabel_ "Back to projects"
+      , hxGet_ projectIndexLink
+      , hxPushUrl_ True
+      , hxSwap_ "innerHTML"
+      , hxTarget_ "#container"
+      ]
+    $ do
+      span_ [class_ "back-link-arrow"] "←"
+      span_ "Back to projects"
 
 validateForm ::
   Visualization ->

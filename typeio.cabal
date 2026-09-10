@@ -239,6 +239,7 @@ test-suite integration
       , Domain.Project.Responder.Ui.ProjectManage.Node.StatusSpec
       , Domain.Project.Responder.Ui.ProjectManage.Node.TitleSpec
       , Domain.Project.Responder.Ui.ProjectManage.SaveStateSpec
+      , Domain.Project.Responder.Ui.ProjectManage.ViewSpec
       , Domain.Project.Visualization.CommonSpec
       , Domain.Project.Visualization.Orbital.ResponderSpec
       , Domain.Project.Visualization.Rootless.ResponderSpec
