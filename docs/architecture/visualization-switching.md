@@ -24,8 +24,7 @@ only in which nodes and edges they hand it.
 -- Config.Visualization
 
 data Visualization
-  = Layered   -- root heads the drawing; containment edges derived
-  | Rootless  -- the work only, nothing forced to converge
+  = Rootless  -- the work only, nothing forced to converge
   | Orbital   -- radial, rootless, shared dependencies replicated
   deriving (Eq, Read, Show)
 
@@ -103,7 +102,8 @@ seen rather than sitting behind a parameter nobody passes.
 
 A spec or link that wants a *specific* drawing should name it rather
 than rely on the default, precisely because the default moves.
-`e2e/tests/graph.spec.ts` asks for `Layered` explicitly for that reason.
+`e2e/tests/graph-viewport.spec.ts` asks for `Rootless` explicitly for
+that reason.
 
 ## 2. Where the switch happens
 
@@ -112,7 +112,6 @@ Two pieces. The table of what each visualization is, in
 
 ```haskell
 renderFor :: Visualization -> RenderGraph
-renderFor Layered  = Layered.renderGraph
 renderFor Rootless = Rootless.renderGraph
 renderFor Orbital  = Orbital.renderGraph
 ```
@@ -168,10 +167,10 @@ renderGraph pid ns ds = templateServerGraph (buildGraph pid ns ds)
 type BuildGraph = Int64 -> [Entity M.Node] -> [Entity M.Dependency] -> ServerGraph
 ```
 
-`Layered.buildGraph` keeps every node and derives the root's containment
-edges; `Rootless.buildGraph` drops the root, derives nothing, and drops
+`Rootless.buildGraph` drops the project root, derives nothing, and drops
 any stored edge that referred to it. That one function is the whole of
-what those two differ by.
+what a second layered drawing would differ by: which nodes exist, which
+edges exist, and whether any are derived.
 
 #### Why the seam is at *render*, not at *build*
 
@@ -205,10 +204,10 @@ import neither the engine nor the template.
 ### What is not shared
 
 The `RenderGraph` itself: what the drawing is of, and what it looks
-like. Between `Layered` and `Rootless` that difference is confined to
-one `BuildGraph` — which nodes exist, which edges exist, and whether any
-are derived — because they agree on everything downstream of it. A
-visualization that agrees on less simply shares less.
+like. Between two layered drawings that difference is confined to one
+`BuildGraph` — which nodes exist, which edges exist, and whether any are
+derived — because they agree on everything downstream of it. A
+visualization that agrees on less simply shares less, as `Orbital` does.
 
 ### What a visualization must publish
 
@@ -250,8 +249,8 @@ behaviour somewhere the reader of the markup cannot see it.
 refresh cannot be fixed by changing its selector: each drawn element
 carries its own hook aimed at its own label.
 
-`#node-<id>` remains on the layered drawings alongside the attribute:
-`graph-rendering.md` lists it as a contract and `graph.spec.ts` locates
+`#node-<id>` remains on the layered drawing alongside the attribute:
+`graph-rendering.md` lists it as a contract and the node-refresh hook locates
 nodes by it. The attribute is additive.
 
 ### Where the seam moves if a visualization needs more
@@ -280,12 +279,10 @@ infrastructure and should be moved into the visualizations that need it.
 lib/src/Domain/Project/
   Graph/                     -- shared: the layered layout engine
     Types.hs  Layer.hs  Order.hs  Coord.hs  Route.hs  Layout.hs
-    Containment.hs           -- root-to-work derivation, used by Layered
   Orbit/                     -- the orbital visualization's own geometry
     Types.hs  Unfold.hs  Layout.hs
   Visualization/
     Common.hs                -- shared: queries, request/response, SVG
-    Layered/Responder.hs     -- buildGraph: root included
     Rootless/Responder.hs    -- buildGraph: root left out
     Orbital/                 -- radial; imports no Graph.* at all
       Responder.hs  View.hs

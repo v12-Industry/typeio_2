@@ -57,7 +57,6 @@ library src
       , Domain.Central.Responder.Api.Seed
       -- The graph layout engine is exposed so `test-suite spec` can
       -- import it: a test-suite only sees a library's exposed-modules.
-      , Domain.Project.Graph.Containment
       , Domain.Project.Graph.Coord
       , Domain.Project.Graph.Layer
       , Domain.Project.Graph.Layout
@@ -74,14 +73,13 @@ library src
       , Domain.Project.Orbit.Unfold
       , Domain.Project.Responder.Api.Node.Post
       , Domain.Project.Responder.Ui.ProjectCreate.Submit
-      -- Exposed for `test-suite integration`'s GraphSpec, which asserts
+      -- Exposed for `test-suite integration`'s CommonSpec, which asserts
       -- on the SVG this renders.
       , Domain.Project.Visualization.Common
       -- Exposed for the switch's own integration spec, so it
       -- exercises the real `renderFor` table rather than a copy that
       -- could drift from it.
       , Domain.Project.Responder.Ui.Container
-      , Domain.Project.Visualization.Layered.Responder
       , Domain.Project.Visualization.Orbital.Responder
       , Domain.Project.Visualization.Orbital.View
       , Domain.Project.Visualization.Rootless.Responder
@@ -194,7 +192,6 @@ test-suite spec
       , Data.EitherSpec
       , Data.HashTreeSpec
       , Data.Text.UtilSpec
-      , Domain.Project.Graph.ContainmentSpec
       , Domain.Project.Graph.CoordSpec
       , Domain.Project.Graph.LayerSpec
       , Domain.Project.Graph.LayoutSpec
@@ -235,7 +232,6 @@ test-suite integration
       , Domain.Central.Responder.Api.SeedSpec
       , Domain.Project.Responder.Api.Node.PostSpec
       , Domain.Project.Responder.Ui.ProjectCreate.SubmitSpec
-      , Domain.Project.Responder.Ui.ProjectManage.GraphSpec
       , Domain.Project.Responder.Ui.ProjectManage.Node.DescriptionSpec
       , Domain.Project.Responder.Ui.ProjectManage.Node.StatusSpec
       , Domain.Project.Responder.Ui.ProjectManage.Node.TitleSpec

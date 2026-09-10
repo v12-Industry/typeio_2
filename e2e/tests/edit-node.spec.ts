@@ -17,19 +17,20 @@ import { addNode, createProject } from './helpers';
 // (ProjectManage.View's own supported deep-link shape -- the same one
 // Graph.pushUrl puts in the address bar on a real click) rather than
 // clicking the node in the graph. That's deliberate, not a workaround:
-// interacting with the graph itself is graph.spec.ts's scope,
-// and the direct-link path exercises a real, already-supported way into
-// this same panel without depending on where a node lands.
+// interacting with the drawing itself is a visualization's own spec's
+// scope (orbital.spec.ts), and the direct-link path exercises a real,
+// already-supported way into this same panel without depending on
+// where a node lands.
 //
 // A real click would work here too -- the server places every node
-// deterministically, and graph.spec.ts does exactly that. This spec
-// stays deep-linked because that is the narrower thing to test.
+// deterministically. This spec stays deep-linked because that is the
+// narrower thing to test.
 test('editing a node updates its title and description', async ({ page, request }) => {
   const project = await createProject(page, 'E2E edit-node project');
   const node = await addNode(request, project.id, 'E2E edit-node');
   const nodeTitle = node.title;
 
-  await page.goto(`/ui/project/vw?projectId=${project.id}&nodeId=${node.id}&visualizationMode=Layered`);
+  await page.goto(`/ui/project/vw?projectId=${project.id}&nodeId=${node.id}&visualizationMode=Rootless`);
 
   // Opens the node panel (#node-panel), which itself loads the
   // non-editable detail view into #node-detail. Switch to the editable
