@@ -8,6 +8,7 @@ module Domain.Project.Responder.Ui.ProjectManage.Node.DescriptionSpec (spec) whe
 
 import qualified Data.ByteString.Lazy.Char8 as LC8
 import Data.Int (Int64)
+import Data.List (isInfixOf)
 import Database.Persist (get)
 import Database.Persist.Sql (fromSqlKey, runSqlPool)
 import qualified Domain.Project.Model as M
@@ -21,6 +22,7 @@ import Network.HTTP.Types (hContentType, methodPut)
 import Network.Wai (defaultRequest, requestHeaders, requestMethod)
 import Network.Wai.Test
   ( SRequest (..)
+  , SResponse (..)
   , assertStatus
   , runSession
   , srequest
@@ -50,6 +52,29 @@ spec = aroundAll withTestDatabase $
         case updated of
           Just nd -> M.nodeDescription nd `shouldBe` "UpdatedDescription"
           Nothing -> expectationFailure "expected the root Node to still exist"
+
+      it "tells the header indicator the save landed, out of band" $ \pool -> do
+        (projectKey, rootKey) <- seedProjectWithRootNode pool
+
+        body <-
+          runSession
+            ( do
+                resp <-
+                  srequest $
+                    putDescriptionRequest
+                      (fromSqlKey rootKey)
+                      (fromSqlKey projectKey)
+                      "UpdatedDescription"
+                assertStatus 200 resp
+                pure . LC8.unpack . simpleBody $ resp
+            )
+            (handlePutDescription pool)
+
+        -- Each editable field has to carry the header indicator's
+        -- update itself; nothing else in the response would reach it.
+        body `shouldSatisfy` isInfixOf "id=\"save-state-result\""
+        body `shouldSatisfy` isInfixOf "hx-swap-oob=\"true\""
+        body `shouldSatisfy` isInfixOf "save-state-saved"
 
       it "returns 404 when the node doesn't exist" $ \pool ->
         runSession

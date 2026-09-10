@@ -7,6 +7,10 @@ module Domain.Project.Responder.Ui.ProjectManage.Node.Title where
 import Common.Validation
 import Domain.Project.Responder.Ui.ProjectManage.Node.Query
 import Domain.Project.Responder.Ui.ProjectManage.Node.Validation
+import Domain.Project.Responder.Ui.ProjectManage.SaveState
+  ( templateSaveStateIdle
+  , templateSaveStateSaved
+  )
 import Lucid
 
 import qualified Domain.Project.Model as M
@@ -95,6 +99,7 @@ templatePostSuccess :: Html ()
 templatePostSuccess = do
   span_ [class_ "loading hidden"] empty
   i_ [class_ "material-icons"] "done"
+  templateSaveStateSaved
   where
     empty = mempty :: Html ()
 
@@ -106,6 +111,7 @@ templatePostFail :: [ValidationErr] -> Html ()
 templatePostFail es = do
   i_ [class_ "material-icons"] "error"
   ul_ [] $ mapM_ (li_ [] . toHtml) es
+  templateSaveStateIdle
 
 validatePayload ::
   Monad m =>

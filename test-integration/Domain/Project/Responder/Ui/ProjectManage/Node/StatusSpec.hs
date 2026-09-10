@@ -8,6 +8,7 @@ module Domain.Project.Responder.Ui.ProjectManage.Node.StatusSpec (spec) where
 
 import qualified Data.ByteString.Lazy.Char8 as LC8
 import Data.Int (Int64)
+import Data.List (isInfixOf)
 import Database.Persist (Entity (..), get, selectList, (==.))
 import Database.Persist.Sql (fromSqlKey, runSqlPool)
 import qualified Domain.Project.Model as M
@@ -21,6 +22,7 @@ import Network.HTTP.Types (hContentType, methodPut)
 import Network.Wai (defaultRequest, requestHeaders, requestMethod)
 import Network.Wai.Test
   ( SRequest (..)
+  , SResponse (..)
   , assertStatus
   , runSession
   , srequest
@@ -55,6 +57,30 @@ spec = aroundAll withTestDatabase $
             M.nodeNodeStatusId nd `shouldBe` closedKey
           (_, Nothing) -> expectationFailure "expected the root Node to still exist"
           _ -> expectationFailure "expected the seeded \"closed\" status to exist"
+
+      it "tells the header indicator the save landed, out of band" $ \pool -> do
+        (projectKey, rootKey) <- seedProjectWithRootNode pool
+
+        body <-
+          runSession
+            ( do
+                resp <-
+                  srequest $
+                    putStatusRequest
+                      (fromSqlKey rootKey)
+                      (fromSqlKey projectKey)
+                      "closed"
+                assertStatus 200 resp
+                pure . LC8.unpack . simpleBody $ resp
+            )
+            (handlePutNodeStatus pool)
+
+        -- Status is the one field saved on `change` rather than after
+        -- a typing delay, so it is the quickest way to see the header
+        -- indicator settle -- and the easiest to forget to wire up.
+        body `shouldSatisfy` isInfixOf "id=\"save-state-result\""
+        body `shouldSatisfy` isInfixOf "hx-swap-oob=\"true\""
+        body `shouldSatisfy` isInfixOf "save-state-saved"
 
       it "returns 404 when the node doesn't exist" $ \pool ->
         runSession

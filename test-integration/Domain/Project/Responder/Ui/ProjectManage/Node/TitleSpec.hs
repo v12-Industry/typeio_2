@@ -8,6 +8,7 @@ module Domain.Project.Responder.Ui.ProjectManage.Node.TitleSpec (spec) where
 
 import qualified Data.ByteString.Lazy.Char8 as LC8
 import Data.Int (Int64)
+import Data.List (isInfixOf)
 import Database.Persist (get)
 import Database.Persist.Sql (fromSqlKey, runSqlPool)
 import qualified Domain.Project.Model as M
@@ -21,6 +22,7 @@ import Network.HTTP.Types (hContentType, methodPut)
 import Network.Wai (defaultRequest, requestHeaders, requestMethod)
 import Network.Wai.Test
   ( SRequest (..)
+  , SResponse (..)
   , assertStatus
   , runSession
   , srequest
@@ -50,6 +52,31 @@ spec = aroundAll withTestDatabase $
         case updated of
           Just nd -> M.nodeTitle nd `shouldBe` "UpdatedTitle"
           Nothing -> expectationFailure "expected the root Node to still exist"
+
+      it "tells the header indicator the save landed, out of band" $ \pool -> do
+        (projectKey, rootKey) <- seedProjectWithRootNode pool
+
+        body <-
+          runSession
+            ( do
+                resp <-
+                  srequest $
+                    putTitleRequest
+                      (fromSqlKey rootKey)
+                      (fromSqlKey projectKey)
+                      "UpdatedTitle"
+                assertStatus 200 resp
+                pure . LC8.unpack . simpleBody $ resp
+            )
+            (handlePutTitle pool)
+
+        -- This response is swapped into the title field's own
+        -- indicator box. The header's aggregate indicator sits outside
+        -- that target and is reached only by the out-of-band fragment
+        -- riding along with it, so both halves have to be present.
+        body `shouldSatisfy` isInfixOf "id=\"save-state-result\""
+        body `shouldSatisfy` isInfixOf "hx-swap-oob=\"true\""
+        body `shouldSatisfy` isInfixOf "save-state-saved"
 
       it "returns 404 when the node doesn't exist" $ \pool ->
         runSession

@@ -9,6 +9,10 @@ module Domain.Project.Responder.Ui.ProjectManage.Node.Status where
 import Common.Validation
 import Domain.Project.Responder.Ui.ProjectManage.Node.Query
 import Domain.Project.Responder.Ui.ProjectManage.Node.Validation
+import Domain.Project.Responder.Ui.ProjectManage.SaveState
+  ( templateSaveStateIdle
+  , templateSaveStateSaved
+  )
 import Lucid
 
 import qualified Domain.Project.Model as M
@@ -120,6 +124,7 @@ reqForm ps =
 templatePostSuccess :: Html ()
 templatePostSuccess = do
   i_ [class_ "material-icons"] "done"
+  templateSaveStateSaved
 
 templateNodeNotFound :: Html ()
 templateNodeNotFound = do
@@ -129,6 +134,7 @@ templatePostFail :: [ValidationErr] -> Html ()
 templatePostFail es = do
   i_ [class_ "material-icons"] "error"
   ul_ [] $ mapM_ (li_ [] . toHtml) es
+  templateSaveStateIdle
 
 validatePayload ::
   Monad m =>
