@@ -196,25 +196,32 @@ test('the drawing places every disc clear of the others', async ({ page }) => {
 
   // The no-overlap invariant is unit-tested against the geometry, but
   // that proves the coordinates rather than what the browser drew --
-  // this is the same check graph.spec.ts's own overlap assertion makes
-  // for the layered drawing, on real rendered boxes.
-  const boxes = await page
+  // this asserts on real rendered boxes.
+  //
+  // Two discs touch when the distance between their centres is less
+  // than the sum of their radii. Comparing bounding boxes instead --
+  // the test that a rectangular drawing wants -- reports an overlap for
+  // any two discs offset diagonally, because the corners of their
+  // boxes meet well before the circles inside them do.
+  const circles = await page
     .locator('#graph-nodes .disc circle')
     .evaluateAll((els) =>
       els.map((e) => {
         const b = (e as SVGGraphicsElement).getBoundingClientRect();
-        return { x: b.x, y: b.y, w: b.width, h: b.height };
+        return { cx: b.x + b.width / 2, cy: b.y + b.height / 2, r: b.width / 2 };
       })
     );
-  expect(boxes.length).toBeGreaterThan(1);
+  expect(circles.length).toBeGreaterThan(1);
 
-  for (let i = 0; i < boxes.length; i++) {
-    for (let j = i + 1; j < boxes.length; j++) {
-      const a = boxes[i];
-      const b = boxes[j];
-      const overlaps =
-        a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
-      expect(overlaps, `discs ${i} and ${j} overlap`).toBe(false);
+  for (let i = 0; i < circles.length; i++) {
+    for (let j = i + 1; j < circles.length; j++) {
+      const a = circles[i];
+      const b = circles[j];
+      const gap = Math.hypot(a.cx - b.cx, a.cy - b.cy) - (a.r + b.r);
+      expect(
+        gap,
+        `discs ${i} and ${j} overlap by ${(-gap).toFixed(1)}px`
+      ).toBeGreaterThanOrEqual(0);
     }
   }
 });
