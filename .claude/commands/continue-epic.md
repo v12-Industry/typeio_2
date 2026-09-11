@@ -51,6 +51,28 @@ For every PR that's still OPEN:
   mutation -- never a plain merge command if the repo's conventions
   say otherwise). Do this in addition to addressing comment feedback
   above, not instead of it.
+- **Unlike this repo's default single-issue workflow, don't stop once
+  the PR is queued -- see it through.** This run's whole point is to
+  hand back an epic whose authorized PRs actually landed, not one
+  still sitting in the merge queue, so poll the queue entry (or the
+  PR's own state) until it resolves one way or the other before moving
+  on, e.g.:
+
+      gh api graphql -f query='
+        query($owner:String!,$repo:String!,$n:Int!){
+          repository(owner:$owner,name:$repo){
+            pullRequest(number:$n){ state mergedAt mergeQueueEntry { state } }
+          }
+        }' -f owner=<owner> -f repo=<repo> -F n=<n>
+
+  Space the checks out rather than a long foreground sleep in one call
+  (use the Monitor tool's until-loop, or several shorter waits).
+  - `state: MERGED` -- success, move on to the next open PR.
+  - `mergeQueueEntry` gone and `state` still `OPEN` -- the entry was
+    dropped (its merge-group check failed). Report that on the PR/issue
+    and move on rather than blindly re-queueing.
+  - Handle authorized PRs one at a time, in the order encountered --
+    don't queue the next one until the current one has resolved.
 
 Do this for *every* currently-open PR in the epic, not just one --
 this run intentionally allows more than one PR from this epic to be
@@ -109,13 +131,18 @@ run.
 ### Why the batch's PRs don't build on each other
 
 Unlike a single-issue run, this mode deliberately does **not** wait for
-each PR to merge before starting the next issue -- all issues in the
-batch branch from the same synced `main`, so up to N PRs can be open
-at once. This trades away collision-avoidance for throughput: if two
-issues in the batch touch the same file, each PR will look
-individually mergeable against `main`, but merging the second one
-after the first has already landed may produce a conflict the user
+each *new* PR opened in this step to merge before starting the next
+issue -- all issues in the batch branch from the same synced `main`, so
+up to N PRs can be open at once. This trades away collision-avoidance
+for throughput: if two issues in the batch touch the same file, each PR
+will look individually mergeable against `main`, but merging the second
+one after the first has already landed may produce a conflict the user
 resolves at merge time. Do not try to prevent this by making later
 issues in the batch depend on earlier ones, or by merging as you go --
 merging is the user's call per the repo's Git Safety conventions,
 never the agent's, regardless of how far into the batch this is.
+
+This is a different concern from Step 1's handling of *already-
+authorized* PRs, which does wait for each merge to resolve before
+moving on -- that's about landing already-approved work cleanly, not
+about sequencing a fresh batch.
