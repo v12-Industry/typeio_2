@@ -152,6 +152,8 @@ manageProjectUiTree ctn req =
     -| only "GET" (ProjectUi.manageProjectVw ctn req)
     <+> "graph"
     -| only "GET" (ProjectUi.getProjectGraph ctn req)
+    <+> "stats"
+    -| only "GET" (ProjectUi.getProjectStats ctn req)
     <+> "node"
     -< ( routes
            <+> "panel"

@@ -91,6 +91,12 @@ sub-fragments independently, at finer granularity:
   directly when a node is clicked, and individual node labels target
   their own `#node-text-<id>` when refreshed — neither touches `#view` or
   `#container` at all.
+- The toolbar's Stats button targets `#stats-body` inside the
+  `#stats-panel` drawer, fetching `/ui/project/stats` on the same click
+  that slides the drawer open. Counts move whenever a node's status
+  does, so the drawer is filled per opening rather than once on load —
+  and its own open/shut state is a class toggled in hyperscript, which
+  needs no round trip at all.
 
 So in practice there are (at least) three swap granularities in play:
 whole page (`#container`), a page's own lazily-loaded sections (plain

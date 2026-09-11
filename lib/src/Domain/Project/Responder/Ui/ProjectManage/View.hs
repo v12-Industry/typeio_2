@@ -90,7 +90,7 @@ templateProject py = do
     [ rel_ "stylesheet"
     , href_ "/static/styles/views/manage-project.css"
     ]
-  templateToolbar
+  templateToolbar pid
   div_ [id_ "view"] $ do
     div_
       [ id_ "tree-container"
@@ -105,6 +105,7 @@ templateProject py = do
       [ id_ "node-panel"
       ]
       empty
+    templateStatsPanel
     case nidM of
       Nothing -> empty
       Just nid -> do
@@ -123,10 +124,10 @@ templateProject py = do
     pid = payloadProjectId py
     viz = payloadVisualization py
 
-templateToolbar :: Html ()
-templateToolbar =
-  nav_ [id_ "manage-toolbar"]
-    $ button_
+templateToolbar :: Int64 -> Html ()
+templateToolbar pid =
+  nav_ [id_ "manage-toolbar"] $ do
+    button_
       [ class_ "back-link"
       , type_ "button"
       , ariaLabel_ "Back to projects"
@@ -135,9 +136,35 @@ templateToolbar =
       , hxSwap_ "innerHTML"
       , hxTarget_ "#container"
       ]
-    $ do
-      span_ [class_ "back-link-arrow"] "←"
-      span_ "Back to projects"
+      $ do
+        span_ [class_ "back-link-arrow"] "←"
+        span_ "Back to projects"
+    button_
+      [ class_ "stats-toggle"
+      , type_ "button"
+      , ariaLabel_ "Project stats"
+      , hxGet_ (projectStatsLink pid)
+      , hxPushUrl_ False
+      , hxSwap_ "innerHTML"
+      , hxTarget_ "#stats-body"
+      , hxTrigger_ "click"
+      , h_ "on click toggle .open on #stats-panel"
+      ]
+      "Stats"
+
+templateStatsPanel :: Html ()
+templateStatsPanel =
+  aside_ [id_ "stats-panel"] $ do
+    div_ [class_ "stats-header"] $ do
+      span_ [class_ "stats-title"] "Project stats"
+      button_
+        [ class_ "stats-close"
+        , type_ "button"
+        , ariaLabel_ "Close project stats"
+        , h_ "on click remove .open from #stats-panel"
+        ]
+        "✕"
+    div_ [id_ "stats-body"] (mempty :: Html ())
 
 validateForm ::
   Visualization ->

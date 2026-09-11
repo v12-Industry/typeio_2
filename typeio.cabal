@@ -90,6 +90,8 @@ library src
       , Domain.Project.Responder.Ui.ProjectManage.Node.Description
       , Domain.Project.Responder.Ui.ProjectManage.Node.Status
       , Domain.Project.Responder.Ui.ProjectManage.Node.Title
+      , Domain.Project.Responder.Ui.ProjectManage.Stats
+      , Domain.Project.Stats
       , Environment.Db
       -- Exposed so `test-suite spec` can import it: the static-asset
       -- caching headers are a pure function of a file's metadata, and
@@ -202,6 +204,7 @@ test-suite spec
       , Domain.Project.Graph.RouteSpec
       , Domain.Project.Orbit.LayoutSpec
       , Domain.Project.Orbit.UnfoldSpec
+      , Domain.Project.StatsSpec
       , Platform.BuildSpec
       , Platform.Web.MiddlewareSpec
     build-tool-depends: hspec-discover:hspec-discover
@@ -239,6 +242,7 @@ test-suite integration
       , Domain.Project.Responder.Ui.ProjectManage.Node.StatusSpec
       , Domain.Project.Responder.Ui.ProjectManage.Node.TitleSpec
       , Domain.Project.Responder.Ui.ProjectManage.SaveStateSpec
+      , Domain.Project.Responder.Ui.ProjectManage.StatsSpec
       , Domain.Project.Responder.Ui.ProjectManage.ViewSpec
       , Domain.Project.Visualization.CommonSpec
       , Domain.Project.Visualization.Orbital.ResponderSpec
