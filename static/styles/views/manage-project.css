@@ -115,13 +115,39 @@ svg {
   width:   4rem;
 }
 
+/* A floating window over the drawing, not a column beside it. The graph
+   owns the whole canvas, so the panel is taken out of flow entirely and
+   positioned against #view -- which is why #view establishes a
+   containing block below.
+
+   It gets an opaque surface of its own, plus a border and a shadow,
+   because it sits on top of the drawing rather than in a region of its
+   own: anything translucent lets node shapes and dependency edges read
+   straight through the panel's text. */
 #node-panel {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  bottom: 1rem;
+  width: 30rem;
+  max-width: calc(100% - 2rem);
   display: flex;
   flex-direction: row;
-  height: 100%;
-  width: 55%;
-  max-width: 45%;
-  padding-top: 4rem;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 1rem;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+/* Closed is *empty*, not hidden: htmx swaps this element's innerHTML in
+   and out. An empty overlay is still an overlay -- it would keep its
+   corner of the canvas and swallow drags meant for the graph
+   underneath, with nothing on screen to explain why. */
+#node-panel:empty {
+  display: none;
 }
 
 #node-properties {
@@ -142,12 +168,12 @@ svg {
    SVG fills this box exactly and the drawing moves underneath it. */
 #tree-container {
   height: 100%;
-  width: 70%;
+  width: 100%;
   overflow: hidden;
   position: relative;
   /* The drawing extends past this box on a large project and is reached
      by panning, so anything crossing the edge must be clipped rather
-     than painted over the node panel next to it. */
+     than painted over whatever sits beside the view. */
   contain: paint;
 }
 
@@ -354,16 +380,44 @@ svg {
   pointer-events: none;
 }
 
-/* Opts out of global.css's #view scroll region: #tree-container
-   is a fixed window that pans by transform, not by scrolling, and a
-   scrollbar on #view behind it would be a second way to move the same
-   content, fighting the first. Nothing on this page needs #view itself
-   to scroll -- #tree-container and #node-panel are both height:100%,
-   matching #view's own height exactly. */
+/* The graph's canvas, and the frame every floating panel is placed
+   against.
+
+   Three things this rule is doing, none of them optional:
+
+   `height` is an explicit subtraction rather than the inherited
+   `100%`, because nothing in the ancestor chain has a resolved height
+   for a percentage to resolve against -- `#container`'s own `height:
+   100%` sits inside a `body` sized by its content. Left alone, the
+   canvas would be as tall as whatever the graph happened to draw.
+
+   Every band this view puts above the canvas has to come out of that
+   subtraction, so each one publishes its own block size as a token and
+   is named here. A band that occupies space without being subtracted
+   pushes the bottom of the canvas past the fold, where `overflow:
+   hidden` clips it silently -- no scrollbar, just an edge the user
+   cannot reach. `--manage-toolbar-block-size` falls back to `0px` so
+   this stays correct on a page with no toolbar.
+
+   `overflow: hidden` opts out of global.css's #view scroll region:
+   #tree-container is a fixed window that pans by transform, not by
+   scrolling, and a scrollbar here would be a second way to move the
+   same content, fighting the first.
+
+   `position: relative` makes this the containing block for
+   #node-panel, so a panel positioned against it lands inside the
+   canvas rather than against the viewport.
+
+   The padding global.css sets is dropped: this view is a drawing that
+   runs to its own edges, and a gutter would show as a band of page
+   around it. Panels inset themselves instead. */
 #view {
-  display: flex;
-  flex-direction: row;
+  display: block;
+  position: relative;
   overflow: hidden;
+  padding: 0;
+  height: calc(100vh - var(--nav-block-size) - var(--manage-toolbar-block-size, 0px));
+  height: calc(100dvh - var(--nav-block-size) - var(--manage-toolbar-block-size, 0px));
 }
 
 /* Scoped to the node shape, not to `.flash *`: the keyframe animates

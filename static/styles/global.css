@@ -29,8 +29,23 @@
   --success: #4caf50;
 
   /* Cards or containers */
-  --surface: #78a0ff14
+  --surface: #78a0ff14;
 
+  /* Panels that float over other content. Opaque, unlike --surface:
+     a translucent tint is enough for a card sitting in its own region
+     of the page, but an overlay has the drawing running underneath it,
+     and anything short of opaque lets node shapes and dependency edges
+     read straight through the panel's own text. */
+  --surface-raised: #25252a;
+
+  /* Header metrics. Tokens rather than literals because a view that
+     has to fill the space the header leaves needs to subtract exactly
+     what `.nav` below occupies, and two numbers drifting apart would
+     show up as a scrollbar or a clipped edge rather than as anything
+     obviously wrong. */
+  --nav-height: 60px;
+  --nav-margin: 1rem;
+  --nav-block-size: calc(var(--nav-height) + (2 * var(--nav-margin)));
 }
 
 body {
@@ -127,11 +142,11 @@ body {
 
 .nav {
   display: flex;
-  margin-top: 1rem;
-  margin-bottom: 1rem;
+  margin-top: var(--nav-margin);
+  margin-bottom: var(--nav-margin);
   justify-content: space-between;
   align-items: center;
-  height: 60px;
+  height: var(--nav-height);
   padding: 0 1rem;
 }
 
