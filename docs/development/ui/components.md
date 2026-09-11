@@ -99,5 +99,20 @@ whole page (`#container`), a page's own lazily-loaded sections (plain
 target the narrowest element that actually needs to change — that's the
 existing convention throughout `ProjectManage/`.
 
+## The node panel is anchored, not docked
+
+`#node-panel` is a floating window over the graph, positioned against
+the node it describes rather than parked in a corner: below it, flipping
+above when there is no room underneath, and clamped so it stays on the
+canvas. Closed is *empty* — htmx swaps its innerHTML in and out, and
+`#node-panel:empty` takes it out of the layout entirely so an invisible
+overlay cannot swallow drags meant for the graph.
+
+Where it lands is measured at run time by `node-panel-anchor.js` (see
+[../frontend/index.md](../frontend/index.md)), because the node is a
+shape inside a pannable SVG. The panel body emits `data-node-id` so the
+script knows which shape to find; that attribute is part of the
+contract, not decoration.
+
 See [htmx.md](../frontend/htmx.md) (once it lands) for the attribute
 helpers themselves.

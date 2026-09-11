@@ -230,22 +230,36 @@ svg {
   width:   4rem;
 }
 
-/* A floating window over the drawing, not a column beside it. The graph
-   owns the whole canvas, so the panel is taken out of flow entirely and
-   positioned against #view -- which is why #view establishes a
-   containing block below.
+/* A floating window anchored to the node it describes, not a column
+   beside the graph. The graph owns the whole canvas, so the panel is
+   taken out of flow entirely and positioned against #view -- which is
+   why #view establishes a containing block below.
+
+   Where it lands is the one thing CSS cannot say: the node is a shape
+   inside an SVG the user pans and zooms, so its position on screen is
+   only known at the moment it is asked for.
+   `static/script/node-panel-anchor.js` measures it and writes the two
+   custom properties below; everything about how the panel *looks*
+   stays here. The fallbacks are what the panel uses before the first
+   measurement, and if that script never runs -- an inset corner of the
+   canvas, which is a worse position but never a broken one.
 
    It gets an opaque surface of its own, plus a border and a shadow,
    because it sits on top of the drawing rather than in a region of its
    own: anything translucent lets node shapes and dependency edges read
-   straight through the panel's text. */
+   straight through the panel's text.
+
+   Sized by its contents up to a cap, rather than pinned top and bottom:
+   a window anchored to a node has to be shorter than the canvas to have
+   anywhere to be anchored, and a short node's panel should not stretch
+   to the full height to say very little. */
 #node-panel {
   position: absolute;
-  top: 1rem;
-  right: 1rem;
-  bottom: 1rem;
+  left: var(--panel-left, 1rem);
+  top: var(--panel-top, 1rem);
   width: 30rem;
   max-width: calc(100% - 2rem);
+  max-height: calc(100% - 2rem);
   display: flex;
   flex-direction: row;
   overflow-y: auto;

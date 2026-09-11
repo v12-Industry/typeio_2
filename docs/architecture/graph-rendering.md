@@ -569,6 +569,7 @@ pairing a compiler cannot check and a rename silently breaks.
 | `.node`, `.node-highlight`, `.flash` | CSS, the e2e suite |
 | `.root` / `.work` on the node's shape | CSS (fill, hover, glow, flash) |
 | `.link` | CSS |
+| `data-node-id` on the node's group | the open panel's highlight, and `node-panel-anchor.js` finding the shape to anchor to |
 | `hx-get`/`hx-target="#node-panel"`/`hx-push-url` on each node | the whole node-detail interaction |
 
 **Style rules key off the `.root`/`.work` class the shape carries, not

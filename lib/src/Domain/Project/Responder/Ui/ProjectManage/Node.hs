@@ -67,6 +67,7 @@ templateNodePanel :: Int64 -> Int64 -> Html ()
 templateNodePanel nid pid = do
   div_
     [ class_ "panel-actions"
+    , dataNodeId_ (intToText nid)
     , h_ $
         "init add .node-highlight to "
           <> nodeSel

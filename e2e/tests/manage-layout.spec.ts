@@ -97,3 +97,79 @@ test('the open node panel floats over the graph rather than displacing it', asyn
   expect(panel.x).toBeGreaterThan(after.x);
   expect(panel.x + panel.width).toBeLessThan(after.x + after.width + 1);
 });
+
+// The panel is anchored to the node it describes, which is a shape
+// inside a pannable SVG -- so where it lands is measured in the browser
+// and cannot be seen in the markup the server sends. Rootless is pinned
+// for the same reason graph-viewport.spec.ts pins it: the default
+// visualization moves, and this needs one node shape per node.
+test('the open node panel is anchored under its node', async ({ page, request }) => {
+  const project = await createProject(page, 'E2E anchor');
+  const node = await addNode(request, project.id, 'E2E anchor node');
+
+  await page.goto(
+    `/ui/project/vw?projectId=${project.id}&nodeId=${node.id}&visualizationMode=Rootless`
+  );
+  await expect(page.locator('#node-detail header h2')).toHaveText(node.title);
+  await expect(page.locator('#graph-zoom-layer')).toHaveAttribute('transform', /translate/, {
+    timeout: 10_000,
+  });
+
+  const shape = await box(page, `#graph-nodes [data-node-id="${node.id}"]`);
+  // Polled: the placement runs off a requestAnimationFrame, so the
+  // first paint after the swap can still be at the fallback corner.
+  await expect
+    .poll(async () => {
+      const panel = await box(page, '#node-panel');
+      return panel.y > shape.y + shape.height;
+    })
+    .toBe(true);
+
+  const panel = await box(page, '#node-panel');
+
+  // Centred on the node horizontally. The tolerance is for the clamp
+  // that keeps the panel on the canvas, which does not bite here --
+  // this node opens in the middle of a wide canvas.
+  const panelCentre = panel.x + panel.width / 2;
+  const shapeCentre = shape.x + shape.width / 2;
+  expect(Math.abs(panelCentre - shapeCentre)).toBeLessThan(4);
+
+  // And clear of the node rather than sitting on top of it.
+  expect(panel.y).toBeGreaterThan(shape.y + shape.height);
+});
+
+// The flip is the reason the position is computed rather than fixed: a
+// node low on the canvas has no room for a panel under it.
+test('the node panel flips above its node when there is no room below', async ({
+  page,
+  request,
+}) => {
+  const project = await createProject(page, 'E2E anchor flip');
+  const node = await addNode(request, project.id, 'E2E anchor flip node');
+
+  await page.goto(
+    `/ui/project/vw?projectId=${project.id}&nodeId=${node.id}&visualizationMode=Rootless`
+  );
+  await expect(page.locator('#node-detail header h2')).toHaveText(node.title);
+  await expect(page.locator('#graph-zoom-layer')).toHaveAttribute('transform', /translate/, {
+    timeout: 10_000,
+  });
+
+  // Pan the drawing downwards until the node sits low in the canvas.
+  // ArrowUp moves the content down, 60px a press.
+  const canvas = page.locator('#tree-container');
+  await canvas.focus();
+  for (let i = 0; i < 3; i++) {
+    await page.keyboard.press('ArrowUp');
+  }
+
+  // The panel tracks the node while the graph moves under it, so this
+  // is the same anchoring rule resolving the other way.
+  await expect
+    .poll(async () => {
+      const shape = await box(page, `#graph-nodes [data-node-id="${node.id}"]`);
+      const panel = await box(page, '#node-panel');
+      return panel.y < shape.y;
+    })
+    .toBe(true);
+});
