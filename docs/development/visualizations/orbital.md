@@ -29,8 +29,9 @@ Neither is repeated here.
   replicates its whole subtree along with it: if `E` is drawn twice,
   everything `E` depends on is drawn twice too.
 - **Each circle's status, as its ring.** The shape carries
-  `status-<id>` beside its `.work` class and the stylesheet turns that
-  into a stroke colour. Not a fill: see below for why this drawing has
+  `status-open`, `status-active`, `status-closed` or `status-rejected`
+  beside its `.work` class and the stylesheet turns that into a stroke
+  colour. Not a fill: see below for why this drawing has
   to spend its fill on something else.
 
 The consequence worth stating plainly: **there are no crossing edges at
@@ -139,7 +140,7 @@ visualization uses its own prefix:
 | `#disc-text-<id>-<replica>` | Its label. Replaces `#node-text-<id>` |
 | `data-node-id="<id>"` | The identity handle — shared by every replica, and what the hover behaviour selects on |
 | `.disc` | The group. Replaces `.node` |
-| `status-<id>` on the circle | The node's status, which the stylesheet draws as the ring. The id is put through `Data.Text.Util.slug` first: the vocabulary is a database table, and nothing from a row may escape a class attribute |
+| `status-open` / `status-active` / `status-closed` / `status-rejected` on the circle | The node's status, which the stylesheet draws as the ring. One of exactly four class names, from `Domain.Project.Node.Status`'s `nodeStatusClass` — the database's status id is resolved to a `NodeStatus` constructor first, and a row holding anything else gets no status class at all |
 
 A different prefix rather than a longer `#node-` id is deliberate:
 anything still querying `#node-<id>` should find *nothing* in an orbital

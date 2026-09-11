@@ -6,11 +6,16 @@ module Domain.Project.Visualization.Orbital.Responder
 
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
+import Data.Maybe (maybeToList)
 import qualified Data.Set as S
 import Data.Text (Text, pack)
 import Database.Persist (Entity (..))
 import Database.Persist.Sql (ConnectionPool, fromSqlKey)
 import qualified Domain.Project.Model as M
+import Domain.Project.Node.Status
+  ( NodeStatus
+  , nodeStatusFromKey
+  )
 import Domain.Project.Orbit.Layout (orbit)
 import Domain.Project.Orbit.Types
   ( NodeId (..)
@@ -46,12 +51,15 @@ factsOf ns =
 labelsOf :: [Entity M.Node] -> Map NodeId Text
 labelsOf ns = Map.fromList [(onId n, onLabel n) | n <- map toOrbitNode ns]
 
-statusesOf :: [Entity M.Node] -> Map NodeId Text
+statusesOf :: [Entity M.Node] -> Map NodeId NodeStatus
 statusesOf ns =
   Map.fromList
-    [ (NodeId (fromSqlKey k), pack (M.unNodeStatusKey (M.nodeNodeStatusId e)))
+    [ (NodeId (fromSqlKey k), st)
     | Entity k e <- ns
+    , st <- maybeToList (nodeStatusFromKey (statusKey e))
     ]
+  where
+    statusKey = pack . M.unNodeStatusKey . M.nodeNodeStatusId
 
 buildOrbit :: [Entity M.Node] -> [Entity M.Dependency] -> OrbitDiagram
 buildOrbit ns ds = orbit defaultOrbitConfig work edges

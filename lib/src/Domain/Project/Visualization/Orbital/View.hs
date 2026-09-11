@@ -6,7 +6,6 @@ module Domain.Project.Visualization.Orbital.View
   , discGroup
   , linkLine
   , nodeHue
-  , statusClass
   ) where
 
 import Common.Web.Attributes
@@ -15,9 +14,14 @@ import Control.Monad (forM_)
 import Data.Int (Int64)
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
+import Data.Maybe (maybeToList)
 import Data.Text (Text, pack)
 import qualified Data.Text as T
-import Data.Text.Util (intToText, slug)
+import Data.Text.Util (intToText)
+import Domain.Project.Node.Status
+  ( NodeStatus
+  , nodeStatusClass
+  )
 import Domain.Project.Orbit.Types
   ( Bounds (..)
   , Disc (..)
@@ -42,7 +46,7 @@ import Lucid
 
 data DiscFacts = DiscFacts
   { dfLabels :: Map NodeId Text
-  , dfStatuses :: Map NodeId Text
+  , dfStatuses :: Map NodeId NodeStatus
   }
 
 templateOrbit :: Int64 -> OrbitConfig -> DiscFacts -> OrbitDiagram -> Html ()
@@ -136,15 +140,9 @@ discGroup pid cfg facts disc =
     shapeClass =
       T.unwords
         . ("work" :)
-        . maybe [] pure
-        $ Map.lookup (dNode disc) (dfStatuses facts) >>= statusClass
-
-statusClass :: Text -> Maybe Text
-statusClass st
-  | T.null token = Nothing
-  | otherwise = Just ("status-" <> token)
-  where
-    token = slug st
+        . map nodeStatusClass
+        . maybeToList
+        $ Map.lookup (dNode disc) (dfStatuses facts)
 
 discLabel :: Text -> Point -> [Text] -> Html ()
 discLabel discKey (Point cx cy) ls =

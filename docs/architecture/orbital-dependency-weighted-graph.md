@@ -605,7 +605,7 @@ So this visualization uses its own ids, under a **different prefix**:
 | `data-node-id="<id>"` | The identity handle: shared by every replica, and what the highlight behaviour selects on |
 | `.disc` | Replaces `.node` |
 | `.root` / `.work` | Kept, so existing state styling still applies |
-| `status-<id>` on the shape | The node's status, beside `.work`. Drawn as the circle's stroke, because the fill is already carrying replica identity |
+| `status-open` / `status-active` / `status-closed` / `status-rejected` on the shape | The node's status, beside `.work`. One of exactly four class names, not a name built from the row's text. Drawn as the circle's stroke, because the fill is already carrying replica identity |
 
 **A different prefix rather than a longer `#node-` id is the point.**
 Anything still querying `#node-<id>` — a stylesheet, a test, a future
