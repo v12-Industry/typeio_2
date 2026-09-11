@@ -126,39 +126,11 @@ templateNodePanel nid pid = do
 
     nodeSel = "<[data-node-id='" <> intToText nid <> "']/>"
 
-    -- Scoped to the drawing. The panel's own body carries the same
-    -- data-node-id, and an unscoped selector would let the panel
-    -- measure itself instead of the node it is pointing at.
+    -- docs/development/ui/components.md, "The node panel is anchored, not docked"
     shapeSel =
       "<#tree-container [data-node-id='" <> intToText nid <> "']/>"
 
-{- | Positions the detail panel against the node it describes.
-
-The panel is an absolutely-positioned element inside @#view@, but the
-node it points at is a shape inside an SVG the user pans and zooms, so
-"next to that shape" is not something CSS can state. Everything here is
-measurement: the stylesheet still owns how the panel looks.
-
-It re-places whenever the drawing moves under it, which is what the
-viewport's @graph:viewport@ event is for, and whenever the panel's own
-contents change height -- an edit form is taller than the detail it
-replaces, and the flip below is decided from that height.
-
-The flip is the point. The panel sits under its node, goes above when
-the room underneath has run out, and takes the roomier side when neither
-fits. When it is taller than that side it gives up height rather than
-ground: a panel that clamped itself into view would settle on top of the
-node it is pointing at, so it caps itself and scrolls instead.
-
-Every arithmetic expression is parenthesised because hyperscript does
-not rank its operators -- mixing @+@ and @/@ without brackets is a parse
-error, not a precedence surprise.
-
-Orbital draws one node once per work stream, so the selector can match
-several shapes. @the first@ is required rather than stylistic: @measure@
-takes an element, and handing it a collection is a runtime error. The
-panel anchors to the first replica in document order.
--}
+-- docs/development/ui/components.md, "The node panel is anchored, not docked"
 anchorBehavior :: Text -> Text
 anchorBehavior shapeSel =
   T.unwords

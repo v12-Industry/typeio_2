@@ -121,7 +121,14 @@ a move or the panel's contents change height. It sets `left`, `top` and
 The panel body emits `data-node-id`, and the selector that finds the
 shape is **scoped to `#tree-container`** on purpose: the panel carries
 the same attribute, and an unscoped selector lets the panel measure
-itself instead of the node it is pointing at.
+itself instead of the node it is pointing at. Orbital draws one node
+once per work stream, so that selector can match several shapes;
+`anchorBehavior` measures `the first` explicitly, because hyperscript's
+`measure` takes a single element and errors at runtime on a collection.
+
+Hyperscript does not rank its operators, so every arithmetic expression
+in `anchorBehavior` is parenthesised — mixing `+` and `/` without
+brackets is a parse error there, not a precedence surprise.
 
 See [htmx.md](../frontend/htmx.md) (once it lands) for the attribute
 helpers themselves.
