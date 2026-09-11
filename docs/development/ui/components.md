@@ -110,11 +110,18 @@ Closed is *empty* — htmx swaps its innerHTML in and out, and
 `#node-panel:empty` takes it out of the layout entirely so an invisible
 overlay cannot swallow drags meant for the graph.
 
-Where it lands is measured at run time by `node-panel-anchor.js` (see
-[../frontend/index.md](../frontend/index.md)), because the node is a
-shape inside a pannable SVG. The panel body emits `data-node-id` so the
-script knows which shape to find; that attribute is part of the
-contract, not decoration.
+Where it lands is measured at run time, because the node is a shape
+inside a pannable SVG and "next to that shape" is not something CSS can
+state. That measuring is hyperscript — `anchorBehavior` in
+`ProjectManage/Node.hs`, emitted onto the panel's own body next to the
+node id it anchors to — and it re-places whenever the viewport announces
+a move or the panel's contents change height. It sets `left`, `top` and
+`max-height`; everything else about the panel stays in the stylesheet.
+
+The panel body emits `data-node-id`, and the selector that finds the
+shape is **scoped to `#tree-container`** on purpose: the panel carries
+the same attribute, and an unscoped selector lets the panel measure
+itself instead of the node it is pointing at.
 
 See [htmx.md](../frontend/htmx.md) (once it lands) for the attribute
 helpers themselves.

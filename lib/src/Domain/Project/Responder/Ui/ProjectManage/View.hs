@@ -136,7 +136,6 @@ templateProject py = do
     [ rel_ "stylesheet"
     , href_ "/static/styles/views/manage-project.css"
     ]
-  script_ [src_ "/static/script/node-panel-anchor.js"] (mempty :: Html ())
   templateToolbar
   div_ [id_ "view"] $ do
     div_

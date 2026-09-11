@@ -237,12 +237,15 @@ svg {
 
    Where it lands is the one thing CSS cannot say: the node is a shape
    inside an SVG the user pans and zooms, so its position on screen is
-   only known at the moment it is asked for.
-   `static/script/node-panel-anchor.js` measures it and writes the two
-   custom properties below; everything about how the panel *looks*
-   stays here. The fallbacks are what the panel uses before the first
-   measurement, and if that script never runs -- an inset corner of the
-   canvas, which is a worse position but never a broken one.
+   only known at the moment it is asked for. The hyperscript on the
+   panel's own contents (`ProjectManage/Node.hs`'s `anchorBehavior`)
+   measures it and writes `left`, `top` and `max-height` as inline
+   styles. Everything about how the panel *looks* stays here; only those
+   three numbers come from outside.
+
+   The values below are what the panel uses until that first
+   measurement -- an inset corner of the canvas, which is a worse
+   position but never a broken one.
 
    It gets an opaque surface of its own, plus a border and a shadow,
    because it sits on top of the drawing rather than in a region of its
@@ -252,21 +255,18 @@ svg {
    Sized by its contents up to a cap, rather than pinned top and bottom:
    a window anchored to a node has to be shorter than the canvas to have
    anywhere to be anchored, and a short node's panel should not stretch
-   to the full height to say very little.
-
-   The cap is `--panel-max-height` when the anchor script has measured
-   one, because on a short canvas the room above or below a node is less
-   than the whole canvas and a panel taller than that room would end up
-   sitting over the node it is pointing at. Giving up height instead
-   costs a scrollbar, which this already has. The `calc()` is the
-   fallback for the frame before that measurement. */
+   to the full height to say very little. The measured cap can be
+   smaller again, because on a short canvas the room above or below a
+   node is less than the whole canvas and a panel taller than that room
+   would end up sitting over the node it is pointing at. Giving up
+   height instead costs a scrollbar, which this already has. */
 #node-panel {
   position: absolute;
-  left: var(--panel-left, 1rem);
-  top: var(--panel-top, 1rem);
+  left: 1rem;
+  top: 1rem;
   width: 30rem;
   max-width: calc(100% - 2rem);
-  max-height: var(--panel-max-height, calc(100% - 2rem));
+  max-height: calc(100% - 2rem);
   display: flex;
   flex-direction: row;
   overflow-y: auto;
