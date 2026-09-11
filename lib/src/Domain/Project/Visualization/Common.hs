@@ -36,7 +36,7 @@ import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import Data.Text (Text, pack, unpack)
 import qualified Data.Text as T
-import Data.Text.Util (intToText, wrapLabel)
+import Data.Text.Util (intToText, slug, wrapLabel)
 import Database.Esqueleto.Experimental
   ( from
   , fromSqlKey
@@ -75,6 +75,7 @@ import qualified Domain.Project.Model as M
   ( Dependency (..)
   , Node (..)
   , Project (..)
+  , unNodeStatusKey
   , unNodeTypeKey
   )
 import Domain.Project.Responder.Ui.ProjectManage.Link
@@ -272,16 +273,37 @@ validateProjectId qt = runValidation id $ do
 data ServerGraph = ServerGraph
   { sgProjectId :: Int64
   , sgLabels :: Map NodeId Text
+  , sgStatuses :: Map NodeId Text
   , sgDiagram :: Diagram
   }
 
-serverGraph :: Int64 -> [LayoutNode] -> [LayoutEdge] -> ServerGraph
-serverGraph pid lns les =
+serverGraph ::
+  Int64 ->
+  Map NodeId Text ->
+  [LayoutNode] ->
+  [LayoutEdge] ->
+  ServerGraph
+serverGraph pid statuses lns les =
   ServerGraph
     { sgProjectId = pid
     , sgLabels = Map.fromList [(lnId n, lnLabel n) | n <- lns]
+    , sgStatuses = statuses
     , sgDiagram = layout defaultLayoutConfig lns les
     }
+
+nodeStatuses :: [Entity M.Node] -> Map NodeId Text
+nodeStatuses ns =
+  Map.fromList
+    [ (NodeId (fromSqlKey k), pack (M.unNodeStatusKey (M.nodeNodeStatusId e)))
+    | Entity k e <- ns
+    ]
+
+statusClass :: Text -> Maybe Text
+statusClass st
+  | T.null token = Nothing
+  | otherwise = Just ("status-" <> token)
+  where
+    token = slug st
 
 toLayoutNode :: Entity M.Node -> LayoutNode
 toLayoutNode (Entity k e) =
@@ -443,7 +465,7 @@ nodeGroup sg n =
     ]
     $ do
       rect_
-        [ class_ (kindClass (pnKind n))
+        [ class_ shapeClass
         , width_ (dblText (szW sz))
         , height_ (dblText (szH sz))
         , rx_ "6"
@@ -476,6 +498,11 @@ nodeGroup sg n =
     tl = pnTopLeft n
     sz = pnSize n
     rawLabel = Map.findWithDefault "" (pnId n) (sgLabels sg)
+    shapeClass =
+      T.unwords
+        . (kindClass (pnKind n) :)
+        . maybe [] pure
+        $ Map.lookup (pnId n) (sgStatuses sg) >>= statusClass
 
 kindClass :: NodeKind -> Text
 kindClass RootNode = "root"

@@ -15,6 +15,7 @@ import Domain.Project.Visualization.Common
   ( BuildGraph
   , RenderGraph
   , handleGraphWith
+  , nodeStatuses
   , serverGraph
   , templateServerGraph
   , toLayoutEdge
@@ -29,7 +30,7 @@ renderGraph :: RenderGraph
 renderGraph pid ns ds = templateServerGraph (buildGraph pid ns ds)
 
 buildGraph :: BuildGraph
-buildGraph pid ns ds = serverGraph pid work edges
+buildGraph pid ns ds = serverGraph pid (nodeStatuses ns) work edges
   where
     work = filter ((/= RootNode) . lnKind) (map toLayoutNode ns)
     drawn = S.fromList (map lnId work)

@@ -25,6 +25,16 @@ here.
 - **No containment edges.** A containment edge is how a drawing depicts
   a project's membership of its work; not depicting membership at all is
   this visualization's entire premise, so nothing is derived here.
+- **Each node coloured by its status.** The shape carries
+  `status-<id>` beside its `.work` class — `class="work status-active"`
+  — and `manage-project.css` turns that into a fill from the
+  `--status-hue-*` tokens in `global.css`. The point is that the state
+  of the work is readable off the drawing without opening a node.
+
+  Saturation and lightness are shared by all four statuses so the set
+  reads as one palette, and the lightness is held down because a node's
+  label sits directly on the fill. A status with no rule in the
+  stylesheet keeps the plain `.work` fill rather than vanishing.
 
 The project's own row is untouched in the database and still names the
 project elsewhere in the UI (e.g. the project index) — it just isn't a

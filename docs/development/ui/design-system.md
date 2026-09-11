@@ -21,6 +21,7 @@ purpose (the source groups them the same way, via comments):
 | Accent (semantic) | `--accent-success` | Defined alongside the accent family but currently unused anywhere — same "defined, not wired up" situation as `.pill-indicator` below |
 | Borders | `--border-color` | Dividers, input backgrounds (`input`/`textarea` use it as their `background-color`, not as a border — worth knowing before assuming the name always matches the usage) |
 | Status | `--error-color`, `--success` | Validation error backgrounds/messages, and the save-success checkmark icon color (`#node-detail i`) |
+| Node status | `--status-hue-open`, `--status-hue-active`, `--status-hue-closed`, `--status-hue-rejected` | The dependency graph's per-status node fills. Hues (bare numbers), not finished colors: the drawing supplies the saturation and lightness, so one status looks the same wherever it is drawn and the lightness stays low enough for a `--text-primary` label to sit on top of it |
 | Surface | `--surface` | Card backgrounds (`.card-grid > *`) — a semi-transparent accent (`#78a0ff14`, i.e. `#78a0ff` at low alpha) rather than a solid color, meant to sit over the body gradient with `backdrop-filter: blur(4px)` |
 
 **Convention**: a color used by more than one class, or one that

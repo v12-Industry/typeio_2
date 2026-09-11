@@ -2,6 +2,7 @@
 
 module Data.Text.Util where
 
+import Data.Char (isAsciiLower, isDigit)
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.Lazy (toStrict)
@@ -10,6 +11,15 @@ import Data.Text.Lazy.Builder.Int (decimal)
 
 intToText :: Integral a => a -> Text
 intToText = toStrict . toLazyText . decimal
+
+slug :: Text -> Text
+slug =
+  T.intercalate "-"
+    . filter (not . T.null)
+    . T.split (not . safe)
+    . T.toLower
+  where
+    safe c = isAsciiLower c || isDigit c
 
 wrapLabel :: Int -> Int -> Text -> [Text]
 wrapLabel width maxLines label

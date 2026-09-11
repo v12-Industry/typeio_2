@@ -52,10 +52,12 @@ spec = aroundAll withTestDatabase $
 
         body <- graphBody pool (fromSqlKey projectKey)
 
-        -- A drawn root would arrive as `<rect class="root"`; the whole
-        -- point here is that it isn't in the document at all.
-        body `shouldNotContainStr` "<rect class=\"root\""
-        body `shouldContainStr` "<rect class=\"work\""
+        -- A drawn root would arrive as `<rect class="root`; the whole
+        -- point here is that it isn't in the document at all. The class
+        -- is matched without its closing quote because the node's
+        -- status rides in the same attribute.
+        body `shouldNotContainStr` "<rect class=\"root"
+        body `shouldContainStr` "<rect class=\"work"
 
       it "derives no containment edge" $ \pool -> do
         (projectKey, _) <- seedProjectWithRootNode pool
@@ -82,7 +84,7 @@ spec = aroundAll withTestDatabase $
 
         -- One work node, and therefore no edges at all: the only
         -- relationship in this project involved the root.
-        countStr "<rect class=\"work\"" body `shouldBe` 1
+        countStr "<rect class=\"work" body `shouldBe` 1
         countStr "class=\"link" body `shouldBe` 0
 
       it "still draws a dependency between two work nodes" $ \pool -> do
@@ -95,9 +97,23 @@ spec = aroundAll withTestDatabase $
 
         body <- graphBody pool (fromSqlKey projectKey)
 
-        countStr "<rect class=\"work\"" body `shouldBe` 2
+        countStr "<rect class=\"work" body `shouldBe` 2
         body `shouldContainStr` "class=\"link\""
         body `shouldContainStr` "marker-end=\"url(#arrow)\""
+
+      it "carries each node's status as a class on its shape" $ \pool -> do
+        -- Status is drawn as colour, and the colour is CSS's decision:
+        -- what the server owes the stylesheet is the class, and nothing
+        -- else. A fill or a hue emitted here would be the appearance
+        -- leaking back into the markup.
+        (projectKey, _) <- seedProjectWithRootNode pool
+        _ <- seedWorkNode pool projectKey "Build the thing"
+
+        body <- graphBody pool (fromSqlKey projectKey)
+
+        -- seedWorkNode stores "active", the status every node is
+        -- created with.
+        body `shouldContainStr` "<rect class=\"work status-active\""
 
       it "serves the shared viewport script with the drawing" $ \pool -> do
         -- Shared rendering, so the pan/zoom layer has to arrive with

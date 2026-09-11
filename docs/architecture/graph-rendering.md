@@ -544,6 +544,16 @@ coordinates baked in. No `#graph-data` JSON, no layout script.
   `<rect>` would render fine and still be wrong: it splits one node's
   appearance across two files and drops silently out of any theme
   change.
+- **A node's status rides in the same class attribute**, as
+  `status-<id>` beside `.root`/`.work` — `class="work status-active"`.
+  That is a *fact about the node*, not an appearance value: the
+  stylesheet owns which hue a status is drawn in, exactly as it owns
+  what `.work` is filled with, so the rule above is intact. A status
+  with no rule in the stylesheet keeps `.work`'s own fill, which is
+  what lets a new row in `project.node_status` appear in the drawing
+  before anyone has chosen a colour for it. The id is put through
+  `Data.Text.Util.slug` first, because the vocabulary is a database
+  table and nothing from a row may escape a class attribute.
 
 ### Labels
 
@@ -568,6 +578,7 @@ pairing a compiler cannot check and a rename silently breaks.
 | `#node-text-<id>` | the per-node label refresh hook (`Node.Refresh`) |
 | `.node`, `.node-highlight`, `.flash` | CSS, the e2e suite |
 | `.root` / `.work` on the node's shape | CSS (fill, hover, glow, flash) |
+| `status-<id>` on the node's shape | CSS (the status fill and its hover) |
 | `.link` | CSS |
 | `hx-get`/`hx-target="#node-panel"`/`hx-push-url` on each node | the whole node-detail interaction |
 
