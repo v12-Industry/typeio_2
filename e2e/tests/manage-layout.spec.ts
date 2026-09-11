@@ -104,9 +104,6 @@ test('the open node panel floats over the graph rather than displacing it', asyn
 // for the same reason graph-viewport.spec.ts pins it: the default
 // visualization moves, and this needs exactly one shape per node.
 //
-// Both numbers below are the ones node-panel-anchor.js places with.
-const GAP = 14;
-const MARGIN = 12;
 // One arrow press, from graph-viewport.js's KEY_PAN_STEP.
 const PAN_STEP = 60;
 
@@ -196,25 +193,28 @@ test('the panel follows its node, flipping sides to stay on the canvas', async (
     })
     .toBeLessThan(4);
 
-  // Vertical: how far the node has to rise for a panel of this height
-  // to fit underneath it. Computed rather than guessed, because the
-  // panel's height comes from its contents and the canvas's from the
-  // viewport -- a fixed number of presses would be a bet on both.
-  const { panel, shape, frame } = await geometry(page, node.id);
-  const overshoot =
-    shape.y + shape.height + GAP + panel.height - (frame.y + frame.height - MARGIN);
-  const presses = Math.max(1, Math.ceil(overshoot / PAN_STEP));
+  // Vertical: drive the node to each end of the canvas rather than
+  // pressing a fixed number of times. Which side the panel takes is
+  // decided by which side has more room, so putting the node clearly
+  // into the top fifth and then the bottom fifth settles it whatever
+  // the panel's contents make it -- a press count computed from its
+  // height would be a bet on that height and on the viewport's.
+  const panTo = async (fraction: number) => {
+    const { shape, frame } = await geometry(page, node.id);
+    const target = frame.y + frame.height * fraction;
+    // ArrowDown moves the drawing up, so the node rises.
+    const key = target < shape.y ? 'ArrowDown' : 'ArrowUp';
+    const presses = Math.ceil(Math.abs(shape.y - target) / PAN_STEP);
+    for (let i = 0; i < presses; i++) {
+      await page.keyboard.press(key);
+    }
+  };
 
-  // ArrowDown moves the drawing up, so the node rises.
-  for (let i = 0; i < presses; i++) {
-    await page.keyboard.press('ArrowDown');
-  }
+  // High on the canvas: far more room below than above, so below.
+  await panTo(0.2);
   await expect.poll(async () => side(page, node.id)).toBe('below');
 
-  // And back the other way: with the node low again there is no room
-  // under it, so the panel flips above.
-  for (let i = 0; i < presses * 2; i++) {
-    await page.keyboard.press('ArrowUp');
-  }
+  // Low on the canvas: the room underneath is gone, so it flips above.
+  await panTo(0.8);
   await expect.poll(async () => side(page, node.id)).toBe('above');
 });

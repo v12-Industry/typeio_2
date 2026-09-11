@@ -103,8 +103,10 @@ existing convention throughout `ProjectManage/`.
 
 `#node-panel` is a floating window over the graph, positioned against
 the node it describes rather than parked in a corner: below it, flipping
-above when there is no room underneath, and clamped so it stays on the
-canvas. Closed is *empty* — htmx swaps its innerHTML in and out, and
+above when there is no room underneath, and taking the roomier side when
+neither fits. It never covers its own node — on a canvas too short for
+it, the panel is capped to the room on its side and scrolls instead.
+Closed is *empty* — htmx swaps its innerHTML in and out, and
 `#node-panel:empty` takes it out of the layout entirely so an invisible
 overlay cannot swallow drags meant for the graph.
 

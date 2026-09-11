@@ -28,6 +28,10 @@
   // gap the panel will keep from the edge of the canvas.
   const GAP = 14;
   const MARGIN = 12;
+  // The floor the height cap will not go under. Below this the panel is
+  // too short to read anything in, and covering part of the node is the
+  // better of two bad answers.
+  const MIN_HEIGHT = 120;
 
   const ac = new AbortController();
   const signal = ac.signal;
@@ -72,21 +76,44 @@
     if (!node) return;
 
     const frame = view.getBoundingClientRect();
+
+    // Measured with any previous run's cap lifted, so what comes back
+    // is the height the contents actually want rather than the height
+    // some earlier node's surroundings allowed.
+    panel.style.removeProperty("--panel-max-height");
     const size = panel.getBoundingClientRect();
 
+    const roomBelow = Math.max(0, frame.bottom - MARGIN - (node.bottom + GAP));
+    const roomAbove = Math.max(0, node.top - GAP - (frame.top + MARGIN));
+
     // Below the node by default, above it when the room underneath has
-    // run out. That flip is the whole reason this is computed rather
-    // than fixed: a node near the bottom edge would otherwise open a
-    // panel mostly off the canvas.
-    const below = node.bottom + GAP + size.height <= frame.bottom - MARGIN;
-    const top = below ? node.bottom + GAP : node.top - GAP - size.height;
+    // run out, and on the roomier side when it has run out on both.
+    // That flip is the whole reason this is computed rather than fixed:
+    // a node near the bottom edge would otherwise open a panel mostly
+    // off the canvas.
+    const fitsBelow = roomBelow >= size.height;
+    const fitsAbove = roomAbove >= size.height;
+    const below = fitsBelow || (!fitsAbove && roomBelow >= roomAbove);
+
+    // The panel gives up height rather than ground. A tall panel on a
+    // short canvas fits nowhere, and left to clamp itself into view it
+    // would settle directly over the node it is describing -- pointing
+    // at something it is covering. Capping it to the room on its chosen
+    // side keeps that from happening; the panel already scrolls, so the
+    // cost is a scrollbar rather than a hidden node.
+    const room = Math.max(MIN_HEIGHT, below ? roomBelow : roomAbove);
+    panel.style.setProperty("--panel-max-height", `${Math.floor(room)}px`);
+    const height = Math.min(size.height, room);
+
+    const top = below ? node.bottom + GAP : node.top - GAP - height;
     const left = node.left + node.width / 2 - size.width / 2;
 
-    // Clamped into the canvas afterwards, so a node panned half out of
-    // view still gets a readable panel rather than one trailing off the
-    // edge after it.
+    // Horizontal is still a clamp, so a node panned half out of view
+    // gets a readable panel rather than one trailing off the edge after
+    // it. Vertical is already inside the frame by construction; the
+    // clamp there is a floor under the arithmetic, not a placement.
     const x = clamp(left, frame.left + MARGIN, frame.right - MARGIN - size.width);
-    const y = clamp(top, frame.top + MARGIN, frame.bottom - MARGIN - size.height);
+    const y = clamp(top, frame.top + MARGIN, frame.bottom - MARGIN - height);
 
     panel.style.setProperty("--panel-left", `${Math.round(x - frame.left)}px`);
     panel.style.setProperty("--panel-top", `${Math.round(y - frame.top)}px`);

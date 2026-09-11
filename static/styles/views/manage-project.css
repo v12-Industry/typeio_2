@@ -252,14 +252,21 @@ svg {
    Sized by its contents up to a cap, rather than pinned top and bottom:
    a window anchored to a node has to be shorter than the canvas to have
    anywhere to be anchored, and a short node's panel should not stretch
-   to the full height to say very little. */
+   to the full height to say very little.
+
+   The cap is `--panel-max-height` when the anchor script has measured
+   one, because on a short canvas the room above or below a node is less
+   than the whole canvas and a panel taller than that room would end up
+   sitting over the node it is pointing at. Giving up height instead
+   costs a scrollbar, which this already has. The `calc()` is the
+   fallback for the frame before that measurement. */
 #node-panel {
   position: absolute;
   left: var(--panel-left, 1rem);
   top: var(--panel-top, 1rem);
   width: 30rem;
   max-width: calc(100% - 2rem);
-  max-height: calc(100% - 2rem);
+  max-height: var(--panel-max-height, calc(100% - 2rem));
   display: flex;
   flex-direction: row;
   overflow-y: auto;
