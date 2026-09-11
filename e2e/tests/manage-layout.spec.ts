@@ -97,3 +97,124 @@ test('the open node panel floats over the graph rather than displacing it', asyn
   expect(panel.x).toBeGreaterThan(after.x);
   expect(panel.x + panel.width).toBeLessThan(after.x + after.width + 1);
 });
+
+// The panel is anchored to the node it describes, which is a shape
+// inside a pannable SVG -- so where it lands is measured in the browser
+// and is not visible in the markup the server sends. Rootless is pinned
+// for the same reason graph-viewport.spec.ts pins it: the default
+// visualization moves, and this needs exactly one shape per node.
+//
+// One arrow press, from graph-viewport.js's KEY_PAN_STEP.
+const PAN_STEP = 60;
+
+const geometry = async (page: import('@playwright/test').Page, nodeId: string) => ({
+  panel: await box(page, '#node-panel'),
+  shape: await box(page, `#graph-nodes [data-node-id="${nodeId}"]`),
+  frame: await box(page, '#view'),
+});
+
+// Which side of its node the panel is on. `overlapping` is a failure in
+// every case here, and naming it is what makes that failure readable.
+const side = async (page: import('@playwright/test').Page, nodeId: string) => {
+  const { panel, shape } = await geometry(page, nodeId);
+  if (panel.y + panel.height <= shape.y + 1) return 'above';
+  if (panel.y >= shape.y + shape.height - 1) return 'below';
+  return 'overlapping';
+};
+
+test('the open node panel is anchored to its node', async ({ page, request }) => {
+  const project = await createProject(page, 'E2E anchor');
+  const node = await addNode(request, project.id, 'E2E anchor node');
+
+  await page.goto(
+    `/ui/project/vw?projectId=${project.id}&nodeId=${node.id}&visualizationMode=Rootless`
+  );
+  await expect(page.locator('#node-detail header h2')).toHaveText(node.title);
+  await expect(page.locator('#graph-zoom-layer')).toHaveAttribute('transform', /translate/, {
+    timeout: 10_000,
+  });
+
+  // Polled: the placement runs off a requestAnimationFrame, so the
+  // first paint after the swap can still be at the fallback corner.
+  await expect
+    .poll(async () => {
+      const { panel, shape } = await geometry(page, node.id);
+      return Math.abs(panel.x + panel.width / 2 - (shape.x + shape.width / 2));
+    })
+    .toBeLessThan(4);
+
+  // Clear of the node rather than sitting on top of it. Which side it
+  // lands on is not asserted here -- that depends on how much room this
+  // viewport leaves under the node, and is the next test's subject.
+  expect(await side(page, node.id)).not.toBe('overlapping');
+
+  // ...and wholly on the canvas, not trailing off the edge after a node
+  // that is near one.
+  const { panel, frame } = await geometry(page, node.id);
+  expect(panel.x).toBeGreaterThanOrEqual(frame.x - 1);
+  expect(panel.y).toBeGreaterThanOrEqual(frame.y - 1);
+  expect(panel.x + panel.width).toBeLessThanOrEqual(frame.x + frame.width + 1);
+  expect(panel.y + panel.height).toBeLessThanOrEqual(frame.y + frame.height + 1);
+});
+
+// The panel tracks its node while the graph moves under it, and flips
+// sides when the room underneath runs out. The flip is the whole reason
+// the position is computed rather than fixed.
+test('the panel follows its node, flipping sides to stay on the canvas', async ({
+  page,
+  request,
+}) => {
+  const project = await createProject(page, 'E2E anchor flip');
+  const node = await addNode(request, project.id, 'E2E anchor flip node');
+
+  await page.goto(
+    `/ui/project/vw?projectId=${project.id}&nodeId=${node.id}&visualizationMode=Rootless`
+  );
+  await expect(page.locator('#node-detail header h2')).toHaveText(node.title);
+  await expect(page.locator('#graph-zoom-layer')).toHaveAttribute('transform', /translate/, {
+    timeout: 10_000,
+  });
+  await expect.poll(async () => side(page, node.id)).not.toBe('overlapping');
+
+  const canvas = page.locator('#tree-container');
+  await canvas.focus();
+
+  // Horizontal: pan sideways and the panel goes with its node rather
+  // than staying where it was opened.
+  const before = await geometry(page, node.id);
+  await page.keyboard.press('ArrowRight');
+  await expect
+    .poll(async () => (await geometry(page, node.id)).shape.x)
+    .toBeLessThan(before.shape.x);
+  await expect
+    .poll(async () => {
+      const { panel, shape } = await geometry(page, node.id);
+      return Math.abs(panel.x + panel.width / 2 - (shape.x + shape.width / 2));
+    })
+    .toBeLessThan(4);
+
+  // Vertical: drive the node to each end of the canvas rather than
+  // pressing a fixed number of times. Which side the panel takes is
+  // decided by which side has more room, so putting the node clearly
+  // into the top fifth and then the bottom fifth settles it whatever
+  // the panel's contents make it -- a press count computed from its
+  // height would be a bet on that height and on the viewport's.
+  const panTo = async (fraction: number) => {
+    const { shape, frame } = await geometry(page, node.id);
+    const target = frame.y + frame.height * fraction;
+    // ArrowDown moves the drawing up, so the node rises.
+    const key = target < shape.y ? 'ArrowDown' : 'ArrowUp';
+    const presses = Math.ceil(Math.abs(shape.y - target) / PAN_STEP);
+    for (let i = 0; i < presses; i++) {
+      await page.keyboard.press(key);
+    }
+  };
+
+  // High on the canvas: far more room below than above, so below.
+  await panTo(0.2);
+  await expect.poll(async () => side(page, node.id)).toBe('below');
+
+  // Low on the canvas: the room underneath is gone, so it flips above.
+  await panTo(0.8);
+  await expect.poll(async () => side(page, node.id)).toBe('above');
+});

@@ -230,22 +230,43 @@ svg {
   width:   4rem;
 }
 
-/* A floating window over the drawing, not a column beside it. The graph
-   owns the whole canvas, so the panel is taken out of flow entirely and
-   positioned against #view -- which is why #view establishes a
-   containing block below.
+/* A floating window anchored to the node it describes, not a column
+   beside the graph. The graph owns the whole canvas, so the panel is
+   taken out of flow entirely and positioned against #view -- which is
+   why #view establishes a containing block below.
+
+   Where it lands is the one thing CSS cannot say: the node is a shape
+   inside an SVG the user pans and zooms, so its position on screen is
+   only known at the moment it is asked for. The hyperscript on the
+   panel's own contents (`ProjectManage/Node.hs`'s `anchorBehavior`)
+   measures it and writes `left`, `top` and `max-height` as inline
+   styles. Everything about how the panel *looks* stays here; only those
+   three numbers come from outside.
+
+   The values below are what the panel uses until that first
+   measurement -- an inset corner of the canvas, which is a worse
+   position but never a broken one.
 
    It gets an opaque surface of its own, plus a border and a shadow,
    because it sits on top of the drawing rather than in a region of its
    own: anything translucent lets node shapes and dependency edges read
-   straight through the panel's text. */
+   straight through the panel's text.
+
+   Sized by its contents up to a cap, rather than pinned top and bottom:
+   a window anchored to a node has to be shorter than the canvas to have
+   anywhere to be anchored, and a short node's panel should not stretch
+   to the full height to say very little. The measured cap can be
+   smaller again, because on a short canvas the room above or below a
+   node is less than the whole canvas and a panel taller than that room
+   would end up sitting over the node it is pointing at. Giving up
+   height instead costs a scrollbar, which this already has. */
 #node-panel {
   position: absolute;
+  left: 1rem;
   top: 1rem;
-  right: 1rem;
-  bottom: 1rem;
   width: 30rem;
   max-width: calc(100% - 2rem);
+  max-height: calc(100% - 2rem);
   display: flex;
   flex-direction: row;
   overflow-y: auto;
@@ -394,6 +415,52 @@ svg {
   cursor: pointer;
   stroke: white;
   stroke-width: 1.5px;
+}
+
+/* Status, drawn on the node itself -- the one thing about a node worth
+   knowing without opening its panel.
+
+   Keyed off a class the server puts on the shape, never off a colour
+   the server computed: the hue set lives in global.css and the two
+   numbers that turn a hue into a fill live here, which is the same
+   split every other rule in this file keeps. Saturation and lightness
+   are shared across all four so the palette reads as one set, and the
+   lightness is pinned near `--accent-light` because the label sitting
+   on top of it is `--text-primary`.
+
+   A status with no rule here -- a row added to project.node_status and
+   not yet given a hue -- keeps `.work`'s own fill. The drawing degrades
+   to the colourless version of itself rather than losing the node.
+
+   Hover bumps the lightness rather than replacing the fill, so a
+   coloured node still answers a pointer without the colour that says
+   what it is going away underneath it. */
+#tree-container .node .work {
+  --status-sat: 32%;
+  --status-light: 31%;
+}
+
+#tree-container .node .work.status-open {
+  fill: hsl(var(--status-hue-open) var(--status-sat) var(--status-light));
+}
+
+#tree-container .node .work.status-active {
+  fill: hsl(var(--status-hue-active) var(--status-sat) var(--status-light));
+}
+
+#tree-container .node .work.status-closed {
+  fill: hsl(var(--status-hue-closed) var(--status-sat) var(--status-light));
+}
+
+#tree-container .node .work.status-rejected {
+  fill: hsl(var(--status-hue-rejected) var(--status-sat) var(--status-light));
+}
+
+#tree-container .node .work.status-open:hover,
+#tree-container .node .work.status-active:hover,
+#tree-container .node .work.status-closed:hover,
+#tree-container .node .work.status-rejected:hover {
+  --status-light: 41%;
 }
 
 #tree-container .node text {

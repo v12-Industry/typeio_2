@@ -3,11 +3,11 @@
 module Domain.Central.Responder.Ui.IndexView where
 
 import Common.Web.Attributes
-import Data.Maybe (fromMaybe)
+import Common.Web.Query (queryTextToText)
 import Data.Text (Text)
 import Lucid
 import Network.HTTP.Types (status200)
-import Network.HTTP.Types.URI (QueryText, queryToQueryText)
+import Network.HTTP.Types.URI (queryToQueryText)
 import Network.Wai (Application, queryString, responseLBS)
 
 htmxConfig :: Text
@@ -18,17 +18,6 @@ htmxConfig =
     <> "{\"code\":\"[23]..\",\"swap\":true},"
     <> "{\"code\":\"[45]..\",\"swap\":false,\"error\":true}"
     <> "]}"
-
-queryTextToText :: QueryText -> Maybe Text
-queryTextToText [] = Nothing
-queryTextToText qs =
-  Just $
-    foldr
-      ( \(k, v) acc ->
-          acc <> k <> "=" <> fromMaybe "" v <> "&"
-      )
-      "?"
-      qs
 
 handleIndexView :: Text -> Application
 handleIndexView path req res = do

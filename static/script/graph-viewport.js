@@ -21,6 +21,12 @@
 //   arrow keys           pan          (keyboard equivalent, since
 //   + / - / 0            zoom, reset   there are no buttons)
 //
+// The transform is announced as a `graph:viewport` DOM event on
+// #tree-container whenever it moves. What anything else does with it --
+// mirroring it into the URL, say -- is decided outside this file, by
+// the hyperscript on that element. This file owns the transform and
+// nothing else: it has no idea a query string exists.
+//
 // d3 is loaded only from here, and this file is loaded only by the
 // graph fragment -- see the note on the <script> tag in Graph.hs. That
 // scoping is the point: this bundle is ~47KB and arrives only with a
@@ -99,6 +105,52 @@
 
       let moved = false;
       let gestureStart = null;
+      // Whether the view on screen is the user's or just the one it
+      // opened at. Travels in the announcement, because a listener that
+      // persists the view wants to know the difference: an untouched
+      // view is better recomputed on arrival than stored, since the
+      // opening transform centres the root against the container's
+      // current size and a window resized since would restore off
+      // centre.
+      let adjusted = false;
+
+      const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+      // The view this request asked for, handed over by the server as
+      // data attributes on the container -- the same way the root's
+      // coordinates arrive. Reading the query string here instead would
+      // put the application's URL vocabulary inside a file whose whole
+      // job is one transform.
+      const requestedTransform = () => {
+        const x = parseFloat(container.dataset.viewX);
+        const y = parseFloat(container.dataset.viewY);
+        const k = parseFloat(container.dataset.viewScale);
+        if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(k)) {
+          return null;
+        }
+        // A hand-edited or stale scale is clamped rather than refused:
+        // the same extent the gestures are held to, so no URL can put
+        // the graph somewhere the gestures cannot get back from.
+        return zoomIdentity.translate(x, y).scale(clamp(k, MIN_SCALE, MAX_SCALE));
+      };
+
+      // The viewport's one outbound signal, and the whole of its
+      // interface to the rest of the app. It reports where it is; what
+      // that should mean is somebody else's decision.
+      const announce = () => {
+        const t = zoomTransform(svg);
+        container.dispatchEvent(
+          new CustomEvent("graph:viewport", {
+            bubbles: true,
+            detail: {
+              x: Number(t.x.toFixed(2)),
+              y: Number(t.y.toFixed(2)),
+              k: Number(t.k.toFixed(4)),
+              adjusted,
+            },
+          })
+        );
+      };
 
       const zb = zoom()
         .scaleExtent([MIN_SCALE, MAX_SCALE])
@@ -114,10 +166,14 @@
         .on("start", (event) => {
           moved = false;
           gestureStart = event.transform;
-          if (event.sourceEvent) container.classList.add("is-panning");
+          if (event.sourceEvent) {
+            container.classList.add("is-panning");
+            adjusted = true;
+          }
         })
         .on("zoom", (event) => {
           layer.setAttribute("transform", event.transform.toString());
+          announce();
           // A press only counts as a drag past DRAG_THRESHOLD pixels,
           // so a click with a pixel of hand-shake in it still opens the
           // node it landed on.
@@ -139,7 +195,10 @@
 
       const currentScale = () => zoomTransform(svg).k;
 
-      const reset = () => zb.transform(svgSel, openingTransform());
+      const reset = () => {
+        adjusted = false;
+        zb.transform(svgSel, openingTransform());
+      };
 
       // --- Wheel: pan, or zoom with ctrl/cmd ---------------------------
       //
@@ -152,6 +211,7 @@
         "wheel",
         (event) => {
           event.preventDefault();
+          adjusted = true;
           if (event.ctrlKey || event.metaKey) {
             zb.scaleBy(
               svgSel,
@@ -187,8 +247,17 @@
         (event) => {
           if (event.metaKey || event.ctrlKey || event.altKey) return;
           const k = currentScale();
-          const pan = (dx, dy) =>
+          // Marking the adjustment inside the movers rather than beside
+          // the switch keeps it off the two keys that do not move the
+          // view: an unhandled key, and `0`, whose `reset` clears it.
+          const pan = (dx, dy) => {
+            adjusted = true;
             zb.translateBy(svgSel, dx / k, dy / k);
+          };
+          const zoomBy = (factor) => {
+            adjusted = true;
+            zb.scaleBy(svgSel, factor);
+          };
           switch (event.key) {
             case "ArrowLeft":
               pan(KEY_PAN_STEP, 0);
@@ -204,11 +273,11 @@
               break;
             case "+":
             case "=":
-              zb.scaleBy(svgSel, KEY_ZOOM_STEP);
+              zoomBy(KEY_ZOOM_STEP);
               break;
             case "-":
             case "_":
-              zb.scaleBy(svgSel, 1 / KEY_ZOOM_STEP);
+              zoomBy(1 / KEY_ZOOM_STEP);
               break;
             case "0":
               reset();
@@ -241,10 +310,13 @@
       // --- Start ---------------------------------------------------------
       // Deferred one frame: the fragment has just been swapped in, and
       // container.clientWidth/clientHeight are only meaningful once the
-      // browser has laid it out.
+      // browser has laid it out. A view the request asked for wins over
+      // the opening one.
       requestAnimationFrame(() => {
         if (disposed) return;
-        zb.transform(svgSel, openingTransform());
+        const t = requestedTransform();
+        adjusted = t !== null;
+        zb.transform(svgSel, t ?? openingTransform());
       });
 
       // d3 binds its own listeners outside the AbortController, so they

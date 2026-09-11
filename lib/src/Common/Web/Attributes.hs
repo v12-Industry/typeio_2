@@ -141,6 +141,18 @@ dataRootY_ = makeAttributes "data-root-y"
 dataNodeId_ :: Text -> Attributes
 dataNodeId_ = makeAttributes "data-node-id"
 
+dataViewBase_ :: Text -> Attributes
+dataViewBase_ = makeAttributes "data-view-base"
+
+dataViewX_ :: Text -> Attributes
+dataViewX_ = makeAttributes "data-view-x"
+
+dataViewY_ :: Text -> Attributes
+dataViewY_ = makeAttributes "data-view-y"
+
+dataViewScale_ :: Text -> Attributes
+dataViewScale_ = makeAttributes "data-view-scale"
+
 dataSaves_ :: Attributes
 dataSaves_ = makeAttributes "data-saves" ""
 

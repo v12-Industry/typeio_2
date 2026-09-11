@@ -5,6 +5,7 @@ module Common.Web.Query where
 import Data.List (find)
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
+import qualified Data.Text as T
 import Network.HTTP.Types.URI (QueryText)
 
 lookupVal :: Text -> QueryText -> Maybe Text
@@ -22,10 +23,8 @@ setQueryParam k v qt
 queryTextToText :: QueryText -> Maybe Text
 queryTextToText [] = Nothing
 queryTextToText qs =
-  Just $
-    foldr
-      ( \(k, v) acc ->
-          acc <> k <> "=" <> fromMaybe "" v <> "&"
-      )
-      "?"
-      qs
+  Just
+    . ("?" <>)
+    . T.intercalate "&"
+    . map (\(k, v) -> k <> "=" <> fromMaybe "" v)
+    $ qs

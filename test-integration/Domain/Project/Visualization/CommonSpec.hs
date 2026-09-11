@@ -57,8 +57,8 @@ spec = aroundAll withTestDatabase $
         -- Rects, from the shared layout engine. The project root is
         -- absent by design and no containment edge is derived to reach
         -- the work: the dependencies are the whole drawing.
-        body `shouldContainStr` "<rect class=\"work\""
-        body `shouldNotContainStr` "<rect class=\"root\""
+        body `shouldContainStr` "<rect class=\"work"
+        body `shouldNotContainStr` "<rect class=\"root"
         body `shouldNotContainStr` "link-contains"
 
       it "serves the orbital drawing when asked for it" $ \pool -> do
@@ -67,7 +67,7 @@ spec = aroundAll withTestDatabase $
 
         -- Circles rather than rects: a different geometry entirely.
         body `shouldContainStr` "<circle class=\"work"
-        body `shouldNotContainStr` "<rect class=\"work\""
+        body `shouldNotContainStr` "<rect class=\"work"
 
       it "falls back to the default when the parameter is absent" $ \pool -> do
         -- Asserted against `defaultVisualization` rather than against
