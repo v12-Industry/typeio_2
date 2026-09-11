@@ -22,7 +22,6 @@ spec = do
         `shouldBe` AsRequested defaultVisualization
 
     it "uses a value it recognises" $ do
-      resolveVisualization (Just "Layered") `shouldBe` AsRequested Layered
       resolveVisualization (Just "Rootless") `shouldBe` AsRequested Rootless
       resolveVisualization (Just "Orbital") `shouldBe` AsRequested Orbital
 
@@ -56,7 +55,7 @@ spec = do
 
   describe "chosenVisualization" $ do
     it "reads the visualization out of either outcome" $ do
-      chosenVisualization (AsRequested Layered) `shouldBe` Layered
+      chosenVisualization (AsRequested Rootless) `shouldBe` Rootless
       chosenVisualization (FellBack Orbital) `shouldBe` Orbital
 
   describe "the Read/Show pair the parameter relies on" $ do
@@ -68,4 +67,4 @@ spec = do
             resolveVisualization (Just (pack (show v)))
               `shouldBe` AsRequested v
         )
-        [Layered, Rootless, Orbital]
+        [Rootless, Orbital]

@@ -13,8 +13,7 @@ import Data.Text (Text, unpack)
 import Text.Read (readMaybe)
 
 data Visualization
-  = Layered
-  | Rootless
+  = Rootless
   | Orbital
   deriving (Eq, Read, Show)
 

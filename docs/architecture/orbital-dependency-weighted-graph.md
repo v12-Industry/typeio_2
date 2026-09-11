@@ -1,8 +1,8 @@
 # The Orbital Dependency-Weighted Graph
 
-> **One of three visualizations, and the only one that is not layered.**
-> `Layered` and `Rootless` share a geometry engine; this one brings its
-> own. See
+> **One of two visualizations, and the one that is not layered.**
+> `Rootless` draws with the shared layered geometry engine; this one
+> brings its own. See
 > [`visualization-switching.md`](visualization-switching.md) for how the
 > app holds several drawings at once and what they may share.
 >
@@ -30,12 +30,12 @@ than *nodes*. Every dependency relationship in the project gets its own
 drawn instance, and the price is that node identity stops being
 one-circle-one-node.
 
-That is a deliberate trade, and it buys something the other two
-visualizations cannot offer: **there are no crossing edges at all.**
-Not minimised — structurally absent. `Layered` runs a crossing-reduction
-heuristic in `Graph.Order` and never claims zero; `Rootless` improves on
-it by removing the node that caused most of the crossings, but
-still cannot promise none. Here, every drawn node has exactly one
+That is a deliberate trade, and it buys something a layered drawing
+cannot offer: **there are no crossing edges at all.**
+Not minimised — structurally absent. The layered engine runs a
+crossing-reduction heuristic in `Graph.Order` and never claims zero;
+`Rootless` improves on that by leaving out the node that causes most of
+the crossings, but still cannot promise none. Here, every drawn node has exactly one
 dependent and every tree owns a disjoint wedge of the circle, so there
 is nothing for an edge to cross.
 
@@ -703,8 +703,8 @@ angle and no replica ordinal, `PlacedEdge` is a polyline with jump
 points, and `templateServerGraph` renders rects, orthogonal paths and
 `#node-<id>` ids.
 
-So `Layered` and `Rootless` are thin compositions of the pieces they
-already use —
+So a layered drawing like `Rootless` is a thin composition of the pieces
+it already uses —
 
 ```haskell
 renderGraph pid ns ds = templateServerGraph (buildGraph pid ns ds)

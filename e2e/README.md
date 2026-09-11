@@ -68,9 +68,11 @@ forwards it to the htmx request that fetches the graph fragment.
 
 A spec that names none gets `Config.Visualization`'s hardcoded default,
 which is whichever visualization was added most recently. Worth knowing
-when reading `graph.spec.ts`: it asks for `Layered` explicitly rather
-than relying on that default, precisely so it keeps testing the layered
-drawing when a newer one arrives.
+when reading `graph-viewport.spec.ts`: the gestures it drives belong to
+`graph-viewport.js` and behave the same under any drawing, but it still
+asks for `Rootless` explicitly rather than relying on that default, so
+that the node counts it asserts stay predictable when a newer
+visualization arrives.
 
 One server serves every drawing, so the whole suite runs against a
 single process — see
@@ -100,8 +102,11 @@ fact, action by action, not just pass/fail.
   description through the node-detail panel.
 - `tests/node-status.spec.ts` — changes a node's status via the
   node-detail panel's status dropdown.
-- `tests/graph.spec.ts` — clicks a node in the D3-rendered dependency
-  graph and asserts its detail panel opens/highlights/clears correctly.
+- `tests/graph-viewport.spec.ts` — drives the graph viewport's own
+  gestures: keyboard zoom, ctrl+wheel zoom against a plain wheel pan,
+  and pointer-drag panning that must not read as a click on a node.
+- `tests/orbital.spec.ts` — the orbital drawing: replicas of a shared
+  dependency, hover and panel highlighting across them, and placement.
 - `tests/manage-layout.spec.ts` — the Manage Project view's layout: the
   graph canvas fills the view, and the node detail panel floats over it
   rather than taking a column beside it.

@@ -10,8 +10,8 @@ environment, so none of this belongs in @Config.AppSpec@.
 The point of testing it at this tier rather than by calling
 'resolveVisualization' directly is that the interesting failure is not
 "does the string parse" but "does the right drawing come back". So each
-case asserts on the rendered markup, and the three drawings are told
-apart by things only one of them emits. A value that names no
+case asserts on the rendered markup, and the drawings are told apart by
+things only one of them emits. A value that names no
 visualization is answered with a redirect to the default rather than an
 error, so those cases assert on the Location header instead.
 
@@ -50,23 +50,16 @@ spec :: Spec
 spec = aroundAll withTestDatabase $
   beforeWith resetBetweenTests $
     describe "handleGraph, the visualizationMode switch (integration)" $ do
-      it "serves the layered drawing when asked for it" $ \pool -> do
-        pid <- fixture pool
-        body <- graphBody pool pid [("visualizationMode", Just "Layered")]
-
-        -- Only the layered drawing keeps the project root, and only it
-        -- derives a containment edge to reach the work.
-        body `shouldContainStr` "<rect class=\"root\""
-        body `shouldContainStr` "link-contains"
-
       it "serves the rootless drawing when asked for it" $ \pool -> do
         pid <- fixture pool
         body <- graphBody pool pid [("visualizationMode", Just "Rootless")]
 
-        -- Layered geometry (rects) but no root, which is the whole of
-        -- what distinguishes it from the case above.
+        -- Rects, from the shared layout engine. The project root is
+        -- absent by design and no containment edge is derived to reach
+        -- the work: the dependencies are the whole drawing.
         body `shouldContainStr` "<rect class=\"work\""
         body `shouldNotContainStr` "<rect class=\"root\""
+        body `shouldNotContainStr` "link-contains"
 
       it "serves the orbital drawing when asked for it" $ \pool -> do
         pid <- fixture pool

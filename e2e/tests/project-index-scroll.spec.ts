@@ -68,12 +68,11 @@ test('the project index can be scrolled to its last card by wheel', async ({ pag
 // graph and checking it doesn't move -- graph-viewport.js's own wheel
 // handler already calls preventDefault() to drive its pan/zoom, which
 // would mask whether the opt-out CSS rule is actually present. Computed
-// style is what graph.spec.ts's arrowhead test reaches for in the same
-// situation (a markup assertion passing straight through what the
-// browser actually renders), for the same reason.
+// style is what any assertion reaches for in this situation -- a markup
+// check would pass straight through what the browser actually renders.
 test("the graph page's #view stays non-scrolling", async ({ page }) => {
   const project = await createProject(page, 'E2E index-scroll graph opt-out');
-  await page.goto(`/ui/project/vw?projectId=${project.id}&visualizationMode=Layered`);
+  await page.goto(`/ui/project/vw?projectId=${project.id}&visualizationMode=Rootless`);
 
   await expect(page.locator('#tree-container')).toBeVisible();
 

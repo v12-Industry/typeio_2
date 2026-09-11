@@ -151,8 +151,7 @@ that is never ambiguous.
 
 | Label | Means |
 |---|---|
-| `viz:layered` | The layered orthogonal SVG graph — `graph-rendering.md` |
-| `viz:rootless` | The variant that draws the work without the project node |
+| `viz:rootless` | The orthogonal SVG graph of the work, drawn without the project node — `graph-rendering.md` |
 | `viz:orbital` | The orbital dependency-weighted radial graph, which replicates a shared dependency per work stream — `orbital-dependency-weighted-graph.md` |
 | `viz:all` | Spans every visualization: the switching mechanism itself, the shared queries, this taxonomy |
 | `viz:tbd` | Visualization work whose target isn't decided yet |

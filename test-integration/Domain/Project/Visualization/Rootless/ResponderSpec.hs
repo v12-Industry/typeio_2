@@ -2,14 +2,14 @@
 
 {- | Integration coverage for the rootless visualization.
 
-Like @ProjectManage.GraphSpec@, these assertions are about the rendered
-markup rather than geometry: the layout engine is shared with the
-layered visualization and is unit-tested there, so what needs pinning
-here is the /conversion/ — which nodes and edges this visualization
-decides the drawing is of.
+These assertions are about the rendered markup rather than geometry:
+the layout engine this visualization draws with is shared, and is
+unit-tested under @test\/Domain\/Project\/Graph\/@, so what needs
+pinning here is the /conversion/ — which nodes and edges this
+visualization decides the drawing is of.
 
-Three things, and each one is a way the visualization could regress into
-looking like the layered one:
+Three things, and each one is a way the drawing could quietly grow a
+root it is not supposed to have:
 
 1.  No project root is drawn.
 2.  No containment edge is derived.
@@ -52,9 +52,8 @@ spec = aroundAll withTestDatabase $
 
         body <- graphBody pool (fromSqlKey projectKey)
 
-        -- The layered visualization renders the root as
-        -- `<rect class="root"`; the whole point here is that it isn't
-        -- in the document at all.
+        -- A drawn root would arrive as `<rect class="root"`; the whole
+        -- point here is that it isn't in the document at all.
         body `shouldNotContainStr` "<rect class=\"root\""
         body `shouldContainStr` "<rect class=\"work\""
 
@@ -100,7 +99,7 @@ spec = aroundAll withTestDatabase $
         body `shouldContainStr` "class=\"link\""
         body `shouldContainStr` "marker-end=\"url(#arrow)\""
 
-      it "serves the same viewport script as the layered drawing" $ \pool -> do
+      it "serves the shared viewport script with the drawing" $ \pool -> do
         -- Shared rendering, so the pan/zoom layer has to arrive with
         -- this fragment too -- it is loaded from inside the fragment
         -- rather than at page load.

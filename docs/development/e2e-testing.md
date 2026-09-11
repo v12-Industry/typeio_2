@@ -100,17 +100,16 @@ covered:
   comments for a real app bug found while writing this (the edit
   dropdown never actually shows the node's real current status,
   regardless of what's in the database).
-- **`tests/graph.spec.ts`** — the server-rendered dependency graph.
-  Clicks a node and asserts its detail panel opens and it picks up the
-  `.node-highlight` glow, then that closing clears both; that the boxes
-  are laid out without overlapping; that no graph data is sent for a
-  client to lay out (the d3 the viewport loads moves a transform, it
-  does not compute positions); and that the viewport pans and zooms by
-  keyboard, wheel and drag, since the viewport has no buttons to click. See
-  the spec's
-  comments for a severe app bug found while writing the first of these
-  (the graph never positioned any node past the first one, long
-  since fixed).
+- **`tests/graph-viewport.spec.ts`** — the graph viewport's gestures,
+  which belong to `graph-viewport.js` rather than to any one drawing:
+  that it opens at natural size, and that it zooms by keyboard and by
+  ctrl+wheel, pans by plain wheel and by pointer drag, since the
+  viewport has no buttons to click. The drag case also asserts that a
+  drag across a node does not read as a click and open its panel.
+- **`tests/orbital.spec.ts`** — the orbital drawing: that a node with
+  several dependents is drawn once per dependent, that hovering one
+  replica highlights them all, that clicking any replica opens the one
+  node's panel, and that the discs are placed clear of each other.
 - **`tests/manage-layout.spec.ts`** — the Manage Project view's layout,
   which is entirely a CSS result and so invisible to the other two
   suites: that `#tree-container` fills `#view` in both axes, that `#view`
@@ -183,7 +182,7 @@ to this suite should follow the same conventions:
   default habit.
 
   `dispatchEvent` is the workaround when an element cannot be reliably
-  clicked at a screen position. `graph.spec.ts` does not need it: the
+  clicked at a screen position. The graph specs do not need it: the
   server places nodes deterministically, so a real `click()` works and
   doubles as a check that nodes land somewhere visible. The technique
   stays documented because the situation recurs elsewhere.

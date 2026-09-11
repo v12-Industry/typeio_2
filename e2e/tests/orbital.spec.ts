@@ -40,8 +40,8 @@ async function demoProjectId(page: Page): Promise<string> {
 //
 // Settled-state check per e2e-testing.md's hazards: the graph arrives by
 // an htmx swap into #tree-container, not synchronously with navigation.
-// Waiting on a disc being attached is the same discipline graph.spec.ts
-// uses for `.node`.
+// Waiting on a disc being attached is the same discipline every spec
+// here uses before touching the drawing.
 async function openGraph(page: Page): Promise<string> {
   const projectId = await demoProjectId(page);
   await page.goto(

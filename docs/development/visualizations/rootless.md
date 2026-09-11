@@ -9,8 +9,8 @@ For the mechanism that selects this visualization, see
 For the layout pipeline it draws with (layer assignment, ordering,
 coordinates, edge routing), see
 [`../../architecture/graph-rendering.md`](../../architecture/graph-rendering.md) —
-that pipeline is shared with the layered visualization and isn't
-repeated here.
+that pipeline is the shared layered layout engine and isn't repeated
+here.
 
 ## What it draws
 
@@ -22,9 +22,9 @@ repeated here.
   the drawing. `layout` is total and would otherwise place the missing
   end at the origin and draw a stray arrow into empty space (see
   `Domain.Project.Visualization.Rootless.Responder.buildGraph`).
-- **No containment edges.** Containment is how the *Layered*
-  visualization depicts membership; not depicting it at all is this
-  visualization's entire premise, so nothing is derived here.
+- **No containment edges.** A containment edge is how a drawing depicts
+  a project's membership of its work; not depicting membership at all is
+  this visualization's entire premise, so nothing is derived here.
 
 The project's own row is untouched in the database and still names the
 project elsewhere in the UI (e.g. the project index) — it just isn't a
@@ -37,8 +37,9 @@ the dominant source of visual mess on a project with several parallel
 workstreams — every workstream's head has to attach to it, and that
 fan-out is what produces most of the bends and edge crossings. Measured
 with the same layout engine on synthetic fixtures: four independent
-workstreams went from 8 bends and 2 crossings (Layered) to zero of each
-with the root left out; six parallel chains went from 6 crossings to 0.
+workstreams went from 8 bends and 2 crossings with the root drawn to
+zero of each with it left out; six parallel chains went from 6 crossings
+to 0.
 
 ## Selecting it
 
@@ -72,7 +73,7 @@ See
 
 `test-integration/Domain/Project/Visualization/Rootless/ResponderSpec.hs`
 asserts, against rendered markup, the three ways this conversion could
-regress into looking like Layered:
+quietly grow a root it is not supposed to have:
 
 1. No project root is drawn.
 2. No containment edge is derived.

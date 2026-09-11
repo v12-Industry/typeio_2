@@ -1,11 +1,11 @@
-# Dependency Graph Rendering — the layered visualization
+# Dependency Graph Rendering — the layered layout engine
 
 > **The pipeline below is shared; the drawing it produces is not.**
 > `Domain.Project.Graph.*` is the layered layout engine, and it is
 > *shared infrastructure* — any visualization that wants layered
-> geometry uses this one copy. Two do: `viz:layered` and `viz:rootless`,
-> which differ only in what they hand the engine, not in how the engine
-> works. Which drawing the app serves is selected by a
+> geometry uses this one copy. One does today: `viz:rootless`. What a
+> visualization hands the engine is its own; how the engine works is
+> not. Which drawing the app serves is selected by a
 > `visualizationMode` query parameter; see
 > [`visualization-switching.md`](visualization-switching.md) for the
 > switch and for where the line between shared and per-visualization
@@ -13,7 +13,7 @@
 >
 > So read everything below as geometry, not as policy. Statements here
 > about the project root — that it heads the drawing, that its edges are
-> derived — describe what the *layered* visualization asks for. The
+> derived — describe what a visualization *may* ask the engine for. The
 > rootless one asks for neither, and the engine neither knows nor cares.
 >
 > The one thing most worth understanding here: every edge means "the
@@ -556,18 +556,17 @@ anyway. Full titles remain available in the node detail panel.
 
 ### The DOM contract — do not change these
 
-The CSS, the htmx wiring and the e2e suite all bind to these. Keeping
-them stable through the cutover is what lets `e2e/tests/graph.spec.ts`
-act as a regression check on the rewrite instead of being rewritten
-alongside it.
+The CSS, the htmx wiring and the e2e suite all bind to these. They are
+strings in one file matching strings in another, which is exactly the
+pairing a compiler cannot check and a rename silently breaks.
 
 | Selector | Depended on by |
 |---|---|
 | `#tree-container` | `manage-project.css` (sizing, and the viewport's clipping box) |
-| `#graph-nodes`, `#graph-links` | `graph.spec.ts`, CSS |
-| `#node-<id>` | `graph.spec.ts`, the node-detail refresh hook |
+| `#graph-nodes`, `#graph-links` | `graph-viewport.spec.ts`, CSS |
+| `#node-<id>` | the node-detail refresh hook |
 | `#node-text-<id>` | the per-node label refresh hook (`Node.Refresh`) |
-| `.node`, `.node-highlight`, `.flash` | CSS, `graph.spec.ts` |
+| `.node`, `.node-highlight`, `.flash` | CSS, the e2e suite |
 | `.root` / `.work` on the node's shape | CSS (fill, hover, glow, flash) |
 | `.link` | CSS |
 | `hx-get`/`hx-target="#node-panel"`/`hx-push-url` on each node | the whole node-detail interaction |
@@ -577,7 +576,7 @@ off the element name.** `manage-project.css` sets fill, hover, glow and
 flash that way, which is what makes changing a node's shape cheap:
 element names in selectors are what would make it expensive.
 
-`graph.spec.ts`'s overlap assertion reads each box's own width and
+An overlap assertion against this drawing reads each box's own width and
 height off the `rect` and tests real rectangle intersection, rather than
 comparing centre distances against a nominal size — exact rather than a
 proxy.
@@ -673,7 +672,7 @@ the parts to be careful around:
   *before* the dynamic import resolves, so a fast second swap cannot
   race a half-initialised viewport.
 
-`e2e/tests/graph.spec.ts` drives the gestures for real in a browser,
+`e2e/tests/graph-viewport.spec.ts` drives the gestures for real in a browser,
 asserting on the zoom layer's `transform`. Integration assertions on the
 emitted markup cannot cover a viewport: nothing about pan and zoom is
 visible in what the server sends.

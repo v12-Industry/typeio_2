@@ -64,10 +64,10 @@ cases:
 | Running/writing unit tests, and what's out of scope (responders) | `docs/development/unit-testing.md` |
 | Running/writing integration tests (the responder-testing answer) | `docs/development/integration-testing.md` |
 | Running/writing E2E tests (Playwright, htmx interaction hazards, CI's `run-e2e` label) | `docs/development/e2e-testing.md` |
-| Anything touching the dependency graph's layout or rendering | `docs/architecture/graph-rendering.md` -- the pipeline for the *layered* visualization: module map, per-phase contracts, and the dependency-vs-containment distinction |
+| Anything touching the dependency graph's layout or rendering | `docs/architecture/graph-rendering.md` -- the *layered* layout engine's pipeline: module map, per-phase contracts, and the dependency-vs-containment distinction |
 | How the app holds several graph visualizations and picks one, and what they may share | `docs/architecture/visualization-switching.md` -- the request parameter, the dispatch table, and what visualizations share |
 | The orbital dependency-weighted visualization -- radial, with shared dependencies replicated per work stream | `docs/architecture/orbital-dependency-weighted-graph.md` -- the design, its unfolding and placement contracts, and its DOM contract |
-| What a given visualization actually draws, and where its own code lives | `docs/development/visualizations/` -- one file each for Layered, Rootless and Orbital |
+| What a given visualization actually draws, and where its own code lives | `docs/development/visualizations/` -- one file each for Rootless and Orbital |
 | Which GitHub issue labels to use | `docs/development/labels.md` |
 | How to cut a release (version bump, tagging, GitHub Releases) | `docs/development/release-management.md` |
 | Repo-level config (GitHub branch protection) as OpenTofu/Terragrunt | `docs/development/infrastructure.md` |
@@ -111,8 +111,8 @@ still telling the truth about the day it was written.
 - **Run the server:** `cabal run server` (loads config from `.env` — see
   that file for the required variables; none are hardcoded).
   Which dependency-graph visualization renders is chosen per request by
-  an optional `visualizationMode` query parameter (`Layered`,
-  `Rootless` or `Orbital`) — not by configuration; an absent one takes a
+  an optional `visualizationMode` query parameter (`Rootless` or
+  `Orbital`) — not by configuration; an absent one takes a
   hardcoded default, an unrecognised one redirects to the default. See
   [`docs/architecture/visualization-switching.md`](docs/architecture/visualization-switching.md).
 - **Start Postgres:** `make run-postgres`
