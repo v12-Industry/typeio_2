@@ -104,12 +104,7 @@ viewTransform qt =
   where
     dbl k = lookupVal k qt >>= readMaybe . unpack
 
-{- | This page's URL with any view parameters taken back out: what the
-address bar should read when the graph is sitting at its opening view.
-The hyperscript that mirrors the viewport appends to this rather than
-editing the current URL in place, which keeps it out of the business of
-parsing a query string.
--}
+-- docs/development/frontend/index.md's viewport section
 viewBase :: Request -> QueryText -> Text
 viewBase req qt =
   decodeUtf8 $
@@ -189,24 +184,7 @@ templateToolbar =
       span_ [class_ "back-link-arrow"] "←"
       span_ "Back to projects"
 
-{- | Mirrors the graph viewport into the address bar.
-
-The viewport itself knows nothing about URLs: it announces where it is
-as a @graph:viewport@ event and this decides what that means. A view the
-user has moved is spelled out in the query string; one still at its
-opening position is left out, so a reset gives back the plain URL the
-project was reached by.
-
-@replaceState@ rather than a push: a pan is not a navigation, and a
-history entry per gesture would bury the node the user actually
-navigated to. The 200ms settle is here rather than in the script for the
-same reason the URL is -- it is a property of this effect, not of the
-transform.
-
-Opening a node pushes a URL of its own, with no view in it. That URL
-becomes the new base, and the view is written back on top, so a reload
-after a click lands where a reload after a gesture does.
--}
+-- docs/architecture/graph-rendering.md's Viewport section
 viewUrlBehavior :: Text
 viewUrlBehavior =
   T.unwords
