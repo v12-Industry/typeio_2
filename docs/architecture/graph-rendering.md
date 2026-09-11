@@ -545,15 +545,15 @@ coordinates baked in. No `#graph-data` JSON, no layout script.
   appearance across two files and drops silently out of any theme
   change.
 - **A node's status rides in the same class attribute**, as
-  `status-<id>` beside `.root`/`.work` — `class="work status-active"`.
-  That is a *fact about the node*, not an appearance value: the
-  stylesheet owns which hue a status is drawn in, exactly as it owns
-  what `.work` is filled with, so the rule above is intact. A status
-  with no rule in the stylesheet keeps `.work`'s own fill, which is
-  what lets a new row in `project.node_status` appear in the drawing
-  before anyone has chosen a colour for it. The id is put through
-  `Data.Text.Util.slug` first, because the vocabulary is a database
-  table and nothing from a row may escape a class attribute.
+  `status-open`/`status-active`/`status-closed`/`status-rejected`
+  beside `.root`/`.work` — `class="work status-active"`. That is a
+  *fact about the node*, not an appearance value: the stylesheet owns
+  which hue a status is drawn in, exactly as it owns what `.work` is
+  filled with, so the rule above is intact. The class name is never
+  built from the row's text: `Domain.Project.Node.Status` resolves the
+  database's status id to one of four constructors at the responder
+  boundary, and `nodeStatusClass` maps each to its class. A row holding
+  anything else carries no status class, and keeps `.work`'s own fill.
 
 ### Labels
 

@@ -34,9 +34,10 @@ import Data.Int (Int64)
 import Data.List (sort)
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
+import Data.Maybe (maybeToList)
 import Data.Text (Text, pack, unpack)
 import qualified Data.Text as T
-import Data.Text.Util (intToText, slug, wrapLabel)
+import Data.Text.Util (intToText, wrapLabel)
 import Database.Esqueleto.Experimental
   ( from
   , fromSqlKey
@@ -77,6 +78,11 @@ import qualified Domain.Project.Model as M
   , Project (..)
   , unNodeStatusKey
   , unNodeTypeKey
+  )
+import Domain.Project.Node.Status
+  ( NodeStatus
+  , nodeStatusClass
+  , nodeStatusFromKey
   )
 import Domain.Project.Responder.Ui.ProjectManage.Link
 import Lucid
@@ -273,13 +279,13 @@ validateProjectId qt = runValidation id $ do
 data ServerGraph = ServerGraph
   { sgProjectId :: Int64
   , sgLabels :: Map NodeId Text
-  , sgStatuses :: Map NodeId Text
+  , sgStatuses :: Map NodeId NodeStatus
   , sgDiagram :: Diagram
   }
 
 serverGraph ::
   Int64 ->
-  Map NodeId Text ->
+  Map NodeId NodeStatus ->
   [LayoutNode] ->
   [LayoutEdge] ->
   ServerGraph
@@ -291,19 +297,15 @@ serverGraph pid statuses lns les =
     , sgDiagram = layout defaultLayoutConfig lns les
     }
 
-nodeStatuses :: [Entity M.Node] -> Map NodeId Text
+nodeStatuses :: [Entity M.Node] -> Map NodeId NodeStatus
 nodeStatuses ns =
   Map.fromList
-    [ (NodeId (fromSqlKey k), pack (M.unNodeStatusKey (M.nodeNodeStatusId e)))
+    [ (NodeId (fromSqlKey k), st)
     | Entity k e <- ns
+    , st <- maybeToList (nodeStatusFromKey (statusKey e))
     ]
-
-statusClass :: Text -> Maybe Text
-statusClass st
-  | T.null token = Nothing
-  | otherwise = Just ("status-" <> token)
   where
-    token = slug st
+    statusKey = pack . M.unNodeStatusKey . M.nodeNodeStatusId
 
 toLayoutNode :: Entity M.Node -> LayoutNode
 toLayoutNode (Entity k e) =
@@ -501,8 +503,9 @@ nodeGroup sg n =
     shapeClass =
       T.unwords
         . (kindClass (pnKind n) :)
-        . maybe [] pure
-        $ Map.lookup (pnId n) (sgStatuses sg) >>= statusClass
+        . map nodeStatusClass
+        . maybeToList
+        $ Map.lookup (pnId n) (sgStatuses sg)
 
 kindClass :: NodeKind -> Text
 kindClass RootNode = "root"
