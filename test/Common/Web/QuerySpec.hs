@@ -2,11 +2,42 @@
 
 module Common.Web.QuerySpec (spec) where
 
-import Common.Web.Query (lookupVal, setQueryParam)
+import Common.Web.Query (lookupVal, queryTextToText, setQueryParam)
 import Test.Hspec
 
 spec :: Spec
 spec = do
+  describe "queryTextToText" $ do
+    it "has nothing to say about an empty query" $
+      queryTextToText [] `shouldBe` Nothing
+
+    it "keeps the parameters in the order they arrived in" $
+      -- This rebuilds the URL the index shell re-requests, so a
+      -- reordering here is a different URL than the one the user asked
+      -- for.
+      queryTextToText [("projectId", Just "4"), ("visualizationMode", Just "Rootless")]
+        `shouldBe` Just "?projectId=4&visualizationMode=Rootless"
+
+    it "does not leave a trailing separator" $
+      -- A trailing `&` parses back as an extra nameless parameter, and
+      -- anything appending to the URL afterwards inherits it.
+      queryTextToText [("projectId", Just "4")] `shouldBe` Just "?projectId=4"
+
+    it "renders a valueless parameter as a bare assignment" $
+      queryTextToText [("flag", Nothing)] `shouldBe` Just "?flag="
+
+    it "survives a query long enough for order to be visible" $
+      -- Two parameters hide a reversal; five do not.
+      queryTextToText
+        [ ("projectId", Just "4")
+        , ("visualizationMode", Just "Rootless")
+        , ("viewX", Just "486.4")
+        , ("viewY", Just "195.5")
+        , ("viewScale", Just "1.2")
+        ]
+        `shouldBe` Just
+          "?projectId=4&visualizationMode=Rootless&viewX=486.4&viewY=195.5&viewScale=1.2"
+
   describe "setQueryParam" $ do
     it "replaces an existing value" $
       setQueryParam "visualizationMode" "Orbital" [("visualizationMode", Just "Radial")]

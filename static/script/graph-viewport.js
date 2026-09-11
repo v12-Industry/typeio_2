@@ -21,10 +21,11 @@
 //   arrow keys           pan          (keyboard equivalent, since
 //   + / - / 0            zoom, reset   there are no buttons)
 //
-// The transform is also mirrored into the URL's query string, so a
-// reload or a back/forward lands on the view the user had open rather
-// than back at the project root. See `syncUrl` for the shape of that
-// and for why only an adjusted view is written.
+// The transform is announced as a `graph:viewport` DOM event on
+// #tree-container whenever it moves. What anything else does with it --
+// mirroring it into the URL, say -- is decided outside this file, by
+// the hyperscript on that element. This file owns the transform and
+// nothing else: it has no idea a query string exists.
 //
 // d3 is loaded only from here, and this file is loaded only by the
 // graph fragment -- see the note on the <script> tag in Graph.hs. That
@@ -69,16 +70,6 @@
   const rootX = num("rootX", baseWidth / 2);
   const rootY = num("rootY", baseHeight / 2);
 
-  // The transform's three numbers, as query params. Named in the same
-  // camelCase as every other param the app reads (`projectId`,
-  // `visualizationMode`), because they share the URL with them.
-  const PARAM_X = "viewX";
-  const PARAM_Y = "viewY";
-  const PARAM_SCALE = "viewScale";
-  // A pan emits a transform per frame. Rewriting the URL that often is
-  // wasted work, so writes settle first.
-  const URL_SYNC_DELAY = 200;
-
   const MIN_SCALE = 0.2;
   const MAX_SCALE = 3;
   const KEY_PAN_STEP = 60; // px per arrow key press
@@ -115,21 +106,25 @@
       let moved = false;
       let gestureStart = null;
       // Whether the view on screen is the user's or just the one it
-      // opened at. Only the former is worth carrying in the URL: an
-      // untouched view is better recomputed on arrival, because the
+      // opened at. Travels in the announcement, because a listener that
+      // persists the view wants to know the difference: an untouched
+      // view is better recomputed on arrival than stored, since the
       // opening transform centres the root against the container's
       // current size and a window resized since would restore off
       // centre.
       let adjusted = false;
-      let urlSyncTimer = null;
 
       const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
-      const urlTransform = () => {
-        const params = new URLSearchParams(window.location.search);
-        const x = parseFloat(params.get(PARAM_X));
-        const y = parseFloat(params.get(PARAM_Y));
-        const k = parseFloat(params.get(PARAM_SCALE));
+      // The view this request asked for, handed over by the server as
+      // data attributes on the container -- the same way the root's
+      // coordinates arrive. Reading the query string here instead would
+      // put the application's URL vocabulary inside a file whose whole
+      // job is one transform.
+      const requestedTransform = () => {
+        const x = parseFloat(container.dataset.viewX);
+        const y = parseFloat(container.dataset.viewY);
+        const k = parseFloat(container.dataset.viewScale);
         if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(k)) {
           return null;
         }
@@ -139,33 +134,22 @@
         return zoomIdentity.translate(x, y).scale(clamp(k, MIN_SCALE, MAX_SCALE));
       };
 
-      // Writes the current transform into the URL, or takes it back out
-      // once the view is the opening one again -- a reset should leave
-      // the plain URL the project was reached by, not a spelled-out
-      // copy of the default.
-      //
-      // replaceState, never pushState: a pan is not a navigation, and a
-      // history entry per gesture would bury the node the user actually
-      // navigated to under a run of near-identical views.
-      const syncUrl = () => {
-        const url = new URL(window.location.href);
-        if (adjusted) {
-          const t = zoomTransform(svg);
-          url.searchParams.set(PARAM_X, String(Number(t.x.toFixed(2))));
-          url.searchParams.set(PARAM_Y, String(Number(t.y.toFixed(2))));
-          url.searchParams.set(PARAM_SCALE, String(Number(t.k.toFixed(4))));
-        } else {
-          url.searchParams.delete(PARAM_X);
-          url.searchParams.delete(PARAM_Y);
-          url.searchParams.delete(PARAM_SCALE);
-        }
-        if (url.href === window.location.href) return;
-        history.replaceState(history.state, "", url);
-      };
-
-      const scheduleUrlSync = () => {
-        clearTimeout(urlSyncTimer);
-        urlSyncTimer = setTimeout(syncUrl, URL_SYNC_DELAY);
+      // The viewport's one outbound signal, and the whole of its
+      // interface to the rest of the app. It reports where it is; what
+      // that should mean is somebody else's decision.
+      const announce = () => {
+        const t = zoomTransform(svg);
+        container.dispatchEvent(
+          new CustomEvent("graph:viewport", {
+            bubbles: true,
+            detail: {
+              x: Number(t.x.toFixed(2)),
+              y: Number(t.y.toFixed(2)),
+              k: Number(t.k.toFixed(4)),
+              adjusted,
+            },
+          })
+        );
       };
 
       const zb = zoom()
@@ -189,7 +173,7 @@
         })
         .on("zoom", (event) => {
           layer.setAttribute("transform", event.transform.toString());
-          scheduleUrlSync();
+          announce();
           // A press only counts as a drag past DRAG_THRESHOLD pixels,
           // so a click with a pixel of hand-shake in it still opens the
           // node it landed on.
@@ -323,36 +307,14 @@
         { capture: true, signal }
       );
 
-      // --- The URL is the other end of the transform ---------------------
-      //
-      // Opening a node pushes a URL of its own, which arrives without
-      // these params. Restamping the settled view onto the entry htmx
-      // just pushed is what keeps a reload after a click landing where
-      // a reload after a gesture does.
-      document.addEventListener("htmx:pushedIntoHistory", syncUrl, { signal });
-
-      // Back and forward move between entries that each carry their own
-      // view. Reading it here means the graph follows even when htmx
-      // restores the page from its own cache rather than re-running
-      // this script.
-      window.addEventListener(
-        "popstate",
-        () => {
-          const t = urlTransform();
-          adjusted = t !== null;
-          zb.transform(svgSel, t ?? openingTransform());
-        },
-        { signal }
-      );
-
       // --- Start ---------------------------------------------------------
       // Deferred one frame: the fragment has just been swapped in, and
       // container.clientWidth/clientHeight are only meaningful once the
-      // browser has laid it out. A view carried in the URL wins over the
-      // opening one.
+      // browser has laid it out. A view the request asked for wins over
+      // the opening one.
       requestAnimationFrame(() => {
         if (disposed) return;
-        const t = urlTransform();
+        const t = requestedTransform();
         adjusted = t !== null;
         zb.transform(svgSel, t ?? openingTransform());
       });
@@ -361,7 +323,6 @@
       // are removed explicitly on top of aborting the signal.
       const abortSignalTeardown = container._graphViewportTeardown;
       container._graphViewportTeardown = () => {
-        clearTimeout(urlSyncTimer);
         svgSel.on(".zoom", null);
         abortSignalTeardown();
       };
