@@ -19,17 +19,33 @@ import Data.List (group, nub, sort)
 import Database.Persist (Entity, selectList)
 import Database.Persist.Sql (ConnectionPool, entityVal, runSqlPool)
 import Domain.Central.Responder.Api.Seed
-  ( demoDependencies
-  , demoRootTitle
-  , demoWork
+  ( DemoProject (..)
+  , DemoWork (..)
+  , apiLaunch
+  , demoProjects
   , seedDemoProject
+  , seedDemoProjects
   )
 import qualified Domain.Project.Model as M
 import Integration.Support (resetBetweenTests, withTestDatabase)
 import Test.Hspec
 
 seed :: ConnectionPool -> IO ()
-seed = runSqlPool seedDemoProject
+seed = runSqlPool (seedDemoProject apiLaunch)
+
+seedAll :: ConnectionPool -> IO ()
+seedAll = runSqlPool seedDemoProjects
+
+fixtureStatuses :: DemoProject -> [String]
+fixtureStatuses = map dwStatus . dpWork
+
+projectTitles :: DemoProject -> [String]
+projectTitles p = dpTitle p : map dwTitle (dpWork p)
+
+nodeStatusesOf :: ConnectionPool -> IO [String]
+nodeStatusesOf pool =
+  map (M.unNodeStatusKey . M.nodeNodeStatusId . entityVal)
+    <$> runSqlPool (selectList [] []) pool
 
 nodeTitles :: ConnectionPool -> IO [String]
 nodeTitles pool =
@@ -69,12 +85,38 @@ spec =
         seed pool
         titles <- nodeTitles pool
         sort titles
-          `shouldBe` sort (demoRootTitle : [t | (_, t, _) <- demoWork])
+          `shouldBe` sort (dpTitle apiLaunch : map dwTitle (dpWork apiLaunch))
 
       it "records every dependency" $ \pool -> do
         seed pool
         ds <- dependencyPairs pool
-        length ds `shouldBe` length demoDependencies
+        length ds `shouldBe` length (dpDependencies apiLaunch)
+
+      it "gives each work node the status its fixture names" $ \pool -> do
+        -- The fixtures exist to be looked at, and a status that did not
+        -- survive the insert would make every project read as one
+        -- undifferentiated colour.
+        seedAll pool
+        statuses <- nodeStatusesOf pool
+        sort (nub statuses)
+          `shouldBe` sort (nub ("active" : concatMap fixtureStatuses demoProjects))
+
+      it "seeds every fixture project, each with its own nodes" $ \pool -> do
+        seedAll pool
+        projects <- projectCount pool
+        titles <- nodeTitles pool
+        projects `shouldBe` length demoProjects
+        sort titles
+          `shouldBe` sort (concatMap projectTitles demoProjects)
+
+      -- A project with no work is a fixture in its own right: it is what
+      -- an empty graph and a zeroed stats panel are tested against.
+      it "seeds a project with no work nodes at all" $ \pool -> do
+        seedAll pool
+        titles <- nodeTitles pool
+        let empty' = [p | p <- demoProjects, null (dpWork p)]
+        length empty' `shouldSatisfy` (>= 1)
+        mapM_ (\p -> titles `shouldSatisfy` elem (dpTitle p)) empty'
 
       it "gives some node more than one dependent, so a drawing can replicate it" $ \pool -> do
         -- The whole point of the fixture. A node is replicated in the

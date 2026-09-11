@@ -43,25 +43,42 @@ make run-postgres      # start Postgres in Docker
 make migrate-up        # apply all migrations
 cabal build all        # build everything
 cabal run server        # start the app, reads .env
-make seed-db           # reference data + a demo project (needs the server already running)
+make seed-db           # reference data + the demo projects (needs the server already running)
 ```
 
 Once it's running, visit `http://localhost:3000` (or whatever `WEB_PORT`
 is set to) in a browser.
 
 `make seed-db` inserts the reference data (`NodeStatus`/`NodeType`) and
-a demo project, **Public API launch**, with seven work nodes and real
-dependencies between them. It is idempotent — running it twice leaves
-one demo project.
+a set of demo projects. It is idempotent — each project is keyed on its
+own title, so running it twice leaves one of each, and a project
+someone has since edited is left alone.
 
-The demo project is there because the seed once inserted
-reference data only, and there is still no way to create a dependency
-through the UI — so a freshly seeded database drew every graph
-as a handful of disconnected nodes with no edges, in every
-visualization. Its shape is deliberate: three heads, and one node (the
-auth service) that three separate outcomes are waiting on. That shared
-bottleneck is what makes the visualizations differ from each other
-rather than all looking the same.
+The demo projects are there because there is no way to create a
+dependency through the UI, so without them a freshly seeded database
+draws every graph as a handful of disconnected nodes with no edges, in
+every visualization. Their shapes are deliberate, and chosen to differ
+from one another:
+
+| Project | Size | Shape | Statuses |
+|---|---|---|---|
+| Public API launch | 7 | Three heads over a shared bottleneck | All active |
+| Warehouse migration | 6 | One straight chain | Mostly closed, tapering to open |
+| Design system refresh | 5 | No dependencies at all | Every status, including rejected |
+| Billing rewrite | 4 | A diamond over one foundation | Mixed |
+| Mobile relaunch | 12 | Several streams, two shared nodes | Mixed |
+| Compliance audit | 0 | No work at all | — |
+
+The shared bottleneck in **Public API launch** — one node three
+separate outcomes are waiting on — is what makes the visualizations
+differ from each other rather than all looking the same, so it is the
+fixture the orbital E2E spec drives. **Compliance audit** is the empty
+case: an empty drawing and a zeroed stats panel have something to be
+tested against.
+
+The fixtures live in `Domain.Central.Responder.Api.Seed` as
+`demoProjects`, a list of `DemoProject` records — a new one is a new
+entry in that list, not new seeding code.
 
 Other `make migrate-*` targets (`migrate-down`, `migrate-down-all`,
 `migrate-new NAME=...`, `migrate-version`, `migrate-force VERSION=...`)
