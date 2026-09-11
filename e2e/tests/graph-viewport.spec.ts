@@ -143,3 +143,93 @@ test('dragging the canvas pans it without opening a node', async ({ page, reques
   // the pointer.
   await expect(page.locator('#node-panel')).toBeEmpty();
 });
+
+// The transform also lives in the URL, which is what makes a reload or
+// a back/forward land on the view the user had open. The params are
+// written only once the view has actually been moved, so an untouched
+// graph keeps the plain URL it was reached by.
+const viewParams = (page: import('@playwright/test').Page) => {
+  const p = new URL(page.url()).searchParams;
+  return { x: p.get('viewX'), y: p.get('viewY'), k: p.get('viewScale') };
+};
+
+test('the viewport survives a reload through the URL, and a reset clears it', async ({
+  page,
+  request,
+}) => {
+  const project = await createProject(page, 'E2E viewport url');
+  for (const t of ['Url node A', 'Url node B']) {
+    await addNode(request, project.id, t);
+  }
+
+  await page.goto(`/ui/project/vw?projectId=${project.id}&visualizationMode=Rootless`);
+  await expect(page.locator('#graph-nodes .node')).toHaveCount(2);
+  await expect(page.locator('#graph-zoom-layer')).toHaveAttribute('transform', /translate/, {
+    timeout: 10_000,
+  });
+
+  // An untouched view is left out of the URL deliberately: the opening
+  // transform centres the root against the container's current size, so
+  // recomputing it on arrival beats restoring one measured against some
+  // earlier window size.
+  expect(viewParams(page).k).toBeNull();
+
+  await page.locator('#tree-container').focus();
+  await page.keyboard.press('+');
+  await page.keyboard.press('ArrowDown');
+
+  // The write is debounced, so this is a poll rather than a read.
+  await expect.poll(() => viewParams(page).k).not.toBeNull();
+  const adjusted = await layerTransform(page);
+
+  await page.reload();
+  await expect(page.locator('#graph-zoom-layer')).toHaveAttribute('transform', /translate/, {
+    timeout: 10_000,
+  });
+
+  // Back on the same view rather than the opening one. The URL carries
+  // two decimal places, hence the tolerance.
+  const restored = await layerTransform(page);
+  expect(restored.k).toBeCloseTo(adjusted.k, 2);
+  expect(restored.x).toBeCloseTo(adjusted.x, 1);
+  expect(restored.y).toBeCloseTo(adjusted.y, 1);
+
+  // `0` is a reset, which means the opening view -- so the params come
+  // back out rather than being rewritten with the default spelled out.
+  await page.locator('#tree-container').focus();
+  await page.keyboard.press('0');
+  await expect.poll(() => viewParams(page).k).toBeNull();
+  await expect.poll(async () => (await layerTransform(page)).k).toBeCloseTo(1, 2);
+});
+
+// Opening a node pushes a URL of its own, which arrives carrying the
+// node but not the view. Without the restamp, a reload after a click
+// would throw away a pan that a reload after a gesture keeps.
+test('opening a node keeps the viewport in the pushed URL', async ({ page, request }) => {
+  const project = await createProject(page, 'E2E viewport push');
+  for (const t of ['Push node A', 'Push node B']) {
+    await addNode(request, project.id, t);
+  }
+
+  await page.goto(`/ui/project/vw?projectId=${project.id}&visualizationMode=Rootless`);
+  await expect(page.locator('#graph-nodes .node')).toHaveCount(2);
+  await expect(page.locator('#graph-zoom-layer')).toHaveAttribute('transform', /translate/, {
+    timeout: 10_000,
+  });
+
+  // One arrow press: enough to put the view in the URL, small enough to
+  // leave the nodes where they can still be clicked.
+  await page.locator('#tree-container').focus();
+  await page.keyboard.press('ArrowDown');
+  await expect.poll(() => viewParams(page).k).not.toBeNull();
+  const panned = viewParams(page);
+
+  await page.locator('#graph-nodes .node').first().click();
+  await expect(page.locator('#node-panel')).not.toBeEmpty();
+
+  // The pushed entry carries both: the node it navigated to, and the
+  // view it was navigated from.
+  await expect.poll(() => new URL(page.url()).searchParams.get('nodeId')).not.toBeNull();
+  await expect.poll(() => viewParams(page).k).toBe(panned.k);
+  expect(viewParams(page).y).toBe(panned.y);
+});

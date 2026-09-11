@@ -21,9 +21,12 @@ import Config.Visualization
 import Data.ByteString (ByteString)
 import Data.Int (Int64)
 import Data.Text (Text, pack, unpack)
+import qualified Data.Text as T
+import Data.Text.Encoding (decodeUtf8)
 import Domain.Project.Responder.Ui.ProjectManage.Link
 import Domain.Project.Responder.Ui.ProjectManage.SaveState (templateSaveState)
 import Lucid
+import Lucid.Base (Attributes)
 import Network.HTTP.Types (QueryText, status200, status302, status403)
 import Network.HTTP.Types.URI (queryTextToQuery, queryToQueryText, renderQuery)
 import Network.Wai
@@ -31,6 +34,7 @@ import Network.Wai
   , Request (queryString, rawPathInfo)
   , responseLBS
   )
+import Text.Read (readMaybe)
 
 data ManageProjectForm = ManageProjectForm
   { formNodeId :: Maybe Text
@@ -41,6 +45,14 @@ data ManageProjectPayload = ManageProjectPayload
   { payloadNodeId :: Maybe Int64
   , payloadProjectId :: Int64
   , payloadVisualization :: Visualization
+  , payloadView :: Maybe ViewTransform
+  , payloadViewBase :: Text
+  }
+
+data ViewTransform = ViewTransform
+  { viewX :: Double
+  , viewY :: Double
+  , viewScale :: Double
   }
 
 handleProjectManageView :: Application
@@ -53,7 +65,7 @@ handleProjectManageView req respond =
           [("Location", visualizationLocation req qt viz)]
           mempty
     AsRequested viz ->
-      case validateForm viz (queryTextToForm qt) of
+      case validateForm viz (viewTransform qt) (viewBase req qt) (queryTextToForm qt) of
         Left _ ->
           respond $
             responseLBS
@@ -83,6 +95,35 @@ queryTextToForm qt =
     , formProjectId = lookupVal "projectId" qt
     }
 
+viewTransform :: QueryText -> Maybe ViewTransform
+viewTransform qt =
+  ViewTransform
+    <$> dbl "viewX"
+    <*> dbl "viewY"
+    <*> dbl "viewScale"
+  where
+    dbl k = lookupVal k qt >>= readMaybe . unpack
+
+-- docs/development/frontend/index.md's viewport section
+viewBase :: Request -> QueryText -> Text
+viewBase req qt =
+  decodeUtf8 $
+    rawPathInfo req
+      <> renderQuery True (queryTextToQuery (filter (not . isViewParam) qt))
+  where
+    isViewParam (k, _) = k `elem` ["viewX", "viewY", "viewScale"]
+
+viewAttrs :: Maybe ViewTransform -> [Attributes]
+viewAttrs Nothing = []
+viewAttrs (Just vt) =
+  [ dataViewX_ (dblText (viewX vt))
+  , dataViewY_ (dblText (viewY vt))
+  , dataViewScale_ (dblText (viewScale vt))
+  ]
+
+dblText :: Double -> Text
+dblText = pack . show
+
 templateProject :: ManageProjectPayload -> Html ()
 templateProject py = do
   templateNavHeaderWith "Project" templateSaveState
@@ -93,13 +134,17 @@ templateProject py = do
   templateToolbar
   div_ [id_ "view"] $ do
     div_
-      [ id_ "tree-container"
-      , tabindex_ "0"
-      , hxGet_ (graphLink pid viz)
-      , hxPushUrl_ False
-      , hxSwap_ "innerHTML"
-      , hxTrigger_ "load"
-      ]
+      ( [ id_ "tree-container"
+        , tabindex_ "0"
+        , hxGet_ (graphLink pid viz)
+        , hxPushUrl_ False
+        , hxSwap_ "innerHTML"
+        , hxTrigger_ "load"
+        , dataViewBase_ (payloadViewBase py)
+        , h_ viewUrlBehavior
+        ]
+          <> viewAttrs (payloadView py)
+      )
       empty
     div_
       [ id_ "node-panel"
@@ -139,11 +184,36 @@ templateToolbar =
       span_ [class_ "back-link-arrow"] "←"
       span_ "Back to projects"
 
+-- docs/architecture/graph-rendering.md's Viewport section
+viewUrlBehavior :: Text
+viewUrlBehavior =
+  T.unwords
+    [ "init set my.base to @data-view-base end"
+    , "on graph:viewport debounced at 200ms"
+    , "set my.view to event.detail"
+    , "then set url to my.base"
+    , "then if my.view.adjusted set url to url"
+    , "+ '&viewX=' + my.view.x"
+    , "+ '&viewY=' + my.view.y"
+    , "+ '&viewScale=' + my.view.k end"
+    , "then call window.history.replaceState(window.history.state, '', url)"
+    , "end"
+    , "on htmx:pushedIntoHistory from body"
+    , "set my.base to window.location.pathname + window.location.search"
+    , "then if my.view is not null"
+    , "trigger graph:viewport(x: my.view.x, y: my.view.y,"
+    , "k: my.view.k, adjusted: my.view.adjusted)"
+    , "end"
+    , "end"
+    ]
+
 validateForm ::
   Visualization ->
+  Maybe ViewTransform ->
+  Text ->
   ManageProjectForm ->
   Either [ValidationErr] ManageProjectPayload
-validateForm viz fm = runValidation id $ do
+validateForm viz vt base fm = runValidation id $ do
   pid <-
     formProjectId fm
       .$ unpack
@@ -154,4 +224,5 @@ validateForm viz fm = runValidation id $ do
     formNodeId fm
       .$ unpack
       >>= valRead "Node id must be valid integer"
-  return $ ManageProjectPayload nid <$> pid <*> pure viz
+  return $
+    ManageProjectPayload nid <$> pid <*> pure viz <*> pure vt <*> pure base

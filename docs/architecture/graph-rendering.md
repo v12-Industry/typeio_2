@@ -569,6 +569,7 @@ pairing a compiler cannot check and a rename silently breaks.
 | `.node`, `.node-highlight`, `.flash` | CSS, the e2e suite |
 | `.root` / `.work` on the node's shape | CSS (fill, hover, glow, flash) |
 | `.link` | CSS |
+| `data-node-id` on the node's group | the open panel's highlight, and the panel's `anchorBehavior` finding the shape to anchor to |
 | `hx-get`/`hx-target="#node-panel"`/`hx-push-url` on each node | the whole node-detail interaction |
 
 **Style rules key off the `.root`/`.work` class the shape carries, not
@@ -626,6 +627,19 @@ large project is expected to overflow the view.
   equivalents, and `#tree-container` stays focusable so they reach it —
   with no buttons, that keyboard path is the only pointer-free way
   around the graph.
+- **The view is addressable, but not by this script.** A moved viewport
+  is mirrored into the URL as `viewX`/`viewY`/`viewScale`, so a reload
+  or a pasted link lands on the view the user had rather than back at
+  the root. An *unmoved* one is not written: the opening transform is
+  computed against the container's current size, so recomputing it on
+  arrival beats restoring one measured against some earlier window.
+  Resetting takes the params back out.
+
+  None of that lives in `graph-viewport.js`. The view a request asked
+  for is parsed server-side and handed over as data attributes; the
+  current view leaves as a `graph:viewport` DOM event; the hyperscript
+  on `#tree-container` decides what the address bar should say. See
+  [`../development/frontend/index.md`](../development/frontend/index.md).
 
 ### As built
 
@@ -634,8 +648,8 @@ from inside the graph fragment rather than once at page load, because
 htmx replaces `#tree-container`'s contents wholesale on every graph
 load — and that is also what keeps d3 off every other page in the app.
 
-Six things in it are less obvious than the feature list above, and are
-the parts to be careful around:
+Seven things in it are less obvious than the feature list above, and
+are the parts to be careful around:
 
 - **d3 is a gesture library here, not a layout one.** It moves a
   transform and never reads the graph's structure. The hard rule at the
@@ -671,6 +685,22 @@ the parts to be careful around:
   listeners, which drops them all at once. The teardown is installed
   *before* the dynamic import resolves, so a fast second swap cannot
   race a half-initialised viewport.
+- **The script announces; it does not decide.** Its whole outward
+  interface is one `graph:viewport` event carrying `{x, y, k,
+  adjusted}`, and one set of data attributes it is told the opening view
+  through. `adjusted` travels with the event because the listener wants
+  to know whether the view is the user's or just the one it opened at.
+  Keeping the URL vocabulary out of this file is deliberate: see
+  [`../development/frontend/index.md`](../development/frontend/index.md)'s
+  note on how much JavaScript belongs in this app.
+
+  What that event means is settled in hyperscript: `replaceState` rather
+  than a push, because a pan is not a navigation and an entry per
+  gesture would bury the node the user actually navigated to; a 200ms
+  settle, because a pan emits a transform per frame; and a rewrite after
+  `htmx:pushedIntoHistory`, because opening a node pushes a URL with no
+  view in it and a reload after a click should land where a reload after
+  a gesture does.
 
 `e2e/tests/graph-viewport.spec.ts` drives the gestures for real in a browser,
 asserting on the zoom layer's `transform`. Integration assertions on the

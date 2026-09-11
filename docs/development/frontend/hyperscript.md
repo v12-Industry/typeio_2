@@ -87,10 +87,28 @@ Going by what's actually here:
   (`init`/`my.x`), or reaching a nearby element via a selector. Every
   example above is one to a handful of clauses; if it's growing past
   that, it's a signal to stop.
-- **Real JS (`graph-viewport.js`)**: for anything with actual
-  application logic, data structures, or cross-element coordination at
-  scale — the graph viewport's zoom/pan bookkeeping is never going to be
-  a hyperscript one-liner, and isn't. Note that the graph's *layout* is
-  not on this list at all any more: it is computed server-side in
-  Haskell, which is the far better answer where it's
-  available.
+- **Real JS (`graph-viewport.js`)**: only for what genuinely cannot be
+  any of the above — here, driving `d3-zoom`, which is never going to be
+  a hyperscript one-liner. It is the last resort, and it is kept to its
+  own concern: the viewport owns one SVG transform, announces it as a
+  `graph:viewport` DOM event, and is told what view to open at through
+  server-rendered data attributes. It does not know the app has URLs.
+  **Effects beyond a script's own purpose belong out here**, in
+  hyperscript attached to the element they act on — mirroring the
+  viewport into the address bar is `viewUrlBehavior` in
+  `ProjectManage/View.hs`, not a line of `graph-viewport.js`.
+
+  Note that the graph's *layout* is not on this list at all: it is
+  computed server-side in Haskell, which is the far better answer where
+  it's available.
+
+## Longer than a one-liner
+
+`viewUrlBehavior` is the largest piece of hyperscript in the app — two
+handlers and a little element state — and it is written as a Haskell
+`Text` value beside the element it is attached to rather than inline in
+the attribute list, with a Haddock comment carrying the reasoning. That
+is the shape to copy when a behavior outgrows a single clause: keep it
+hyperscript, name it, and let Haskell hold it together. Reaching for a
+`.js` file instead would move the behavior away from the markup it
+belongs to, which is the thing being avoided.

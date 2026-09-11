@@ -99,5 +99,36 @@ whole page (`#container`), a page's own lazily-loaded sections (plain
 target the narrowest element that actually needs to change — that's the
 existing convention throughout `ProjectManage/`.
 
+## The node panel is anchored, not docked
+
+`#node-panel` is a floating window over the graph, positioned against
+the node it describes rather than parked in a corner: below it, flipping
+above when there is no room underneath, and taking the roomier side when
+neither fits. It never covers its own node — on a canvas too short for
+it, the panel is capped to the room on its side and scrolls instead.
+Closed is *empty* — htmx swaps its innerHTML in and out, and
+`#node-panel:empty` takes it out of the layout entirely so an invisible
+overlay cannot swallow drags meant for the graph.
+
+Where it lands is measured at run time, because the node is a shape
+inside a pannable SVG and "next to that shape" is not something CSS can
+state. That measuring is hyperscript — `anchorBehavior` in
+`ProjectManage/Node.hs`, emitted onto the panel's own body next to the
+node id it anchors to — and it re-places whenever the viewport announces
+a move or the panel's contents change height. It sets `left`, `top` and
+`max-height`; everything else about the panel stays in the stylesheet.
+
+The panel body emits `data-node-id`, and the selector that finds the
+shape is **scoped to `#tree-container`** on purpose: the panel carries
+the same attribute, and an unscoped selector lets the panel measure
+itself instead of the node it is pointing at. Orbital draws one node
+once per work stream, so that selector can match several shapes;
+`anchorBehavior` measures `the first` explicitly, because hyperscript's
+`measure` takes a single element and errors at runtime on a collection.
+
+Hyperscript does not rank its operators, so every arithmetic expression
+in `anchorBehavior` is parenthesised — mixing `+` and `/` without
+brackets is a parse error there, not a precedence surprise.
+
 See [htmx.md](../frontend/htmx.md) (once it lands) for the attribute
 helpers themselves.
