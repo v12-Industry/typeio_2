@@ -53,7 +53,7 @@ spec = aroundAll withTestDatabase $
           Just nd -> M.nodeDescription nd `shouldBe` "UpdatedDescription"
           Nothing -> expectationFailure "expected the root Node to still exist"
 
-      it "tells the header indicator the save landed, out of band" $ \pool -> do
+      it "rejects an empty description with 422 rather than a 500" $ \pool -> do
         (projectKey, rootKey) <- seedProjectWithRootNode pool
 
         body <-
@@ -64,17 +64,17 @@ spec = aroundAll withTestDatabase $
                     putDescriptionRequest
                       (fromSqlKey rootKey)
                       (fromSqlKey projectKey)
-                      "UpdatedDescription"
-                assertStatus 200 resp
+                      ""
+                assertStatus 422 resp
                 pure . LC8.unpack . simpleBody $ resp
             )
             (handlePutDescription pool)
 
-        -- Each editable field has to carry the header indicator's
-        -- update itself; nothing else in the response would reach it.
-        body `shouldSatisfy` isInfixOf "id=\"save-state-result\""
-        body `shouldSatisfy` isInfixOf "hx-swap-oob=\"true\""
-        body `shouldSatisfy` isInfixOf "save-state-saved"
+        -- A validation failure is the caller's, not the server's.
+        -- It also has to be swappable: htmx does not swap 5xx at
+        -- all, so under a 500 these messages were rendered and then
+        -- dropped on the floor, and the field showed nothing.
+        body `shouldSatisfy` isInfixOf "Node description cannot be empty"
 
       it "returns 404 when the node doesn't exist" $ \pool ->
         runSession

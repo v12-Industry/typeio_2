@@ -7,10 +7,6 @@ module Domain.Project.Responder.Ui.ProjectManage.Node.Title where
 import Common.Validation
 import Domain.Project.Responder.Ui.ProjectManage.Node.Query
 import Domain.Project.Responder.Ui.ProjectManage.Node.Validation
-import Domain.Project.Responder.Ui.ProjectManage.SaveState
-  ( templateSaveStateIdle
-  , templateSaveStateSaved
-  )
 import Lucid
 
 import qualified Domain.Project.Model as M
@@ -27,7 +23,7 @@ import Data.Int (Int64)
 import Data.Text (Text, unpack)
 import Data.Text.Encoding (decodeUtf8)
 import Database.Esqueleto.Experimental
-import Network.HTTP.Types (status200, status404)
+import Network.HTTP.Types (status200, status404, status422)
 import Network.Wai (Application, responseLBS)
 import Network.Wai.Parse (Param, lbsBackEnd, parseRequestBody)
 
@@ -67,7 +63,7 @@ handlePutTitle pl req rspnd = do
     Left (InvalidParams e) ->
       rspnd
         . responseLBS
-          status200
+          status422
           [("Content-Type", "text/html")]
         . renderBS
         . templatePostFail
@@ -99,7 +95,6 @@ templatePostSuccess :: Html ()
 templatePostSuccess = do
   span_ [class_ "loading hidden"] empty
   i_ [class_ "material-icons"] "done"
-  templateSaveStateSaved
   where
     empty = mempty :: Html ()
 
@@ -111,7 +106,6 @@ templatePostFail :: [ValidationErr] -> Html ()
 templatePostFail es = do
   i_ [class_ "material-icons"] "error"
   ul_ [] $ mapM_ (li_ [] . toHtml) es
-  templateSaveStateIdle
 
 validatePayload ::
   Monad m =>

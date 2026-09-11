@@ -141,6 +141,9 @@ dataRootY_ = makeAttributes "data-root-y"
 dataNodeId_ :: Text -> Attributes
 dataNodeId_ = makeAttributes "data-node-id"
 
+dataSaves_ :: Attributes
+dataSaves_ = makeAttributes "data-saves" ""
+
 cx_ :: Text -> Attributes
 cx_ = makeAttributes "cx"
 

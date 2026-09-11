@@ -3,12 +3,17 @@
 {- | Integration coverage for the header's aggregate save-state
 indicator.
 
-The indicator is assembled from three separate responders that never
-see each other: the page shell renders the element, the node-edit form
-names it as its @hx-indicator@, and each field's save handler returns
-an out-of-band fragment addressed to it. Those handlers' halves are
-pinned in their own specs; what is left over -- and what nothing else
-would catch -- is the shell and the form agreeing on the element's id.
+The indicator derives its own state from htmx's request events rather
+than being told: no field names it and no handler renders it. That
+leaves exactly two things a responder test can pin -- that the shell
+ships all three states plus the script that switches between them, and
+that the editable fields still declare themselves as saves, which is
+the only part the indicator cannot work out on its own.
+
+What the browser owns instead is whether those pieces actually produce
+idle/saving/saved in order; that lives in the E2E suite, because it is
+a behaviour of htmx, hyperscript and CSS together and no amount of
+markup assertion implies it.
 -}
 module Domain.Project.Responder.Ui.ProjectManage.SaveStateSpec (spec) where
 
@@ -42,48 +47,50 @@ spec = do
 
       body `shouldContainStr` "id=\"save-state\""
 
-    it "starts it idle, wearing the same dot every other page shows" $ do
+    it "ships all three states, so none has to be fetched to be shown" $ do
       body <- manageBody
 
-      -- The indicator occupies the nav header's trailing slot, which
-      -- on every other view holds a plain `.dot`. Reusing that as the
-      -- idle state is what keeps the header from shifting the first
-      -- time something saves.
-      body `shouldContainStr` "id=\"save-state-result\""
+      -- Idle reuses the same `.dot` the nav header's trailing slot
+      -- holds on every other page, which is what stops the header
+      -- shifting the first time something saves.
+      body `shouldContainStr` "save-state-idle"
       body `shouldContainStr` "class=\"dot\""
-
-    it "renders the pending state for htmx to reveal" $ do
-      body <- manageBody
-
-      -- "Saving..." ships with the page and is hidden by CSS until
-      -- htmx puts `htmx-request` on the indicator, so no request is
-      -- needed to produce it and nothing has to be injected at save
-      -- time.
       body `shouldContainStr` "save-state-pending"
       body `shouldContainStr` "class=\"loading\""
+      body `shouldContainStr` "save-state-saved"
 
-    it "leaves the settled states to the handlers that own them" $ do
+    it "carries the script that switches between them" $ do
       body <- manageBody
 
-      -- The shell never claims a save has happened: "Saved" only ever
-      -- arrives out of band from a field's own handler.
-      body `shouldNotContainStr` "save-state-saved"
+      -- The indicator listens to htmx's own request events and filters
+      -- them to elements that declare themselves saves. Both halves
+      -- matter: without the filter, opening a node panel would put the
+      -- header into "Saving...".
+      body `shouldContainStr` "htmx:beforeRequest from body"
+      body `shouldContainStr` "htmx:afterRequest from body"
+      body `shouldContainStr` "data-saves"
+
+    it "is not addressed by anyone else" $ do
+      body <- manageBody
+
+      -- The point of the design: nothing swaps into this element, so
+      -- no handler has to know it exists and no field has to name it.
       body `shouldNotContainStr` "hx-swap-oob"
+      body `shouldNotContainStr` "hx-indicator"
 
   aroundAll withTestDatabase $
     beforeWith resetBetweenTests $
       describe "the node-edit form" $
-        it "points every editable field at the header indicator" $ \pool -> do
+        it "marks every editable field as a save" $ \pool -> do
           (projectKey, rootKey) <- seedProjectWithRootNode pool
 
           body <- nodeEditBody pool (fromSqlKey rootKey) (fromSqlKey projectKey)
 
-          -- Title, description and status: one `hx-indicator` each, all
-          -- naming the element the shell renders. A field that loses
-          -- this still saves, and still updates its own indicator box,
-          -- so the only visible symptom is a header that never says
-          -- "Saving...".
-          countStr "hx-indicator=\"#save-state\"" body `shouldBe` 3
+          -- Title, description and status. A field that loses this
+          -- still saves and still updates its own indicator box, so
+          -- the only symptom is a header that never reacts to it --
+          -- which is why this is a count and not a presence check.
+          countStr "data-saves" body `shouldBe` 3
 
 -- | GET the Manage Project shell and hand its body back as a 'String'.
 manageBody :: IO String

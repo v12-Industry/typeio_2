@@ -32,7 +32,6 @@ import Database.Persist.Sql (ConnectionPool, SqlBackend, fromSqlKey, runSqlPool)
 import qualified Domain.Project.Model as M
 import Domain.Project.Responder.Ui.ProjectManage.Node.Query
 import Domain.Project.Responder.Ui.ProjectManage.Node.Validation
-import Domain.Project.Responder.Ui.ProjectManage.SaveState (saveStateIndicator)
 import Lucid
 import Network.HTTP.Types (status200)
 import Network.HTTP.Types.URI (QueryText, queryToQueryText)
@@ -159,7 +158,7 @@ templateNodeEdit nsts (Entity k nde) = do
             , "nodeId" .= (intToText . fromSqlKey $ k)
             ]
       , hxTarget_ "label[for=\"title\"] .indicator-box"
-      , hxIndicator_ saveStateIndicator
+      , dataSaves_
       , h_ $
           "init set my.icount to 0 "
             <> "on input increment my.icount "
@@ -185,7 +184,7 @@ templateNodeEdit nsts (Entity k nde) = do
             , "nodeId" .= (intToText . fromSqlKey $ k)
             ]
       , hxTarget_ "label[for=\"description\"] .indicator-box"
-      , hxIndicator_ saveStateIndicator
+      , dataSaves_
       , h_ "on input transition <label[for=\"description\"] .indicator-box i /> opacity to 0"
       ]
       (toHtml . M.nodeDescription $ nde)
@@ -207,7 +206,7 @@ templateNodeEdit nsts (Entity k nde) = do
                 , "nodeId" .= (intToText . fromSqlKey $ k)
                 ]
           , hxTarget_ "#status-indicator"
-          , hxIndicator_ saveStateIndicator
+          , dataSaves_
           ]
           $ do
             forM_ nsts $ \nst ->

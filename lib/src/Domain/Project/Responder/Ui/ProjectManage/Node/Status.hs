@@ -9,10 +9,6 @@ module Domain.Project.Responder.Ui.ProjectManage.Node.Status where
 import Common.Validation
 import Domain.Project.Responder.Ui.ProjectManage.Node.Query
 import Domain.Project.Responder.Ui.ProjectManage.Node.Validation
-import Domain.Project.Responder.Ui.ProjectManage.SaveState
-  ( templateSaveStateIdle
-  , templateSaveStateSaved
-  )
 import Lucid
 
 import qualified Domain.Project.Model as M
@@ -31,7 +27,7 @@ import Data.Maybe (listToMaybe)
 import Data.Text (Text, unpack)
 import Data.Text.Encoding (decodeUtf8)
 import Database.Esqueleto.Experimental
-import Network.HTTP.Types (status200, status404, status500)
+import Network.HTTP.Types (status200, status404, status422)
 import Network.Wai (Application, responseLBS)
 import Network.Wai.Parse (Param, lbsBackEnd, parseRequestBody)
 
@@ -75,7 +71,7 @@ handlePutNodeStatus pl req rspnd = do
     Left (InvalidParams e) ->
       rspnd
         . responseLBS
-          status500
+          status422
           [("Content-Type", "text/html")]
         . renderBS
         . templatePostFail
@@ -90,7 +86,7 @@ handlePutNodeStatus pl req rspnd = do
     Left MissingStatus ->
       rspnd
         . responseLBS
-          status500
+          status422
           [("Content-Type", "text/html")]
         . renderBS
         $ templatePostFail ["Node status is required"]
@@ -124,7 +120,6 @@ reqForm ps =
 templatePostSuccess :: Html ()
 templatePostSuccess = do
   i_ [class_ "material-icons"] "done"
-  templateSaveStateSaved
 
 templateNodeNotFound :: Html ()
 templateNodeNotFound = do
@@ -134,7 +129,6 @@ templatePostFail :: [ValidationErr] -> Html ()
 templatePostFail es = do
   i_ [class_ "material-icons"] "error"
   ul_ [] $ mapM_ (li_ [] . toHtml) es
-  templateSaveStateIdle
 
 validatePayload ::
   Monad m =>

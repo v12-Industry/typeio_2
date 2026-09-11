@@ -53,7 +53,7 @@ spec = aroundAll withTestDatabase $
           Just nd -> M.nodeTitle nd `shouldBe` "UpdatedTitle"
           Nothing -> expectationFailure "expected the root Node to still exist"
 
-      it "tells the header indicator the save landed, out of band" $ \pool -> do
+      it "rejects an empty title with 422 rather than a 200 that looks saved" $ \pool -> do
         (projectKey, rootKey) <- seedProjectWithRootNode pool
 
         body <-
@@ -64,19 +64,19 @@ spec = aroundAll withTestDatabase $
                     putTitleRequest
                       (fromSqlKey rootKey)
                       (fromSqlKey projectKey)
-                      "UpdatedTitle"
-                assertStatus 200 resp
+                      ""
+                assertStatus 422 resp
                 pure . LC8.unpack . simpleBody $ resp
             )
             (handlePutTitle pool)
 
-        -- This response is swapped into the title field's own
-        -- indicator box. The header's aggregate indicator sits outside
-        -- that target and is reached only by the out-of-band fragment
-        -- riding along with it, so both halves have to be present.
-        body `shouldSatisfy` isInfixOf "id=\"save-state-result\""
-        body `shouldSatisfy` isInfixOf "hx-swap-oob=\"true\""
-        body `shouldSatisfy` isInfixOf "save-state-saved"
+        -- The status code is the whole mechanism now: the header
+        -- indicator tells a failed save from a good one by asking
+        -- htmx whether the response was successful, and a 200
+        -- carrying an error message reads as a success. The app's
+        -- htmx-config keeps 422 swappable, so the field's own error
+        -- markup still reaches the page.
+        body `shouldSatisfy` isInfixOf "Node title cannot be empty"
 
       it "returns 404 when the node doesn't exist" $ \pool ->
         runSession

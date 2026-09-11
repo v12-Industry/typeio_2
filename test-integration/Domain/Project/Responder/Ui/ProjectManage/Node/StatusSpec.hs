@@ -58,7 +58,7 @@ spec = aroundAll withTestDatabase $
           (_, Nothing) -> expectationFailure "expected the root Node to still exist"
           _ -> expectationFailure "expected the seeded \"closed\" status to exist"
 
-      it "tells the header indicator the save landed, out of band" $ \pool -> do
+      it "rejects an empty status with 422 rather than a 500" $ \pool -> do
         (projectKey, rootKey) <- seedProjectWithRootNode pool
 
         body <-
@@ -69,18 +69,16 @@ spec = aroundAll withTestDatabase $
                     putStatusRequest
                       (fromSqlKey rootKey)
                       (fromSqlKey projectKey)
-                      "closed"
-                assertStatus 200 resp
+                      ""
+                assertStatus 422 resp
                 pure . LC8.unpack . simpleBody $ resp
             )
             (handlePutNodeStatus pool)
 
-        -- Status is the one field saved on `change` rather than after
-        -- a typing delay, so it is the quickest way to see the header
-        -- indicator settle -- and the easiest to forget to wire up.
-        body `shouldSatisfy` isInfixOf "id=\"save-state-result\""
-        body `shouldSatisfy` isInfixOf "hx-swap-oob=\"true\""
-        body `shouldSatisfy` isInfixOf "save-state-saved"
+        -- Same reasoning as the other two fields: a rejected value
+        -- is a 422, and 5xx would not be swapped into the field at
+        -- all.
+        body `shouldSatisfy` isInfixOf "material-icons"
 
       it "returns 404 when the node doesn't exist" $ \pool ->
         runSession

@@ -8,12 +8,12 @@
    its idle state is the same `.dot` every other page shows there and
    nothing moves when a save starts.
 
-   Only two of its three states are rendered here. `.htmx-request` is
-   put on this element by htmx for the life of a request, because the
-   editable fields name it as their `hx-indicator` -- that is what
-   drives "Saving...". The settled result is server-rendered instead,
-   arriving as an out-of-band swap of #save-state-result from whichever
-   field's handler answered. */
+   All three states ship with the page and exactly one is shown at a
+   time, picked by the class the indicator puts on itself: none for
+   idle, `.is-saving` while a save is in flight, `.is-saved` once one
+   has succeeded. Nothing outside this element sets them -- it derives
+   them from htmx's own request events, so no field and no handler has
+   to name it. */
 #save-state {
   align-items: center;
   display: flex;
@@ -21,28 +21,38 @@
   gap: 0.375rem;
 }
 
-#save-state .save-state-pending {
+#save-state > span {
   align-items: center;
-  color: var(--text-secondary);
   display: none;
+  gap: 0.25rem;
+}
+
+#save-state .save-state-idle {
+  display: flex;
+}
+
+#save-state .save-state-pending {
+  color: var(--text-secondary);
   gap: 0.375rem;
 }
 
-/* The two states are mutually exclusive: while a save is in flight the
+/* The states are mutually exclusive: while a save is in flight the
    settled result is stale, so it gives up the slot rather than sitting
    next to a spinner that contradicts it. */
-#save-state.htmx-request .save-state-pending {
-  display: flex;
-}
-
-#save-state.htmx-request #save-state-result {
+#save-state.is-saving .save-state-idle {
   display: none;
 }
 
-#save-state-result {
-  align-items: center;
+#save-state.is-saving .save-state-pending {
   display: flex;
-  gap: 0.25rem;
+}
+
+#save-state.is-saved .save-state-idle {
+  display: none;
+}
+
+#save-state.is-saved .save-state-saved {
+  display: flex;
 }
 
 .save-state-saved {
