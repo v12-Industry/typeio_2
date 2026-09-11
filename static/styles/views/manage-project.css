@@ -417,6 +417,52 @@ svg {
   stroke-width: 1.5px;
 }
 
+/* Status, drawn on the node itself -- the one thing about a node worth
+   knowing without opening its panel.
+
+   Keyed off a class the server puts on the shape, never off a colour
+   the server computed: the hue set lives in global.css and the two
+   numbers that turn a hue into a fill live here, which is the same
+   split every other rule in this file keeps. Saturation and lightness
+   are shared across all four so the palette reads as one set, and the
+   lightness is pinned near `--accent-light` because the label sitting
+   on top of it is `--text-primary`.
+
+   A status with no rule here -- a row added to project.node_status and
+   not yet given a hue -- keeps `.work`'s own fill. The drawing degrades
+   to the colourless version of itself rather than losing the node.
+
+   Hover bumps the lightness rather than replacing the fill, so a
+   coloured node still answers a pointer without the colour that says
+   what it is going away underneath it. */
+#tree-container .node .work {
+  --status-sat: 32%;
+  --status-light: 31%;
+}
+
+#tree-container .node .work.status-open {
+  fill: hsl(var(--status-hue-open) var(--status-sat) var(--status-light));
+}
+
+#tree-container .node .work.status-active {
+  fill: hsl(var(--status-hue-active) var(--status-sat) var(--status-light));
+}
+
+#tree-container .node .work.status-closed {
+  fill: hsl(var(--status-hue-closed) var(--status-sat) var(--status-light));
+}
+
+#tree-container .node .work.status-rejected {
+  fill: hsl(var(--status-hue-rejected) var(--status-sat) var(--status-light));
+}
+
+#tree-container .node .work.status-open:hover,
+#tree-container .node .work.status-active:hover,
+#tree-container .node .work.status-closed:hover,
+#tree-container .node .work.status-rejected:hover {
+  --status-light: 41%;
+}
+
 #tree-container .node text {
   font: 12px sans-serif;
   fill: var(--text-primary);

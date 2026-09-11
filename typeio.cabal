@@ -64,6 +64,7 @@ library src
       , Domain.Project.Graph.Route
       , Domain.Project.Graph.Types
       , Domain.Project.Model
+      , Domain.Project.Node.Status
       -- The orbital visualization's own geometry, exposed for the same
       -- reason: it is pure and dependency-free, so `test-suite spec`
       -- covers it. Deliberately not under Graph.*, which is the layered
@@ -200,6 +201,7 @@ test-suite spec
       , Domain.Project.Graph.LayoutSpec
       , Domain.Project.Graph.OrderSpec
       , Domain.Project.Graph.RouteSpec
+      , Domain.Project.Node.StatusSpec
       , Domain.Project.Orbit.LayoutSpec
       , Domain.Project.Orbit.UnfoldSpec
       , Platform.BuildSpec
