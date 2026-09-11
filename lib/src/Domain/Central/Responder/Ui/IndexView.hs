@@ -10,6 +10,15 @@ import Network.HTTP.Types (status200)
 import Network.HTTP.Types.URI (QueryText, queryToQueryText)
 import Network.Wai (Application, queryString, responseLBS)
 
+htmxConfig :: Text
+htmxConfig =
+  "{\"historyCacheSize\": 0, \"responseHandling\": ["
+    <> "{\"code\":\"204\",\"swap\":false},"
+    <> "{\"code\":\"422\",\"swap\":true,\"error\":true},"
+    <> "{\"code\":\"[23]..\",\"swap\":true},"
+    <> "{\"code\":\"[45]..\",\"swap\":false,\"error\":true}"
+    <> "]}"
+
 queryTextToText :: QueryText -> Maybe Text
 queryTextToText [] = Nothing
 queryTextToText qs =
@@ -44,7 +53,7 @@ indexTemplate path qs = html_ $ do
       [ rel_ "stylesheet"
       , href_ "/static/styles/material.css"
       ]
-    meta_ [name_ "htmx-config", content_ "{\"historyCacheSize\": 0}"]
+    meta_ [name_ "htmx-config", content_ htmxConfig]
     script_ [src_ "/static/script/htmx.js"] empty
     script_ [src_ "https://unpkg.com/hyperscript.org@0.9.14"] empty
   body_ $ do

@@ -12,7 +12,7 @@ import Common.Validation
   )
 import Common.Web.Attributes
 import Common.Web.Query (lookupVal, setQueryParam)
-import Common.Web.Template.MainHeader (templateNavHeader)
+import Common.Web.Template.MainHeader (templateNavHeaderWith)
 import Config.Visualization
   ( Visualization
   , VisualizationChoice (..)
@@ -22,6 +22,7 @@ import Data.ByteString (ByteString)
 import Data.Int (Int64)
 import Data.Text (Text, pack, unpack)
 import Domain.Project.Responder.Ui.ProjectManage.Link
+import Domain.Project.Responder.Ui.ProjectManage.SaveState (templateSaveState)
 import Lucid
 import Network.HTTP.Types (QueryText, status200, status302, status403)
 import Network.HTTP.Types.URI (queryTextToQuery, queryToQueryText, renderQuery)
@@ -84,7 +85,7 @@ queryTextToForm qt =
 
 templateProject :: ManageProjectPayload -> Html ()
 templateProject py = do
-  templateNavHeader "Project"
+  templateNavHeaderWith "Project" templateSaveState
   link_
     [ rel_ "stylesheet"
     , href_ "/static/styles/views/manage-project.css"

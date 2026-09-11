@@ -39,6 +39,9 @@ hxReplaceUrl_ = makeAttributes "hx-replace-url" . boolText
 hxSwap_ :: Text -> Attributes
 hxSwap_ = makeAttributes "hx-swap"
 
+hxSwapOob_ :: Text -> Attributes
+hxSwapOob_ = makeAttributes "hx-swap-oob"
+
 hxSync_ :: Text -> Attributes
 hxSync_ = makeAttributes "hx-sync"
 
@@ -137,6 +140,9 @@ dataRootY_ = makeAttributes "data-root-y"
 
 dataNodeId_ :: Text -> Attributes
 dataNodeId_ = makeAttributes "data-node-id"
+
+dataSaves_ :: Attributes
+dataSaves_ = makeAttributes "data-saves" ""
 
 cx_ :: Text -> Attributes
 cx_ = makeAttributes "cx"

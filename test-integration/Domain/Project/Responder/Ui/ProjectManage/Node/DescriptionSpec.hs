@@ -8,6 +8,7 @@ module Domain.Project.Responder.Ui.ProjectManage.Node.DescriptionSpec (spec) whe
 
 import qualified Data.ByteString.Lazy.Char8 as LC8
 import Data.Int (Int64)
+import Data.List (isInfixOf)
 import Database.Persist (get)
 import Database.Persist.Sql (fromSqlKey, runSqlPool)
 import qualified Domain.Project.Model as M
@@ -21,6 +22,7 @@ import Network.HTTP.Types (hContentType, methodPut)
 import Network.Wai (defaultRequest, requestHeaders, requestMethod)
 import Network.Wai.Test
   ( SRequest (..)
+  , SResponse (..)
   , assertStatus
   , runSession
   , srequest
@@ -50,6 +52,29 @@ spec = aroundAll withTestDatabase $
         case updated of
           Just nd -> M.nodeDescription nd `shouldBe` "UpdatedDescription"
           Nothing -> expectationFailure "expected the root Node to still exist"
+
+      it "rejects an empty description with 422 rather than a 500" $ \pool -> do
+        (projectKey, rootKey) <- seedProjectWithRootNode pool
+
+        body <-
+          runSession
+            ( do
+                resp <-
+                  srequest $
+                    putDescriptionRequest
+                      (fromSqlKey rootKey)
+                      (fromSqlKey projectKey)
+                      ""
+                assertStatus 422 resp
+                pure . LC8.unpack . simpleBody $ resp
+            )
+            (handlePutDescription pool)
+
+        -- A validation failure is the caller's, not the server's.
+        -- It also has to be swappable: htmx does not swap 5xx at
+        -- all, so under a 500 these messages were rendered and then
+        -- dropped on the floor, and the field showed nothing.
+        body `shouldSatisfy` isInfixOf "Node description cannot be empty"
 
       it "returns 404 when the node doesn't exist" $ \pool ->
         runSession

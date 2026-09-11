@@ -158,6 +158,7 @@ templateNodeEdit nsts (Entity k nde) = do
             , "nodeId" .= (intToText . fromSqlKey $ k)
             ]
       , hxTarget_ "label[for=\"title\"] .indicator-box"
+      , dataSaves_
       , h_ $
           "init set my.icount to 0 "
             <> "on input increment my.icount "
@@ -183,6 +184,7 @@ templateNodeEdit nsts (Entity k nde) = do
             , "nodeId" .= (intToText . fromSqlKey $ k)
             ]
       , hxTarget_ "label[for=\"description\"] .indicator-box"
+      , dataSaves_
       , h_ "on input transition <label[for=\"description\"] .indicator-box i /> opacity to 0"
       ]
       (toHtml . M.nodeDescription $ nde)
@@ -204,6 +206,7 @@ templateNodeEdit nsts (Entity k nde) = do
                 , "nodeId" .= (intToText . fromSqlKey $ k)
                 ]
           , hxTarget_ "#status-indicator"
+          , dataSaves_
           ]
           $ do
             forM_ nsts $ \nst ->

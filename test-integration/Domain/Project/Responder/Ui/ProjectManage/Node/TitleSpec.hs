@@ -8,6 +8,7 @@ module Domain.Project.Responder.Ui.ProjectManage.Node.TitleSpec (spec) where
 
 import qualified Data.ByteString.Lazy.Char8 as LC8
 import Data.Int (Int64)
+import Data.List (isInfixOf)
 import Database.Persist (get)
 import Database.Persist.Sql (fromSqlKey, runSqlPool)
 import qualified Domain.Project.Model as M
@@ -21,6 +22,7 @@ import Network.HTTP.Types (hContentType, methodPut)
 import Network.Wai (defaultRequest, requestHeaders, requestMethod)
 import Network.Wai.Test
   ( SRequest (..)
+  , SResponse (..)
   , assertStatus
   , runSession
   , srequest
@@ -50,6 +52,31 @@ spec = aroundAll withTestDatabase $
         case updated of
           Just nd -> M.nodeTitle nd `shouldBe` "UpdatedTitle"
           Nothing -> expectationFailure "expected the root Node to still exist"
+
+      it "rejects an empty title with 422 rather than a 200 that looks saved" $ \pool -> do
+        (projectKey, rootKey) <- seedProjectWithRootNode pool
+
+        body <-
+          runSession
+            ( do
+                resp <-
+                  srequest $
+                    putTitleRequest
+                      (fromSqlKey rootKey)
+                      (fromSqlKey projectKey)
+                      ""
+                assertStatus 422 resp
+                pure . LC8.unpack . simpleBody $ resp
+            )
+            (handlePutTitle pool)
+
+        -- The status code is the whole mechanism now: the header
+        -- indicator tells a failed save from a good one by asking
+        -- htmx whether the response was successful, and a 200
+        -- carrying an error message reads as a success. The app's
+        -- htmx-config keeps 422 swappable, so the field's own error
+        -- markup still reaches the page.
+        body `shouldSatisfy` isInfixOf "Node title cannot be empty"
 
       it "returns 404 when the node doesn't exist" $ \pool ->
         runSession
