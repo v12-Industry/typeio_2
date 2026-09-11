@@ -1,10 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Domain.Project.Visualization.Orbital.View
-  ( templateOrbit
+  ( DiscFacts (..)
+  , templateOrbit
   , discGroup
   , linkLine
   , nodeHue
+  , statusClass
   ) where
 
 import Common.Web.Attributes
@@ -15,7 +17,7 @@ import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import Data.Text (Text, pack)
 import qualified Data.Text as T
-import Data.Text.Util (intToText)
+import Data.Text.Util (intToText, slug)
 import Domain.Project.Orbit.Types
   ( Bounds (..)
   , Disc (..)
@@ -38,13 +40,18 @@ import Domain.Project.Visualization.Common
   )
 import Lucid
 
-templateOrbit :: Int64 -> OrbitConfig -> Map NodeId Text -> OrbitDiagram -> Html ()
-templateOrbit pid cfg labels d =
+data DiscFacts = DiscFacts
+  { dfLabels :: Map NodeId Text
+  , dfStatuses :: Map NodeId Text
+  }
+
+templateOrbit :: Int64 -> OrbitConfig -> DiscFacts -> OrbitDiagram -> Html ()
+templateOrbit pid cfg facts d =
   graphFrame box Nothing $ do
     g_ [id_ "graph-links"] $
       forM_ (odLinks d) linkLine
     g_ [id_ "graph-nodes"] $
-      forM_ (odDiscs d) (discGroup pid cfg labels)
+      forM_ (odDiscs d) (discGroup pid cfg facts)
   where
     Bounds mn _ = odBounds d
     size = boundsSize (odBounds d)
@@ -78,8 +85,8 @@ linkLine (Link from to) =
         , dbl (ptY to)
         ]
 
-discGroup :: Int64 -> OrbitConfig -> Map NodeId Text -> Disc -> Html ()
-discGroup pid cfg labels disc =
+discGroup :: Int64 -> OrbitConfig -> DiscFacts -> Disc -> Html ()
+discGroup pid cfg facts disc =
   g_
     [ id_ ("disc-" <> discKey)
     , dataNodeId_ nid
@@ -98,7 +105,7 @@ discGroup pid cfg labels disc =
     ]
     $ do
       circle_
-        [ class_ "work"
+        [ class_ shapeClass
         , cx_ (dbl (ptX centre))
         , cy_ (dbl (ptY centre))
         , r_ (dbl (cfgDiscRadius cfg))
@@ -125,7 +132,19 @@ discGroup pid cfg labels disc =
     centre = dCentre disc
     nodeSel = "<[data-node-id='" <> nid <> "']/>"
 
-    label = Map.findWithDefault T.empty (dNode disc) labels
+    label = Map.findWithDefault T.empty (dNode disc) (dfLabels facts)
+    shapeClass =
+      T.unwords
+        . ("work" :)
+        . maybe [] pure
+        $ Map.lookup (dNode disc) (dfStatuses facts) >>= statusClass
+
+statusClass :: Text -> Maybe Text
+statusClass st
+  | T.null token = Nothing
+  | otherwise = Just ("status-" <> token)
+  where
+    token = slug st
 
 discLabel :: Text -> Point -> [Text] -> Html ()
 discLabel discKey (Point cx cy) ls =

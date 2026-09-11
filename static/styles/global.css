@@ -28,6 +28,22 @@
   --error-color: #ff4d4d;
   --success: #4caf50;
 
+  /* Node status, as the dependency graph draws it. Hues rather than
+     finished colours: saturation and lightness are fixed by whichever
+     drawing is using them, so one status reads the same wherever it
+     appears and the four stay a palette rather than drifting into a bag
+     of unrelated stickers.
+
+     Lightness is the value being protected. A node's label is
+     --text-primary sitting directly on this fill, so a lighter,
+     livelier set is exactly what makes those labels unreadable --
+     colour here is carrying a fact about the node, not decorating it,
+     and a fill nobody can read a title on is the worse trade. */
+  --status-hue-open: 222;
+  --status-hue-active: 205;
+  --status-hue-closed: 145;
+  --status-hue-rejected: 356;
+
   /* Cards or containers */
   --surface: #78a0ff14;
 

@@ -66,7 +66,7 @@ spec = aroundAll withTestDatabase $
         body <- graphBody pool pid [("visualizationMode", Just "Orbital")]
 
         -- Circles rather than rects: a different geometry entirely.
-        body `shouldContainStr` "<circle class=\"work\""
+        body `shouldContainStr` "<circle class=\"work"
         body `shouldNotContainStr` "<rect class=\"work\""
 
       it "falls back to the default when the parameter is absent" $ \pool -> do

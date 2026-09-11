@@ -28,6 +28,10 @@ Neither is repeated here.
 - **A node once per work stream that reaches it.** Replicating a node
   replicates its whole subtree along with it: if `E` is drawn twice,
   everything `E` depends on is drawn twice too.
+- **Each circle's status, as its ring.** The shape carries
+  `status-<id>` beside its `.work` class and the stylesheet turns that
+  into a stroke colour. Not a fill: see below for why this drawing has
+  to spend its fill on something else.
 
 The consequence worth stating plainly: **there are no crossing edges at
 all.** Not minimised — structurally absent, because every drawn node has
@@ -54,6 +58,22 @@ Three things a reader has to know, and all three are in the markup:
    element sharing an attribute value with the hovered one" — which is
    why it is a hyperscript behaviour on the circle rather than a
    stylesheet rule.
+4. **The ring is the status.** Open, active, closed and rejected each
+   get a hue from `global.css`'s `--status-hue-*` tokens, drawn as the
+   circle's stroke.
+
+**Status is the ring and not the fill, and that is forced.** The fill is
+already carrying identity — point 2 — and it is the only thing saying
+two circles are one node. Colouring the fill by status would spend that
+signal: every active node would look alike, and a replica would stop
+being recognisable as the same work. The stroke is the channel this
+drawing has left, so status takes it.
+
+The ring's colours are lighter and more saturated than the fills the
+same statuses get in a drawing that *can* use its fill. That is not
+drift: nothing sits on top of a stroke, so the label-readability
+ceiling that holds those fills down does not apply, and a ring has far
+less area to say its colour with.
 
 Clicking any replica opens the same node's detail panel, and editing the
 title refreshes every replica's label.
@@ -119,6 +139,7 @@ visualization uses its own prefix:
 | `#disc-text-<id>-<replica>` | Its label. Replaces `#node-text-<id>` |
 | `data-node-id="<id>"` | The identity handle — shared by every replica, and what the hover behaviour selects on |
 | `.disc` | The group. Replaces `.node` |
+| `status-<id>` on the circle | The node's status, which the stylesheet draws as the ring. The id is put through `Data.Text.Util.slug` first: the vocabulary is a database table, and nothing from a row may escape a class attribute |
 
 A different prefix rather than a longer `#node-` id is deliberate:
 anything still querying `#node-<id>` should find *nothing* in an orbital

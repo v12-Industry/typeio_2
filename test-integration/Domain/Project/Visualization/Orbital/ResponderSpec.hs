@@ -53,7 +53,7 @@ spec = aroundAll withTestDatabase $
 
         body <- graphBody pool (fromSqlKey projectKey)
 
-        body `shouldContainStr` "<circle class=\"work\""
+        body `shouldContainStr` "<circle class=\"work"
         -- Rootless-like: the project node is not in the picture. There
         -- is no `root` shape of any kind to find.
         body `shouldNotContainStr` "class=\"root\""
@@ -69,7 +69,7 @@ spec = aroundAll withTestDatabase $
 
         body <- graphBody pool (fromSqlKey projectKey)
 
-        countStr "<circle class=\"work\"" body `shouldBe` 1
+        countStr "<circle class=\"work" body `shouldBe` 1
         countStr "class=\"link\"" body `shouldBe` 0
 
       it "still draws a dependency between two work nodes" $ \pool -> do
@@ -83,7 +83,7 @@ spec = aroundAll withTestDatabase $
 
         body <- graphBody pool (fromSqlKey projectKey)
 
-        countStr "<circle class=\"work\"" body `shouldBe` 2
+        countStr "<circle class=\"work" body `shouldBe` 2
         body `shouldContainStr` "class=\"link\""
         body `shouldContainStr` "marker-end=\"url(#arrow)\""
 
@@ -96,7 +96,7 @@ spec = aroundAll withTestDatabase $
 
           body <- graphBody pool (fromSqlKey projectKey)
 
-          countStr "<circle class=\"work\"" body `shouldBe` 4
+          countStr "<circle class=\"work" body `shouldBe` 4
           countStr (dataNodeId shared) body `shouldBe` 2
 
         it "gives each replica its own id" $ \pool -> do
@@ -179,6 +179,21 @@ spec = aroundAll withTestDatabase $
           body `shouldContainStr` "remove .replica-hover from"
 
       describe "the DOM contract" $ do
+        it "carries each node's status as a class on its shape" $ \pool -> do
+          -- Status is drawn here as the disc's ring rather than its
+          -- fill: the fill's hue is already saying which node a replica
+          -- is a replica of. Either way the server's part is the class
+          -- and nothing more -- which colour that becomes is the
+          -- stylesheet's decision.
+          (projectKey, _) <- seedProjectWithRootNode pool
+          _ <- seedWorkNode pool projectKey "Build the thing"
+
+          body <- graphBody pool (fromSqlKey projectKey)
+
+          -- seedWorkNode stores "active", the status every node is
+          -- created with.
+          body `shouldContainStr` "<circle class=\"work status-active\""
+
         it "tags every disc with the node it stands for" $ \pool -> do
           -- The one thing this visualization owes the Project Manage
           -- UI: the panel highlight and the post-edit flash

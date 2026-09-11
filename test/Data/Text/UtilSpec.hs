@@ -3,9 +3,10 @@
 
 module Data.Text.UtilSpec (spec) where
 
+import Data.Char (isAsciiLower, isDigit)
 import Data.Text (pack)
 import qualified Data.Text as T
-import Data.Text.Util (intToText, wrapLabel)
+import Data.Text.Util (intToText, slug, wrapLabel)
 import Test.Hspec
 import Test.Hspec.QuickCheck (prop)
 import Test.QuickCheck ((===))
@@ -21,6 +22,31 @@ spec = do
       intToText (123456789012345 :: Integer) `shouldBe` "123456789012345"
     prop "always matches Data.Text.pack . show, for any Int" $
       \(n :: Int) -> intToText n === pack (show n)
+
+  describe "slug" $ do
+    it "leaves an already-safe token alone" $
+      slug "active" `shouldBe` "active"
+    it "lowercases" $
+      slug "Rejected" `shouldBe` "rejected"
+    it "joins words with a single dash" $
+      slug "in progress" `shouldBe` "in-progress"
+    it "collapses a run of separators rather than emitting empty pieces" $
+      slug "not __ started" `shouldBe` "not-started"
+    it "drops leading and trailing separators" $
+      slug "  on hold  " `shouldBe` "on-hold"
+    it "keeps digits" $
+      slug "phase 2" `shouldBe` "phase-2"
+    -- The status vocabulary is a database table, so a value can be
+    -- anything a row holds. Nothing that reaches a class name may
+    -- escape the identifier: a status of `" onclick` has to come back
+    -- as something inert, not as an attribute boundary.
+    it "strips characters that would break out of a class attribute" $
+      slug "\" onclick=\"x()" `shouldBe` "onclick-x"
+    it "gives an all-separator value nothing rather than a bare dash" $
+      slug "   " `shouldBe` ""
+    prop "never emits anything outside [a-z0-9-], whatever it is given" $
+      \(s :: String) ->
+        T.all (\c -> c == '-' || isAsciiLower c || isDigit c) (slug (pack s))
 
   describe "wrapLabel" $ do
     it "leaves a label that already fits on one line alone" $
