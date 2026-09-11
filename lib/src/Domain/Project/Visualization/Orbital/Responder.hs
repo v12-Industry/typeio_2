@@ -6,11 +6,16 @@ module Domain.Project.Visualization.Orbital.Responder
 
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
+import Data.Maybe (maybeToList)
 import qualified Data.Set as S
 import Data.Text (Text, pack)
 import Database.Persist (Entity (..))
 import Database.Persist.Sql (ConnectionPool, fromSqlKey)
 import qualified Domain.Project.Model as M
+import Domain.Project.Node.Status
+  ( NodeStatus
+  , nodeStatusFromKey
+  )
 import Domain.Project.Orbit.Layout (orbit)
 import Domain.Project.Orbit.Types
   ( NodeId (..)
@@ -23,7 +28,10 @@ import Domain.Project.Visualization.Common
   ( RenderGraph
   , handleGraphWith
   )
-import Domain.Project.Visualization.Orbital.View (templateOrbit)
+import Domain.Project.Visualization.Orbital.View
+  ( DiscFacts (..)
+  , templateOrbit
+  )
 import Network.Wai (Application)
 
 handleProjectGraph :: ConnectionPool -> Application
@@ -31,10 +39,27 @@ handleProjectGraph = handleGraphWith renderGraph
 
 renderGraph :: RenderGraph
 renderGraph pid ns ds =
-  templateOrbit pid defaultOrbitConfig (labelsOf ns) (buildOrbit ns ds)
+  templateOrbit pid defaultOrbitConfig (factsOf ns) (buildOrbit ns ds)
+
+factsOf :: [Entity M.Node] -> DiscFacts
+factsOf ns =
+  DiscFacts
+    { dfLabels = labelsOf ns
+    , dfStatuses = statusesOf ns
+    }
 
 labelsOf :: [Entity M.Node] -> Map NodeId Text
 labelsOf ns = Map.fromList [(onId n, onLabel n) | n <- map toOrbitNode ns]
+
+statusesOf :: [Entity M.Node] -> Map NodeId NodeStatus
+statusesOf ns =
+  Map.fromList
+    [ (NodeId (fromSqlKey k), st)
+    | Entity k e <- ns
+    , st <- maybeToList (nodeStatusFromKey (statusKey e))
+    ]
+  where
+    statusKey = pack . M.unNodeStatusKey . M.nodeNodeStatusId
 
 buildOrbit :: [Entity M.Node] -> [Entity M.Dependency] -> OrbitDiagram
 buildOrbit ns ds = orbit defaultOrbitConfig work edges

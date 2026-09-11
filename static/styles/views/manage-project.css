@@ -525,8 +525,53 @@ svg {
 #tree-container .disc .work {
   fill: hsl(var(--node-hue) var(--disc-sat) var(--disc-light));
   cursor: pointer;
-  stroke: white;
-  stroke-width: 1.5px;
+  stroke: var(--disc-ring, white);
+  stroke-width: var(--disc-ring-width, 1.5px);
+}
+
+/* Status, drawn as a ring rather than a fill.
+
+   The fill is already spoken for here, and spoken for by something
+   load bearing: a node with several dependents is drawn once per
+   dependent, and its hue is the only thing saying those circles are
+   one node. Painting status into the fill would spend that signal --
+   every active node would look alike and a replica would stop being
+   recognisable as the same work. The stroke is free, so status takes
+   the stroke. This is the same fact the layered drawing colours a node
+   with, in the one channel this drawing has left.
+
+   Lighter and more saturated than the fills used for the same statuses
+   elsewhere, and deliberately: nothing sits on top of a stroke, so the
+   readability ceiling that holds those fills down does not apply here,
+   and a ring has far less area to say its colour with.
+
+   Set as custom properties rather than as `stroke` directly, so the
+   highlight rules below keep their own say over the width without
+   having to restate the colour. A status with no rule here keeps the
+   plain white ring. */
+#tree-container .disc .work.status-open,
+#tree-container .disc .work.status-active,
+#tree-container .disc .work.status-closed,
+#tree-container .disc .work.status-rejected {
+  --status-ring-sat: 55%;
+  --status-ring-light: 62%;
+  --disc-ring-width: 3px;
+}
+
+#tree-container .disc .work.status-open {
+  --disc-ring: hsl(var(--status-hue-open) var(--status-ring-sat) var(--status-ring-light));
+}
+
+#tree-container .disc .work.status-active {
+  --disc-ring: hsl(var(--status-hue-active) var(--status-ring-sat) var(--status-ring-light));
+}
+
+#tree-container .disc .work.status-closed {
+  --disc-ring: hsl(var(--status-hue-closed) var(--status-ring-sat) var(--status-ring-light));
+}
+
+#tree-container .disc .work.status-rejected {
+  --disc-ring: hsl(var(--status-hue-rejected) var(--status-ring-sat) var(--status-ring-light));
 }
 
 #tree-container .disc .work:hover {
