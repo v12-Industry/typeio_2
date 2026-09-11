@@ -626,6 +626,13 @@ large project is expected to overflow the view.
   equivalents, and `#tree-container` stays focusable so they reach it —
   with no buttons, that keyboard path is the only pointer-free way
   around the graph.
+- **The view is addressable.** A moved viewport is mirrored into the
+  URL as `viewX`/`viewY`/`viewScale`, so a reload, a back/forward, or a
+  pasted link lands on the view the user had rather than back at the
+  root. An *unmoved* one is not written: the opening transform is
+  computed against the container's current size, so recomputing it on
+  arrival beats restoring one measured against some earlier window.
+  Resetting takes the params back out.
 
 ### As built
 
@@ -634,8 +641,8 @@ from inside the graph fragment rather than once at page load, because
 htmx replaces `#tree-container`'s contents wholesale on every graph
 load — and that is also what keeps d3 off every other page in the app.
 
-Six things in it are less obvious than the feature list above, and are
-the parts to be careful around:
+Seven things in it are less obvious than the feature list above, and
+are the parts to be careful around:
 
 - **d3 is a gesture library here, not a layout one.** It moves a
   transform and never reads the graph's structure. The hard rule at the
@@ -671,6 +678,16 @@ the parts to be careful around:
   listeners, which drops them all at once. The teardown is installed
   *before* the dynamic import resolves, so a fast second swap cannot
   race a half-initialised viewport.
+- **The URL is written with `replaceState`, and rewritten after every
+  htmx push.** A pan emits a transform per frame, so a `pushState` per
+  gesture would bury the node the user actually navigated to; the write
+  is debounced on top of that. Opening a node pushes a URL of its own
+  that arrives without the view, so the viewport restamps itself onto
+  that entry on `htmx:pushedIntoHistory` — otherwise a reload after a
+  click would throw away a pan that a reload after a gesture keeps. A
+  `popstate` listener reads the view back, which keeps back/forward
+  working even when htmx restores a page from its own cache instead of
+  re-running this script.
 
 `e2e/tests/graph-viewport.spec.ts` drives the gestures for real in a browser,
 asserting on the zoom layer's `transform`. Integration assertions on the

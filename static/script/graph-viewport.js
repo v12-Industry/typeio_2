@@ -21,6 +21,11 @@
 //   arrow keys           pan          (keyboard equivalent, since
 //   + / - / 0            zoom, reset   there are no buttons)
 //
+// The transform is also mirrored into the URL's query string, so a
+// reload or a back/forward lands on the view the user had open rather
+// than back at the project root. See `syncUrl` for the shape of that
+// and for why only an adjusted view is written.
+//
 // d3 is loaded only from here, and this file is loaded only by the
 // graph fragment -- see the note on the <script> tag in Graph.hs. That
 // scoping is the point: this bundle is ~47KB and arrives only with a
@@ -64,6 +69,16 @@
   const rootX = num("rootX", baseWidth / 2);
   const rootY = num("rootY", baseHeight / 2);
 
+  // The transform's three numbers, as query params. Named in the same
+  // camelCase as every other param the app reads (`projectId`,
+  // `visualizationMode`), because they share the URL with them.
+  const PARAM_X = "viewX";
+  const PARAM_Y = "viewY";
+  const PARAM_SCALE = "viewScale";
+  // A pan emits a transform per frame. Rewriting the URL that often is
+  // wasted work, so writes settle first.
+  const URL_SYNC_DELAY = 200;
+
   const MIN_SCALE = 0.2;
   const MAX_SCALE = 3;
   const KEY_PAN_STEP = 60; // px per arrow key press
@@ -99,6 +114,59 @@
 
       let moved = false;
       let gestureStart = null;
+      // Whether the view on screen is the user's or just the one it
+      // opened at. Only the former is worth carrying in the URL: an
+      // untouched view is better recomputed on arrival, because the
+      // opening transform centres the root against the container's
+      // current size and a window resized since would restore off
+      // centre.
+      let adjusted = false;
+      let urlSyncTimer = null;
+
+      const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+      const urlTransform = () => {
+        const params = new URLSearchParams(window.location.search);
+        const x = parseFloat(params.get(PARAM_X));
+        const y = parseFloat(params.get(PARAM_Y));
+        const k = parseFloat(params.get(PARAM_SCALE));
+        if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(k)) {
+          return null;
+        }
+        // A hand-edited or stale scale is clamped rather than refused:
+        // the same extent the gestures are held to, so no URL can put
+        // the graph somewhere the gestures cannot get back from.
+        return zoomIdentity.translate(x, y).scale(clamp(k, MIN_SCALE, MAX_SCALE));
+      };
+
+      // Writes the current transform into the URL, or takes it back out
+      // once the view is the opening one again -- a reset should leave
+      // the plain URL the project was reached by, not a spelled-out
+      // copy of the default.
+      //
+      // replaceState, never pushState: a pan is not a navigation, and a
+      // history entry per gesture would bury the node the user actually
+      // navigated to under a run of near-identical views.
+      const syncUrl = () => {
+        const url = new URL(window.location.href);
+        if (adjusted) {
+          const t = zoomTransform(svg);
+          url.searchParams.set(PARAM_X, String(Number(t.x.toFixed(2))));
+          url.searchParams.set(PARAM_Y, String(Number(t.y.toFixed(2))));
+          url.searchParams.set(PARAM_SCALE, String(Number(t.k.toFixed(4))));
+        } else {
+          url.searchParams.delete(PARAM_X);
+          url.searchParams.delete(PARAM_Y);
+          url.searchParams.delete(PARAM_SCALE);
+        }
+        if (url.href === window.location.href) return;
+        history.replaceState(history.state, "", url);
+      };
+
+      const scheduleUrlSync = () => {
+        clearTimeout(urlSyncTimer);
+        urlSyncTimer = setTimeout(syncUrl, URL_SYNC_DELAY);
+      };
 
       const zb = zoom()
         .scaleExtent([MIN_SCALE, MAX_SCALE])
@@ -114,10 +182,14 @@
         .on("start", (event) => {
           moved = false;
           gestureStart = event.transform;
-          if (event.sourceEvent) container.classList.add("is-panning");
+          if (event.sourceEvent) {
+            container.classList.add("is-panning");
+            adjusted = true;
+          }
         })
         .on("zoom", (event) => {
           layer.setAttribute("transform", event.transform.toString());
+          scheduleUrlSync();
           // A press only counts as a drag past DRAG_THRESHOLD pixels,
           // so a click with a pixel of hand-shake in it still opens the
           // node it landed on.
@@ -139,7 +211,10 @@
 
       const currentScale = () => zoomTransform(svg).k;
 
-      const reset = () => zb.transform(svgSel, openingTransform());
+      const reset = () => {
+        adjusted = false;
+        zb.transform(svgSel, openingTransform());
+      };
 
       // --- Wheel: pan, or zoom with ctrl/cmd ---------------------------
       //
@@ -152,6 +227,7 @@
         "wheel",
         (event) => {
           event.preventDefault();
+          adjusted = true;
           if (event.ctrlKey || event.metaKey) {
             zb.scaleBy(
               svgSel,
@@ -187,8 +263,17 @@
         (event) => {
           if (event.metaKey || event.ctrlKey || event.altKey) return;
           const k = currentScale();
-          const pan = (dx, dy) =>
+          // Marking the adjustment inside the movers rather than beside
+          // the switch keeps it off the two keys that do not move the
+          // view: an unhandled key, and `0`, whose `reset` clears it.
+          const pan = (dx, dy) => {
+            adjusted = true;
             zb.translateBy(svgSel, dx / k, dy / k);
+          };
+          const zoomBy = (factor) => {
+            adjusted = true;
+            zb.scaleBy(svgSel, factor);
+          };
           switch (event.key) {
             case "ArrowLeft":
               pan(KEY_PAN_STEP, 0);
@@ -204,11 +289,11 @@
               break;
             case "+":
             case "=":
-              zb.scaleBy(svgSel, KEY_ZOOM_STEP);
+              zoomBy(KEY_ZOOM_STEP);
               break;
             case "-":
             case "_":
-              zb.scaleBy(svgSel, 1 / KEY_ZOOM_STEP);
+              zoomBy(1 / KEY_ZOOM_STEP);
               break;
             case "0":
               reset();
@@ -238,19 +323,45 @@
         { capture: true, signal }
       );
 
+      // --- The URL is the other end of the transform ---------------------
+      //
+      // Opening a node pushes a URL of its own, which arrives without
+      // these params. Restamping the settled view onto the entry htmx
+      // just pushed is what keeps a reload after a click landing where
+      // a reload after a gesture does.
+      document.addEventListener("htmx:pushedIntoHistory", syncUrl, { signal });
+
+      // Back and forward move between entries that each carry their own
+      // view. Reading it here means the graph follows even when htmx
+      // restores the page from its own cache rather than re-running
+      // this script.
+      window.addEventListener(
+        "popstate",
+        () => {
+          const t = urlTransform();
+          adjusted = t !== null;
+          zb.transform(svgSel, t ?? openingTransform());
+        },
+        { signal }
+      );
+
       // --- Start ---------------------------------------------------------
       // Deferred one frame: the fragment has just been swapped in, and
       // container.clientWidth/clientHeight are only meaningful once the
-      // browser has laid it out.
+      // browser has laid it out. A view carried in the URL wins over the
+      // opening one.
       requestAnimationFrame(() => {
         if (disposed) return;
-        zb.transform(svgSel, openingTransform());
+        const t = urlTransform();
+        adjusted = t !== null;
+        zb.transform(svgSel, t ?? openingTransform());
       });
 
       // d3 binds its own listeners outside the AbortController, so they
       // are removed explicitly on top of aborting the signal.
       const abortSignalTeardown = container._graphViewportTeardown;
       container._graphViewportTeardown = () => {
+        clearTimeout(urlSyncTimer);
         svgSel.on(".zoom", null);
         abortSignalTeardown();
       };

@@ -35,3 +35,8 @@ doing a distinct job:
   pinch) to zoom, double-click to reset, and arrows/`+`/`−`/`0` from
   the keyboard. There are deliberately no on-screen zoom buttons — see
   [Viewport](../../architecture/graph-rendering.md#viewport).
+
+  A view the user has moved is mirrored into the URL as
+  `viewX`/`viewY`/`viewScale`, so reload, back/forward and a shared
+  link all return to it; a view still at its opening position is left
+  out, and resetting removes the params again.
