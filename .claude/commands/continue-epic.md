@@ -41,6 +41,16 @@ For every PR that's still OPEN:
 - Never merge, queue, or approve any PR -- only do that if the issue
   or PR explicitly carries this repo's merge-authorization label(s)
   (see its `CLAUDE.md`, e.g. `review:approved` / `review:pre-approve`).
+- **If the PR does carry that label** (e.g. `review:approved`), don't
+  stop at comment catch-up: resolve any merge conflicts against the
+  default branch (per this repo's own conventions for pulling the
+  default branch in onto a feature branch -- rebase, then force-push
+  only that branch), wait for required checks to pass, and queue it for
+  merge using this repo's documented merge mechanics (see its
+  `CLAUDE.md`'s Git Safety section, e.g. the merge-queue GraphQL
+  mutation -- never a plain merge command if the repo's conventions
+  say otherwise). Do this in addition to addressing comment feedback
+  above, not instead of it.
 
 Do this for *every* currently-open PR in the epic, not just one --
 this run intentionally allows more than one PR from this epic to be
