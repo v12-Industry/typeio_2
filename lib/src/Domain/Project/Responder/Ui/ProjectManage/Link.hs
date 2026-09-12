@@ -42,6 +42,12 @@ nodeRefreshLink nid pid wrapWidth clientTitle =
     <> "&clientTitle="
     <> clientTitle
 
+projectStatsLink :: Int64 -> Text
+projectStatsLink pid =
+  "/ui/project/stats"
+    <> "?projectId="
+    <> intToText pid
+
 graphLink :: Int64 -> Visualization -> Text
 graphLink pid viz =
   graphLinkFor pid

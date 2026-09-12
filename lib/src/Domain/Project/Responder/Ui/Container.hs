@@ -13,6 +13,7 @@ import Domain.Project.Responder.Ui.ProjectManage.Node.Edit (handleGetNodeEdit)
 import Domain.Project.Responder.Ui.ProjectManage.Node.Refresh (handleGetNodeRefresh)
 import Domain.Project.Responder.Ui.ProjectManage.Node.Status (handlePutNodeStatus)
 import Domain.Project.Responder.Ui.ProjectManage.Node.Title (handlePutTitle)
+import Domain.Project.Responder.Ui.ProjectManage.Stats (handleGetProjectStats)
 import Domain.Project.Responder.Ui.ProjectManage.View (handleProjectManageView)
 import Domain.Project.Visualization.Common (RenderGraph, handleGraph)
 import qualified Domain.Project.Visualization.Orbital.Responder as Orbital
@@ -33,6 +34,7 @@ data Container = Container
   , getNodeEdit :: Application
   , getNodePanel :: Application
   , getNodeRefresh :: Application
+  , getProjectStats :: Application
   , putNodeDescription :: Application
   , putNodeStatus :: Application
   , putNodeTitle :: Application
@@ -55,6 +57,7 @@ defaultContainer pl =
     , getNodeEdit = handleGetNodeEdit pl
     , getNodePanel = handleGetNodePanel
     , getNodeRefresh = handleGetNodeRefresh pl
+    , getProjectStats = handleGetProjectStats pl
     , putNodeDescription = handlePutDescription pl
     , putNodeStatus = handlePutNodeStatus pl
     , putNodeTitle = handlePutTitle pl
