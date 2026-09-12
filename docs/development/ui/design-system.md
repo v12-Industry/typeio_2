@@ -45,9 +45,14 @@ docs change.
 
 - **`.pill-button`** (and `.pill-button.selected`) — the pill-shaped
   *interactive* control: the node-panel's edit/save/close icon buttons
-  (`Domain.Project.Responder.Ui.ProjectManage.Node.templateNodePanel`)
-  and the status `<select>`'s styling. `.selected` marks whichever
-  choice is currently active.
+  (`Domain.Project.Responder.Ui.ProjectManage.Node.templateNodePanel`).
+  `.selected` marks whichever choice is currently active.
+- **`.pill-dropdown`** (in `manage-project.css`) — the same pill shape
+  for a `<select>`, worn by the node-edit panel's status control. It
+  sits directly under the pill buttons, where a square-cornered
+  dropdown reads as something nobody got to. Sized to its content
+  rather than the field width: a status is one short word, and a
+  full-width control implies a value long enough to need it.
 - **`.pill-indicator`** — a pill-shaped, *non-interactive* variant (no
   `cursor: pointer`, accent-colored border/text) defined in
   `global.css`. Checked across every `.hs` file in the app: **it's not
