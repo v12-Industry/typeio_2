@@ -27,6 +27,12 @@
 // the hyperscript on that element. This file owns the transform and
 // nothing else: it has no idea a query string exists.
 //
+// The one signal coming the other way is `graph:reveal`, a node id sent
+// to #tree-container by whatever has decided that node matters -- today
+// the node panel, when it opens on one. The view then moves the least it
+// can to put that node on screen. Same division: the asker knows which
+// node, this file knows where the drawing is.
+//
 // d3 is loaded only from here, and this file is loaded only by the
 // graph fragment -- see the note on the <script> tag in Graph.hs. That
 // scoping is the point: this bundle is ~47KB and arrives only with a
@@ -75,6 +81,13 @@
   const KEY_PAN_STEP = 60; // px per arrow key press
   const KEY_ZOOM_STEP = 1.2;
   const DRAG_THRESHOLD = 4;
+  // How far inside the canvas a revealed node is brought, and the band
+  // kept clear beneath it for the panel that anchors there.
+  const REVEAL_INSET = 24;
+  const REVEAL_PANEL_ROOM = 240;
+  // Below this the reserved band is dropped: on a canvas that short,
+  // holding room for the panel would leave the node nowhere to be.
+  const REVEAL_MIN_BAND = 120;
 
   // The bundle is ESM, so it loads via dynamic import from this classic
   // script rather than a <script type="module"> tag: a module executes
@@ -290,6 +303,119 @@
         { signal }
       );
 
+      // --- Reveal: bring a node into view -------------------------------
+      //
+      // The viewport's one inbound signal, the mirror of `graph:viewport`
+      // going out: `graph:reveal` names a node, and the view moves the
+      // least it can to put that node on screen. Who decides a node
+      // matters is not this file's business -- the node panel asks,
+      // because it is the thing that knows a node has been selected.
+      //
+      // The band below the node is the coordination with that panel: the
+      // panel anchors underneath its node, so a node brought to rest
+      // against the bottom edge would be one the panel has to flip over
+      // or crowd. Room is kept for it up front instead.
+      const safeBox = (reserveForPanel) => {
+        const frame = container.getBoundingClientRect();
+        const top = frame.top + REVEAL_INSET;
+        const bottom = frame.bottom - REVEAL_INSET;
+        const reserved = bottom - REVEAL_PANEL_ROOM;
+        return {
+          top,
+          left: frame.left + REVEAL_INSET,
+          right: frame.right - REVEAL_INSET,
+          bottom:
+            reserveForPanel && reserved - top >= REVEAL_MIN_BAND
+              ? reserved
+              : bottom,
+        };
+      };
+
+      // Nudged to the nearest edge it has run past, never centred.
+      const shift = (near, far, lo, hi) =>
+        near < lo ? lo - near : far > hi ? hi - far : 0;
+
+      const offsetInto = (box, rect) => ({
+        dx: shift(rect.left, rect.right, box.left, box.right),
+        dy: shift(rect.top, rect.bottom, box.top, box.bottom),
+      });
+
+      // The first match, which is the shape the panel anchors to --
+      // orbital draws one node once per work stream, and the two have to
+      // agree on which replica they mean. Scoped to the container, so
+      // the panel's own data-node-id is not a candidate.
+      const shapeFor = (id) =>
+        container.querySelector(`[data-node-id="${CSS.escape(id)}"]`);
+
+      const revealNode = (id) => {
+        const shape = shapeFor(id);
+        if (!shape) return;
+
+        let rect = shape.getBoundingClientRect();
+        const visible = safeBox(false);
+
+        // A node already on the canvas is left exactly where it is.
+        // Selecting must not jog the drawing under the pointer, and the
+        // reserved band below is not a reason to move something that
+        // can already be seen -- a panel with no room beneath its node
+        // flips above it instead.
+        const fits =
+          rect.width <= visible.right - visible.left &&
+          rect.height <= visible.bottom - visible.top;
+        const here = offsetInto(visible, rect);
+        if (fits && here.dx === 0 && here.dy === 0) return;
+
+        // Zooming is a last resort, not part of selecting: the scale
+        // changes only for a node too big to be shown whole at the one
+        // the user chose.
+        if (!fits) {
+          const factor = Math.min(
+            (visible.right - visible.left) / rect.width,
+            (visible.bottom - visible.top) / rect.height
+          );
+          const target = Math.max(MIN_SCALE, currentScale() * factor);
+          if (target < currentScale()) {
+            adjusted = true;
+            const svgRect = svg.getBoundingClientRect();
+            zb.scaleTo(svgSel, target, [
+              rect.left + rect.width / 2 - svgRect.left,
+              rect.top + rect.height / 2 - svgRect.top,
+            ]);
+            rect = shape.getBoundingClientRect();
+          }
+        }
+
+        // It is moving either way, so it may as well land where the
+        // panel can open beneath it rather than just inside the edge.
+        const { dx, dy } = offsetInto(safeBox(true), rect);
+        if (dx === 0 && dy === 0) return;
+
+        adjusted = true;
+        const k = currentScale();
+        zb.translateBy(svgSel, dx / k, dy / k);
+      };
+
+      // A reveal asked for before the opening transform has been
+      // applied is held, not dropped: on a deep link the panel and the
+      // drawing arrive together, and whichever lands first would
+      // otherwise decide whether the node is on screen.
+      let started = false;
+      let pendingReveal = null;
+
+      container.addEventListener(
+        "graph:reveal",
+        (event) => {
+          const id = event.detail && event.detail.nodeId;
+          if (id == null) return;
+          if (!started) {
+            pendingReveal = String(id);
+            return;
+          }
+          revealNode(String(id));
+        },
+        { signal }
+      );
+
       // --- Drag must not read as a click --------------------------------
       //
       // Every node is also a click target (htmx opens its detail
@@ -317,6 +443,11 @@
         const t = requestedTransform();
         adjusted = t !== null;
         zb.transform(svgSel, t ?? openingTransform());
+        started = true;
+        if (pendingReveal !== null) {
+          revealNode(pendingReveal);
+          pendingReveal = null;
+        }
       });
 
       // d3 binds its own listeners outside the AbortController, so they

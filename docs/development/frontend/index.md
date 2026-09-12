@@ -68,7 +68,12 @@ doing a distinct job:
     server-side in `ProjectManage/View.hs` alongside `projectId` and
     `visualizationMode`;
   - the current view leaves as a `graph:viewport` DOM event carrying
-    `{x, y, k, adjusted}`.
+    `{x, y, k, adjusted}`;
+  - and the one signal coming back the other way is `graph:reveal`,
+    a `{nodeId}` sent to `#tree-container` by whatever has decided that
+    node matters. The view then moves the least it can to put that node
+    on screen — see [components.md](../ui/components.md)'s "A selected
+    node is brought into view".
 
   The hyperscript on `#tree-container` (`viewUrlBehavior`) turns that
   event into the address bar: a view the user has moved is spelled out
