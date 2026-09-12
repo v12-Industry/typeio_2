@@ -96,9 +96,10 @@ itself — worth getting right here too:
 - **Reference data** — `NodeStatus`/`NodeType` lookup rows the app needs
   to function at all (`Domain.Central.Responder.Api.Seed.nodeStatuses`/
   `nodeTypes`). This is the **same** mechanism the running app uses to
-  seed itself on startup — reused directly (`insertUnique` over each
-  list) by `Integration.Support.seedReferenceData`, once per container,
-  not once per test. It is **not** demo or fixture data, and creates no
+  seed itself on startup — `Integration.Support.seedReferenceData` runs
+  `Domain.Central.Responder.Api.Seed.seedReferenceData`, the very
+  function the seed endpoint runs, once per container, not once per
+  test. It is **not** demo or fixture data, and creates no
   `Project`/`Node` rows.
 - **Test fixtures** — a `Project` and a root `Node` a write-responder
   test needs to exist before it can do anything (e.g. `handlePostNode`

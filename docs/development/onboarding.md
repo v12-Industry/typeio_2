@@ -43,25 +43,59 @@ make run-postgres      # start Postgres in Docker
 make migrate-up        # apply all migrations
 cabal build all        # build everything
 cabal run server        # start the app, reads .env
-make seed-db           # reference data + a demo project (needs the server already running)
+make seed-db           # reference data, through the app (needs the server already running)
+make seed-demo-data    # the demo projects, straight into Postgres
 ```
 
 Once it's running, visit `http://localhost:3000` (or whatever `WEB_PORT`
 is set to) in a browser.
 
-`make seed-db` inserts the reference data (`NodeStatus`/`NodeType`) and
-a demo project, **Public API launch**, with seven work nodes and real
-dependencies between them. It is idempotent — running it twice leaves
-one demo project.
+Seeding comes in two halves, and they are deliberately separate.
 
-The demo project is there because the seed once inserted
-reference data only, and there is still no way to create a dependency
-through the UI — so a freshly seeded database drew every graph
-as a handful of disconnected nodes with no edges, in every
-visualization. Its shape is deliberate: three heads, and one node (the
-auth service) that three separate outcomes are waiting on. That shared
-bottleneck is what makes the visualizations differ from each other
-rather than all looking the same.
+**`make seed-db` inserts the reference data, and only that** — the
+`NodeType` and `NodeStatus` rows every `project.node` points at, without
+which the app cannot write a node at all. It goes through the app's own
+seed endpoint (`POST /api/central/seed-database`,
+`Domain.Central.Responder.Api.Seed`), so it needs the server running,
+and it is idempotent. **Fixture, demo and test data never belong here.**
+The app seeds what it needs to operate; anything a person wants to look
+at is somebody else's job.
+
+**`make seed-demo-data` loads the demo projects**, running
+`local/sql/demo-data.sql` against Postgres directly — the app is not
+involved and need not even be running, only the reference data has to be
+in place already. It is idempotent per project, keyed on each project's
+own root title, so running it twice leaves one of each, a project
+someone has since edited is left alone, and a newly added fixture
+appears without disturbing the others.
+
+`make start-app` runs both, in that order.
+
+The demo projects are there because there is no way to create a
+dependency through the UI, so without them a freshly seeded database
+draws every graph as a handful of disconnected nodes with no edges, in
+every visualization. Their shapes are deliberate, and chosen to differ
+from one another:
+
+| Project | Size | Shape | Statuses |
+|---|---|---|---|
+| Public API launch | 7 | Three heads over a shared bottleneck | All active |
+| Warehouse migration | 6 | One straight chain | Mostly closed, tapering to open |
+| Design system refresh | 5 | No dependencies at all | Every status, including rejected |
+| Billing rewrite | 4 | A diamond over one foundation | Mixed |
+| Mobile relaunch | 12 | Several streams, two shared nodes | Mixed |
+| Compliance audit | 0 | No work at all | — |
+
+The shared bottleneck in **Public API launch** — one node three
+separate outcomes are waiting on — is what makes the visualizations
+differ from each other rather than all looking the same, so it is the
+fixture the orbital E2E spec drives. **Compliance audit** is the empty
+case: an empty drawing and a zeroed stats panel have something to be
+tested against.
+
+The fixtures are rows in `local/sql/demo-data.sql`'s own tables —
+`demo_project`, `demo_work`, `demo_dependency` — so a seventh project is
+a few `INSERT` rows there, not new code anywhere.
 
 Other `make migrate-*` targets (`migrate-down`, `migrate-down-all`,
 `migrate-new NAME=...`, `migrate-version`, `migrate-force VERSION=...`)

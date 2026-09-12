@@ -237,9 +237,20 @@ jobs:
 
       # What `make seed-db` does locally -- reusing the app's own
       # existing seeding path (Domain.Central.Responder.Api.Seed) rather
-      # than duplicating NodeStatus/NodeType a third time.
+      # than duplicating NodeStatus/NodeType a third time. Reference
+      # rows only: that endpoint seeds nothing else.
       - name: Seed reference data
         run: curl -sf -X POST "http://localhost:$WEB_PORT/api/central/seed-database"
+
+      # The fixtures the specs drive, loaded the same way `make
+      # seed-demo-data` loads them locally -- straight into Postgres
+      # from local/sql/demo-data.sql, with the app uninvolved. The
+      # script finds the database through the container started above,
+      # which it is told the name of.
+      - name: Seed demo projects
+        env:
+          CONTAINER_NAME: e2e-postgres
+        run: ./local/script/seed-demo-data.sh
 
       # Cached on the lockfile hash, same pattern as the cabal-store
       # cache above -- the real cost here is the ~180MB Chromium

@@ -18,13 +18,13 @@ import { test, expect, Page } from '@playwright/test';
 //     the right one of several, and that the discs are actually
 //     clickable where they were placed.
 //
-// The fixture is the seeded demo project rather than one built here:
+// The fixture is a loaded demo project rather than one built here:
 // replication needs a node with several dependents, and no UI flow
 // creates a dependency.
 
-// Title of the demo project the seed inserts. Its shape is deliberate
-// -- three heads and one node three separate outcomes wait on -- see
-// Domain.Central.Responder.Api.Seed.
+// Title of the demo project `make seed-demo-data` loads. Its shape is
+// deliberate -- three heads and one node three separate outcomes wait
+// on -- see local/sql/demo-data.sql.
 const DEMO_PROJECT = 'Public API launch';
 
 async function demoProjectId(page: Page): Promise<string> {

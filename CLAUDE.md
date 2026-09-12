@@ -120,7 +120,10 @@ still telling the truth about the day it was written.
 - **Migrations:** `make migrate-up` / `make migrate-down` /
   `make migrate-down-all` / `make migrate-new NAME=<name>` /
   `make migrate-version` / `make migrate-force VERSION=<v>`
-- **Seed the database:** `make seed-db`
+- **Seed the database:** `make seed-db` (reference data) and
+  `make seed-demo-data` (the demo projects). Two commands, because they
+  are two different things — see the seeding rule under Code & Style
+  Conventions.
 - **Verifying a change:** `cabal build all` (compiles clean, `-Wall` is
   on). A unit test suite exists (`cabal test spec` / `make test`) and CI
   runs it on every PR into `main` (GitHub Actions,
@@ -212,6 +215,19 @@ Quick summary:
   - History that is genuinely worth keeping belongs in the git log, or
     in a *new* proposal recording a *new* decision — never appended to
     an existing one, and never scattered through reference docs.
+- **The application seeds reference data only.**
+  `Domain.Central.Responder.Api.Seed` — everything behind
+  `make seed-db` — exists to insert the lookup rows the app cannot
+  operate without (`NodeType`, `NodeStatus`). **Never add fixture, demo,
+  sample or test data to it**, however convenient it is that the seed
+  endpoint is already there and already idempotent. Data that exists to
+  be looked at, demoed, or tested against belongs outside the web app
+  entirely: it lives in `local/sql/demo-data.sql` and is loaded straight
+  into Postgres by `make seed-demo-data`, with the app uninvolved.
+  Adding a demo project is rows in that file's `demo_project`/
+  `demo_work`/`demo_dependency` tables — no Haskell. See
+  [`docs/development/onboarding.md`](docs/development/onboarding.md)'s
+  seeding section.
 - Responder modules are one file per HTTP verb under
   `responder/api/<Domain>/<Verb>.hs` (e.g. `Get.hs`, `Post.hs`), and one
   `View.hs`/template module per feature under `responder/ui/<Feature>/`.
