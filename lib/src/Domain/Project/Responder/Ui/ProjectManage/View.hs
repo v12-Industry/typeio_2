@@ -139,12 +139,17 @@ templateProject py = do
         , hxGet_ (graphLink pid viz)
         , hxPushUrl_ False
         , hxSwap_ "innerHTML"
-        , hxTrigger_ "load"
+        , hxTrigger_ "load, nodeCreated from:body"
         , dataViewBase_ (payloadViewBase py)
         , h_ viewUrlBehavior
         ]
           <> viewAttrs (payloadView py)
       )
+      empty
+    templateAddWorkToggle pid
+    div_
+      [ id_ "add-work-panel"
+      ]
       empty
     div_
       [ id_ "node-panel"
@@ -196,6 +201,20 @@ templateToolbar pid =
       , h_ "on click toggle .open on #stats-panel"
       ]
       "Stats"
+
+templateAddWorkToggle :: Int64 -> Html ()
+templateAddWorkToggle pid =
+  button_
+    [ id_ "add-work-toggle"
+    , type_ "button"
+    , ariaLabel_ "Add work"
+    , hxGet_ (addWorkLink pid)
+    , hxPushUrl_ False
+    , hxSwap_ "innerHTML"
+    , hxTarget_ "#add-work-panel"
+    , hxTrigger_ "click"
+    ]
+    "+ Add work"
 
 templateStatsPanel :: Html ()
 templateStatsPanel =

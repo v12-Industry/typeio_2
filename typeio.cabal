@@ -88,6 +88,7 @@ library src
       -- shell these render and on its htmx wiring.
       , Domain.Project.Responder.Ui.ProjectManage.View
       , Domain.Project.Responder.Ui.ProjectManage.Node.Edit
+      , Domain.Project.Responder.Ui.ProjectManage.Node.Create
       , Domain.Project.Responder.Ui.ProjectManage.Node.Description
       , Domain.Project.Responder.Ui.ProjectManage.Node.Status
       , Domain.Project.Responder.Ui.ProjectManage.Node.Title
@@ -240,6 +241,7 @@ test-suite integration
       , Domain.Central.Responder.Api.SeedSpec
       , Domain.Project.Responder.Api.Node.PostSpec
       , Domain.Project.Responder.Ui.ProjectCreate.SubmitSpec
+      , Domain.Project.Responder.Ui.ProjectManage.Node.CreateSpec
       , Domain.Project.Responder.Ui.ProjectManage.Node.DescriptionSpec
       , Domain.Project.Responder.Ui.ProjectManage.Node.StatusSpec
       , Domain.Project.Responder.Ui.ProjectManage.Node.TitleSpec

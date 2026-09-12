@@ -7,6 +7,7 @@ import Domain.Project.Responder.Ui.ProjectCreate.View (handleProjectCreateVw)
 import Domain.Project.Responder.Ui.ProjectIndex.List (handleProjectList)
 import Domain.Project.Responder.Ui.ProjectIndex.View (handleProjectView)
 import Domain.Project.Responder.Ui.ProjectManage.Node (handleGetNodePanel)
+import Domain.Project.Responder.Ui.ProjectManage.Node.Create (handleGetAddWork, handlePostWork)
 import Domain.Project.Responder.Ui.ProjectManage.Node.Description (handlePutDescription)
 import Domain.Project.Responder.Ui.ProjectManage.Node.Detail (handleGetNodeDetail)
 import Domain.Project.Responder.Ui.ProjectManage.Node.Edit (handleGetNodeEdit)
@@ -30,11 +31,13 @@ data Container = Container
   , createProjectVw :: (Response -> IO ResponseReceived) -> IO ResponseReceived
   , manageProjectVw :: Application
   , getProjectGraph :: Application
+  , getAddWork :: Application
   , getNodeDetail :: Application
   , getNodeEdit :: Application
   , getNodePanel :: Application
   , getNodeRefresh :: Application
   , getProjectStats :: Application
+  , postWork :: Application
   , putNodeDescription :: Application
   , putNodeStatus :: Application
   , putNodeTitle :: Application
@@ -53,11 +56,13 @@ defaultContainer pl =
     , createProjectVw = handleProjectCreateVw
     , manageProjectVw = handleProjectManageView
     , getProjectGraph = handleGraph renderFor pl
+    , getAddWork = handleGetAddWork
     , getNodeDetail = handleGetNodeDetail pl
     , getNodeEdit = handleGetNodeEdit pl
     , getNodePanel = handleGetNodePanel
     , getNodeRefresh = handleGetNodeRefresh pl
     , getProjectStats = handleGetProjectStats pl
+    , postWork = handlePostWork pl
     , putNodeDescription = handlePutDescription pl
     , putNodeStatus = handlePutNodeStatus pl
     , putNodeTitle = handlePutTitle pl

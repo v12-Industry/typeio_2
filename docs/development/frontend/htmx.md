@@ -100,6 +100,34 @@ specifically* closes," filtering out edits to other nodes. If you're
 extending this, trace where `nodePanel:onEditClosed` actually gets
 dispatched before assuming — it isn't in `Graph.hs` itself.
 
+## Pattern: one response that changes two places
+
+The "Add work" panel's submit
+(`ProjectManage/Node/Create.hs`) has three things to do at once: close
+the panel that submitted it, open the new node's own panel, and get the
+drawing redrawn with the node in it. It does all three from one
+response, with no client-side code:
+
+- **The form's own target is the panel it lives in**, so whatever comes
+  back is what the person is left looking at. A rejected title returns
+  the form again, complaint included, still open. A success returns
+  nothing for that target — and `#add-work-panel:empty` is its closed
+  state, so the panel closes by being emptied.
+- **The node panel is swapped out of band**: the response carries a
+  `<div id="node-panel" hx-swap-oob="innerHTML">` (`hxSwapOob_`), which
+  htmx lifts out and applies by id rather than to the target.
+- **The graph is told to refetch** by an `HX-Trigger: nodeCreated`
+  response header, which htmx turns into a DOM event on `body`;
+  `#tree-container` listens for it (`hx-trigger="load, nodeCreated from:
+  body"`) and re-fetches the graph fragment. The drawing is rendered
+  server-side, so this refetch is the only thing that puts a new node on
+  screen.
+
+Worth knowing when adding a fourth thing: an out-of-band fragment must
+carry the **id of the element it is replacing**, not the id of anything
+in the response's own target, and `hx-swap-oob="innerHTML"` swaps the
+fragment's *children* into that element.
+
 ## Debugging
 
 `hxIndicator_`/`hxSync_` exist in `Common.Web.Attributes` but aren't

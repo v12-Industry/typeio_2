@@ -49,12 +49,13 @@ export interface CreatedNode {
 }
 
 // Adds a node to an existing project via a direct API call
-// (Domain.Project.Responder.Api.Node.Post), not a UI interaction: the
-// app has no UI affordance to create a node anywhere -- checked the
-// client script, the graph template, and the node panel (see the PR
-// description for the full finding). Every spec that needs *a* node to
-// exist but isn't testing node creation itself calls this instead of
-// reimplementing the API-plus-lookup dance.
+// (Domain.Project.Responder.Api.Node.Post), not through the "Add work"
+// panel: this is setup, and driving three interactions and two htmx
+// swaps to reach a node every other spec merely needs to exist would
+// make each of them a slower, flakier copy of add-work.spec.ts, which
+// is the spec that does test that panel. Every spec that needs *a*
+// node calls this instead of reimplementing the API-plus-lookup
+// dance.
 export async function addNode(
   request: APIRequestContext,
   projectId: string,
