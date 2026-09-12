@@ -41,13 +41,13 @@ test-migrations:
 ## this target exists so CI/pre-commit and humans/agents share one
 ## command.
 format:
-	fourmolu --mode inplace $$(find lib exe test test-integration -name '*.hs')
+	fourmolu --mode inplace $$(find lib lib-servant exe test test-integration -name '*.hs')
 
 ## Check that every Haskell source file is already Fourmolu-formatted,
 ## without modifying anything -- non-zero exit on any diff. CI-friendly
 ## counterpart to `format`.
 format-check:
-	fourmolu --mode check $$(find lib exe test test-integration -name '*.hs')
+	fourmolu --mode check $$(find lib lib-servant exe test test-integration -name '*.hs')
 
 ## Run postgres container
 run-postgres:
