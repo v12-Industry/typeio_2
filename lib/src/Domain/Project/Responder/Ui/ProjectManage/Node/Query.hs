@@ -21,3 +21,30 @@ queryNode nid = do
   return . listToMaybe $ ns
   where
     nkey = toSqlKey @M.Node nid
+
+queryProject :: Int64 -> ReaderT SqlBackend IO (Maybe (Entity M.Project))
+queryProject pid = do
+  ps <- select $ do
+    p <- from $ table @M.Project
+    where_ (p.id ==. val (toSqlKey @M.Project pid))
+    limit 1
+    pure p
+  return . listToMaybe $ ps
+
+queryNodeStatus :: String -> ReaderT SqlBackend IO (Maybe (Entity M.NodeStatus))
+queryNodeStatus sid = do
+  ss <- select $ do
+    s <- from $ table @M.NodeStatus
+    where_ (s.nodeStatusId ==. val sid)
+    limit 1
+    pure s
+  return . listToMaybe $ ss
+
+queryNodeType :: String -> ReaderT SqlBackend IO (Maybe (Entity M.NodeType))
+queryNodeType tid = do
+  ts <- select $ do
+    t <- from $ table @M.NodeType
+    where_ (t.nodeTypeId ==. val tid)
+    limit 1
+    pure t
+  return . listToMaybe $ ts

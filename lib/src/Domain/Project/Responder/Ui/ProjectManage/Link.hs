@@ -42,6 +42,18 @@ nodeRefreshLink nid pid wrapWidth clientTitle =
     <> "&clientTitle="
     <> clientTitle
 
+addWorkLink :: Int64 -> Text
+addWorkLink pid =
+  addWorkSubmitLink
+    <> "?projectId="
+    <> intToText pid
+
+addWorkSubmitLink :: Text
+addWorkSubmitLink = "/ui/project/node/create"
+
+emptyLink :: Text
+emptyLink = "/ui/central/empty"
+
 projectStatsLink :: Int64 -> Text
 projectStatsLink pid =
   "/ui/project/stats"

@@ -128,6 +128,16 @@ real client would submit it.
   proposal's §3). Covers the success path (a new `Node` row plus its
   `Dependency` edge to the root) and a failure path (404 for a
   nonexistent project).
+- **`Domain.Project.Responder.Ui.ProjectManage.Node.Create.handlePostWork`**
+  (
+  `test-integration/Domain/Project/Responder/Ui/ProjectManage/Node/CreateSpec.hs`)
+  — the insert behind the "Add work" panel. Covers the row it writes (a
+  `work` node, `active`, on the named project) and — the part worth
+  pinning — the three things its *response* has to do at once: carry
+  the new node's panel as an out-of-band swap, carry the `HX-Trigger`
+  that makes the drawing refetch, and come back as the form again, with
+  its complaint and nothing written, when the title is empty or only
+  spaces.
 - **`Domain.Project.Responder.Ui.ProjectManage.Node.Description.handlePutDescription`**
   (
   `test-integration/Domain/Project/Responder/Ui/ProjectManage/Node/DescriptionSpec.hs`)

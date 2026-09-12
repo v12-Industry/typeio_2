@@ -6,12 +6,11 @@ import { addNode, createProject } from './helpers';
 // description via the node-detail panel.
 //
 // The "add a node" step here is a direct API call
-// (helpers.ts's addNode()), not a UI interaction: the app has no UI
-// affordance to create a node at all -- see that helper's comments for
-// the full finding. Reusing it as setup, the same way the create suite
-// reuses `make seed-db` for reference data rather than reinventing
-// seeding, keeps this spec focused on what's actually UI-testable here:
-// editing.
+// (helpers.ts's addNode()), not the "Add work" panel -- see that
+// helper's comments for why setup does not go through the UI. Reusing
+// it, the same way the create suite reuses `make seed-db` for reference
+// data rather than reinventing seeding, keeps this spec on what it is
+// about: editing.
 //
 // Opening the node panel goes through the URL's `nodeId` query param
 // (ProjectManage.View's own supported deep-link shape -- the same one

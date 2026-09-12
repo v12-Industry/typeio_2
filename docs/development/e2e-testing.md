@@ -88,10 +88,15 @@ covered:
   needs no pre-existing fixture data beyond the reference
   `NodeStatus`/`NodeType` rows `make seed-db` already provides) and the
   specific htmx-swap timing it's asserting around.
-- **`tests/edit-node.spec.ts`** — adds a node (via a direct API call, not
-  a UI interaction — the app has no UI affordance to create a node yet,
-  see the spec's comments), then edits its title and description through
-  the node-detail panel, asserting on each field's settled save-success
+- **`tests/add-work.spec.ts`** — the "Add work" panel, which is the
+  app's only way to create a node without calling the API: that
+  submitting it draws the new node, opens its own panel and closes the
+  creation panel; that an empty title comes back as a complaint in the
+  panel with nothing created; and that the panel can be dismissed.
+- **`tests/edit-node.spec.ts`** — adds a node (via a direct API call,
+  since that is setup rather than the subject — see the spec's
+  comments), then edits its title and description through the
+  node-detail panel, asserting on each field's settled save-success
   indicator and on the re-fetched detail view afterward.
 - **`tests/node-status.spec.ts`** — changes a node's status via the
   node-detail panel's status dropdown, asserting on the immediate

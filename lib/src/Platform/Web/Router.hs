@@ -158,6 +158,13 @@ manageProjectUiTree ctn req =
     -< ( routes
            <+> "panel"
            -| only "GET" (ProjectUi.getNodePanel ctn req)
+           <+> "create"
+           -| ( methods
+                  <+> "GET"
+                  -| ProjectUi.getAddWork ctn req
+                  <+> "POST"
+                  -| ProjectUi.postWork ctn req
+              )
            <+> "edit"
            -| only "GET" (ProjectUi.getNodeEdit ctn req)
            <+> "detail"

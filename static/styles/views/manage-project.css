@@ -929,3 +929,168 @@ svg {
   margin-top: 0.25rem;
   padding-top: 0.75rem;
 }
+
+/* The canvas's own control, floating over the drawing at the corner
+   the graph opens away from -- not in the toolbar with Back and Stats.
+   Adding work is an action on *this* drawing, and it belongs where the
+   drawing is, next to where the panel it opens will appear. */
+#add-work-toggle {
+  background: transparent;
+  border: 2px solid var(--accent);
+  border-radius: 999px;
+  color: var(--accent);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.6875rem;
+  font-weight: bold;
+  left: 1.25rem;
+  letter-spacing: 1px;
+  padding: 0.35rem 0.8rem;
+  position: absolute;
+  text-transform: uppercase;
+  top: 1rem;
+  transition: all 0.2s ease;
+  z-index: 5;
+}
+
+#add-work-toggle:hover {
+  background: var(--accent);
+  color: var(--bg-end);
+}
+
+#add-work-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The creation panel, under the control that opens it. A fixed corner
+   rather than an anchored window: there is no node to anchor it to yet,
+   which is the whole point of it. */
+#add-work-panel {
+  background: var(--surface-raised);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  box-sizing: border-box;
+  left: 1.25rem;
+  max-width: calc(100% - 2.5rem);
+  padding: 1rem;
+  position: absolute;
+  top: 3.75rem;
+  width: 19rem;
+  z-index: 20;
+}
+
+/* Closed is *empty*, for the same reason the node panel's is: htmx
+   swaps this element's innerHTML in and out, and an empty overlay left
+   in place would still hold its corner of the canvas and swallow drags
+   meant for the graph. */
+#add-work-panel:empty {
+  display: none;
+}
+
+#add-work-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.panel-heading {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.panel-title {
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.panel-close {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  padding: 0;
+}
+
+.panel-close:hover {
+  color: var(--text-primary);
+}
+
+.panel-close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The field's name, set the way a field's name is set across this
+   view: small, muted and in caps, so the value typed under it is what
+   the eye lands on. */
+#add-work-panel label {
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+  font-weight: bold;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+#add-work-panel input[type="text"] {
+  background-color: var(--border-color);
+  border: none;
+  border-radius: 4px;
+  box-sizing: border-box;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 1rem;
+  height: 2rem;
+  outline: none;
+  padding: 0 0.5rem;
+  width: 100%;
+}
+
+#add-work-panel input[type="text"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.panel-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Filled rather than outlined, unlike the control that opened the
+   panel: this is the one thing the panel is for. */
+.add-work-submit {
+  background: var(--accent);
+  border: 2px solid var(--accent);
+  border-radius: 999px;
+  color: var(--bg-end);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.6875rem;
+  font-weight: bold;
+  letter-spacing: 1px;
+  padding: 0.35rem 0.9rem;
+  text-transform: uppercase;
+  transition: all 0.2s ease;
+}
+
+.add-work-submit:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.add-work-submit:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+#add-work-panel .error-messages {
+  color: var(--error-color);
+  font-size: 0.8125rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}

@@ -159,5 +159,20 @@ The panel's own two columns — the action rail and the detail beside it
 — are sized by content and remainder rather than by percentages that
 have to be kept adding up.
 
+## Two floating panels, positioned differently
+
+`#node-panel` is anchored to a node (above). `#add-work-panel` is not,
+and deliberately: it is the panel for work that does not exist yet, so
+there is no shape on the canvas for it to point at. It takes a fixed
+corner instead, directly under the `+ Add work` control that opens it,
+which is itself floated over the canvas rather than placed in the
+toolbar beside Back and Stats — adding work is an action on *this*
+drawing, and it belongs where the drawing is.
+
+Both share the same closed state: empty, not hidden. htmx swaps each
+one's innerHTML in and out, and `:empty` takes it out of the layout
+entirely, so an invisible overlay cannot keep its corner of the canvas
+and swallow drags meant for the graph.
+
 See [htmx.md](../frontend/htmx.md) (once it lands) for the attribute
 helpers themselves.
