@@ -438,8 +438,13 @@ Steps, in order:
    pointed at that Postgres via the same env vars `.env` sets locally.
 4. `POST /api/central/seed-database` once the server's reachable — what
    `make seed-db` already does, reusing the app's own seeding path
-   rather than duplicating it.
-5. Install Playwright's Chromium (cached on `e2e/package-lock.json`'s
+   rather than duplicating it. Reference rows only: that endpoint seeds
+   nothing else.
+5. `local/script/seed-demo-data.sh`, told the container's name, loading
+   the demo projects the specs drive straight into Postgres — what
+   `make seed-demo-data` does locally. Fixture data never goes through
+   the app, so this step is a separate one.
+6. Install Playwright's Chromium (cached on `e2e/package-lock.json`'s
    hash, the same pattern as the cabal-store cache) and `npm test`.
 
 A few ways this deliberately differs from every other workflow here:

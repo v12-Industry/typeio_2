@@ -43,16 +43,33 @@ make run-postgres      # start Postgres in Docker
 make migrate-up        # apply all migrations
 cabal build all        # build everything
 cabal run server        # start the app, reads .env
-make seed-db           # reference data + the demo projects (needs the server already running)
+make seed-db           # reference data, through the app (needs the server already running)
+make seed-demo-data    # the demo projects, straight into Postgres
 ```
 
 Once it's running, visit `http://localhost:3000` (or whatever `WEB_PORT`
 is set to) in a browser.
 
-`make seed-db` inserts the reference data (`NodeStatus`/`NodeType`) and
-a set of demo projects. It is idempotent — each project is keyed on its
-own title, so running it twice leaves one of each, and a project
-someone has since edited is left alone.
+Seeding comes in two halves, and they are deliberately separate.
+
+**`make seed-db` inserts the reference data, and only that** — the
+`NodeType` and `NodeStatus` rows every `project.node` points at, without
+which the app cannot write a node at all. It goes through the app's own
+seed endpoint (`POST /api/central/seed-database`,
+`Domain.Central.Responder.Api.Seed`), so it needs the server running,
+and it is idempotent. **Fixture, demo and test data never belong here.**
+The app seeds what it needs to operate; anything a person wants to look
+at is somebody else's job.
+
+**`make seed-demo-data` loads the demo projects**, running
+`local/sql/demo-data.sql` against Postgres directly — the app is not
+involved and need not even be running, only the reference data has to be
+in place already. It is idempotent per project, keyed on each project's
+own root title, so running it twice leaves one of each, a project
+someone has since edited is left alone, and a newly added fixture
+appears without disturbing the others.
+
+`make start-app` runs both, in that order.
 
 The demo projects are there because there is no way to create a
 dependency through the UI, so without them a freshly seeded database
@@ -76,9 +93,9 @@ fixture the orbital E2E spec drives. **Compliance audit** is the empty
 case: an empty drawing and a zeroed stats panel have something to be
 tested against.
 
-The fixtures live in `Domain.Central.Responder.Api.Seed` as
-`demoProjects`, a list of `DemoProject` records — a new one is a new
-entry in that list, not new seeding code.
+The fixtures are rows in `local/sql/demo-data.sql`'s own tables —
+`demo_project`, `demo_work`, `demo_dependency` — so a seventh project is
+a few `INSERT` rows there, not new code anywhere.
 
 Other `make migrate-*` targets (`migrate-down`, `migrate-down-all`,
 `migrate-new NAME=...`, `migrate-version`, `migrate-force VERSION=...`)

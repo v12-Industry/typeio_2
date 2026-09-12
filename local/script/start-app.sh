@@ -67,7 +67,10 @@ until curl --silent --fail --output /dev/null "http://localhost:${WEB_PORT}/ui/p
 done
 echo "✅ App ready"
 
+# Reference data through the app's own endpoint; the demo projects
+# straight into Postgres, with the app uninvolved.
 make seed-db
+make seed-demo-data
 echo ""
 echo "✅ App running at http://localhost:${WEB_PORT} (pid $SERVER_PID)"
 echo "   Logs: $LOG_FILE"

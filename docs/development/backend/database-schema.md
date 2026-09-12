@@ -101,6 +101,12 @@ them via the `handleSeedDatabase` responder (`make seed-db`). Whatever
 rows exist in a given database are whatever that seed step has inserted
 into it — not something you'll find by reading `migrations/` alone.
 
+That responder seeds these lookup tables and nothing else: it writes no
+`project`/`node`/`dependency` rows. The demo projects a local database
+is usually filled with come from `local/sql/demo-data.sql`, loaded
+against Postgres directly by `make seed-demo-data` — see
+[`onboarding.md`](../onboarding.md).
+
 ### `project.node_status`
 
 Migration: `000004_create_node_status_table.up.sql`. Model:

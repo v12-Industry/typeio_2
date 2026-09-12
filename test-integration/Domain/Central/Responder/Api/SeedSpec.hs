@@ -1,68 +1,46 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-{- | Integration coverage for the demo project the seed inserts.
+{- | Integration coverage for what the app's own seed step puts in the
+database: the reference rows @project.node@ points at, and nothing
+else.
 
-Worth pinning rather than eyeballing, because the thing that makes this
-fixture useful is its /shape/, not its size. It is the only source of
-@project.dependency@ rows in the app, and without it every graph is a
-set of disconnected nodes that every visualization draws much the same
-way.
-
-The assertions here are the properties the orbital visualization depends
-on: a shared bottleneck (so a node is replicated at all), a replicated
-subtree beneath it, more than one head, and idempotency, since this runs
-against a database somebody may already have seeded.
+The second half is the interesting half. Fixture data belongs in
+@local\/sql\/demo-data.sql@, applied against the database with the app
+uninvolved, so a seed that started inserting projects or nodes would
+be a boundary being crossed rather than a harmless extra — and that
+is cheap to pin here.
 -}
 module Domain.Central.Responder.Api.SeedSpec (spec) where
 
-import Data.List (group, nub, sort)
+import Data.List (sort)
 import Database.Persist (Entity, selectList)
 import Database.Persist.Sql (ConnectionPool, entityVal, runSqlPool)
 import Domain.Central.Responder.Api.Seed
-  ( DemoProject (..)
-  , DemoWork (..)
-  , apiLaunch
-  , demoProjects
-  , seedDemoProject
-  , seedDemoProjects
+  ( nodeStatuses
+  , nodeTypes
+  , seedReferenceData
   )
 import qualified Domain.Project.Model as M
 import Integration.Support (resetBetweenTests, withTestDatabase)
 import Test.Hspec
 
 seed :: ConnectionPool -> IO ()
-seed = runSqlPool (seedDemoProject apiLaunch)
+seed = runSqlPool seedReferenceData
 
-seedAll :: ConnectionPool -> IO ()
-seedAll = runSqlPool seedDemoProjects
-
-fixtureStatuses :: DemoProject -> [String]
-fixtureStatuses = map dwStatus . dpWork
-
-projectTitles :: DemoProject -> [String]
-projectTitles p = dpTitle p : map dwTitle (dpWork p)
-
-nodeStatusesOf :: ConnectionPool -> IO [String]
-nodeStatusesOf pool =
-  map (M.unNodeStatusKey . M.nodeNodeStatusId . entityVal)
+statusIds :: ConnectionPool -> IO [String]
+statusIds pool =
+  map (M.nodeStatusNodeStatusId . entityVal)
     <$> runSqlPool (selectList [] []) pool
 
-nodeTitles :: ConnectionPool -> IO [String]
-nodeTitles pool =
-  map (M.nodeTitle . entityVal) <$> runSqlPool (selectList [] []) pool
+typeIds :: ConnectionPool -> IO [String]
+typeIds pool =
+  map (M.nodeTypeNodeTypeId . entityVal)
+    <$> runSqlPool (selectList [] []) pool
 
-dependencyPairs :: ConnectionPool -> IO [(M.NodeId, M.NodeId)]
-dependencyPairs pool =
-  map (pair . entityVal) <$> runSqlPool (selectList [] []) pool
-  where
-    pair d = (M.dependencyNodeId d, M.dependencyToNodeId d)
-
-{- | The dependency rows grouped by what is being waited on, so each
-group's length is how many dependents that node has — which is exactly
-how many times the orbital drawing replicates it.
--}
-dependentGroups :: [(M.NodeId, M.NodeId)] -> [[M.NodeId]]
-dependentGroups ds = group (sort [dependency | (_, dependency) <- ds])
+nodeCount :: ConnectionPool -> IO Int
+nodeCount pool = do
+  rows <- runSqlPool (selectList [] []) pool
+  pure (length (rows :: [Entity M.Node]))
 
 projectCount :: ConnectionPool -> IO Int
 projectCount pool = do
@@ -72,87 +50,37 @@ projectCount pool = do
 spec :: Spec
 spec =
   -- `aroundAll`, not `around`: one container for the whole spec, with
-  -- `resetBetweenTests` truncating between examples. `around` starts a
-  -- fresh Postgres per example, which is how this suite went from ~45
-  -- seconds to nine minutes and began failing with "Bad response from
-  -- Docker engine" once enough containers were in flight. Every other
-  -- spec here does it this way.
+  -- `resetBetweenTests` truncating between examples. Every other spec
+  -- in this suite does it this way.
   aroundAll withTestDatabase
     . beforeWith resetBetweenTests
-    $ describe "seedDemoProject (integration)"
+    $ describe "seedReferenceData (integration)"
     $ do
-      it "inserts the root node and every work node" $ \pool -> do
+      it "inserts every node status the app defines" $ \pool -> do
         seed pool
-        titles <- nodeTitles pool
-        sort titles
-          `shouldBe` sort (dpTitle apiLaunch : map dwTitle (dpWork apiLaunch))
+        ids <- statusIds pool
+        sort ids `shouldBe` sort [s | M.NodeStatus s <- nodeStatuses]
 
-      it "records every dependency" $ \pool -> do
+      it "inserts every node type the app defines" $ \pool -> do
         seed pool
-        ds <- dependencyPairs pool
-        length ds `shouldBe` length (dpDependencies apiLaunch)
+        ids <- typeIds pool
+        sort ids `shouldBe` sort [t | M.NodeType t <- nodeTypes]
 
-      it "gives each work node the status its fixture names" $ \pool -> do
-        -- The fixtures exist to be looked at, and a status that did not
-        -- survive the insert would make every project read as one
-        -- undifferentiated colour.
-        seedAll pool
-        statuses <- nodeStatusesOf pool
-        sort (nub statuses)
-          `shouldBe` sort (nub ("active" : concatMap fixtureStatuses demoProjects))
+      -- The container is seeded once at startup, so every run of this
+      -- lands on rows that are already there.
+      it "is idempotent -- seeding twice leaves one row per value" $ \pool -> do
+        seed pool
+        seed pool
+        statuses <- statusIds pool
+        types <- typeIds pool
+        length statuses `shouldBe` length nodeStatuses
+        length types `shouldBe` length nodeTypes
 
-      it "seeds every fixture project, each with its own nodes" $ \pool -> do
-        seedAll pool
+      -- The boundary: fixture and demo data live outside the app, in
+      -- local/sql/demo-data.sql.
+      it "creates no projects or nodes of its own" $ \pool -> do
+        seed pool
         projects <- projectCount pool
-        titles <- nodeTitles pool
-        projects `shouldBe` length demoProjects
-        sort titles
-          `shouldBe` sort (concatMap projectTitles demoProjects)
-
-      -- A project with no work is a fixture in its own right: it is what
-      -- an empty graph and a zeroed stats panel are tested against.
-      it "seeds a project with no work nodes at all" $ \pool -> do
-        seedAll pool
-        titles <- nodeTitles pool
-        let empty' = [p | p <- demoProjects, null (dpWork p)]
-        length empty' `shouldSatisfy` (>= 1)
-        mapM_ (\p -> titles `shouldSatisfy` elem (dpTitle p)) empty'
-
-      it "gives some node more than one dependent, so a drawing can replicate it" $ \pool -> do
-        -- The whole point of the fixture. A node is replicated in the
-        -- orbital drawing once per dependent, so without this the
-        -- visualization has nothing to demonstrate.
-        seed pool
-        ds <- dependencyPairs pool
-        maximum (map length (dependentGroups ds)) `shouldSatisfy` (>= 2)
-
-      it "leaves more than one head, so the drawing has several work streams" $ \pool -> do
-        seed pool
-        ds <- dependencyPairs pool
-        titles <- nodeTitles pool
-        let waitedOn = nub [dependency | (_, dependency) <- ds]
-            -- Every node minus the root, minus those something waits on.
-            headCount = length titles - 1 - length waitedOn
-        headCount `shouldSatisfy` (> 1)
-
-      it "chains a replicated node's own dependency below it" $ \pool -> do
-        -- A replicated node carries its subtree with it, so the fixture
-        -- has to have something *under* the shared node -- otherwise it
-        -- would only ever exercise replicating a leaf.
-        seed pool
-        ds <- dependencyPairs pool
-        let shared = [n | g@(n : _) <- dependentGroups ds, length g >= 2]
-            hasOwnDependency n = any (\(dependent, _) -> dependent == n) ds
-        any hasOwnDependency shared `shouldBe` True
-
-      it "is idempotent -- seeding twice leaves one demo project" $ \pool -> do
-        seed pool
-        before' <- nodeTitles pool
-        beforeDeps <- dependencyPairs pool
-        seed pool
-        after' <- nodeTitles pool
-        afterDeps <- dependencyPairs pool
-        projects <- projectCount pool
-        sort after' `shouldBe` sort before'
-        length afterDeps `shouldBe` length beforeDeps
-        projects `shouldBe` 1
+        nodes <- nodeCount pool
+        projects `shouldBe` 0
+        nodes `shouldBe` 0

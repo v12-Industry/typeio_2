@@ -13,7 +13,7 @@ MIGRATE=migrate
 MIGRATIONS_DIR=migrations
 
 # --- Commands ---
-.PHONY: check-db-env test-migrations migrate-up migrate-down migrate-new migrate-force migrate-down-all migrate-version start-app test test-integration test-e2e e2e-install format format-check
+.PHONY: check-db-env test-migrations migrate-up migrate-down migrate-new migrate-force migrate-down-all migrate-version seed-db seed-demo-data start-app test test-integration test-e2e e2e-install format format-check
 
 ## Fail early, and legibly, when the database variables are missing.
 ## Without this, DB_URL still interpolates -- into
@@ -81,14 +81,23 @@ migrate-down-all: check-db-env
 migrate-new:
 	$(MIGRATE) create -ext sql -dir $(MIGRATIONS_DIR) -seq $(NAME)
 
-## run program to seed database
+## Seed the reference data the app needs to operate (NodeType,
+## NodeStatus) via the app's own seed endpoint. Needs the server
+## running. No fixture or demo data -- that is seed-demo-data below.
 seed-db:
 	curl --location --request POST 'localhost:$(or $(WEB_PORT),3000)/api/central/seed-database'
 
+## Load the demo projects for manual testing/UAT (local/sql/demo-data.sql)
+## straight into Postgres, with the app uninvolved. Needs the reference
+## data (seed-db) already in place. Idempotent per project.
+seed-demo-data:
+	./local/script/seed-demo-data.sh
+
 ## Start Postgres, apply migrations, start the app in the background,
-## wait for it to be ready, then seed it -- one command in place of
-## run-postgres/migrate-up/cabal run server/seed-db run by hand across
-## separate terminals. Keeps running afterward (logs at
+## wait for it to be ready, then seed it -- reference data through the
+## app, demo projects straight into Postgres -- one command in place of
+## run-postgres/migrate-up/cabal run server/seed-db/seed-demo-data run
+## by hand across separate terminals. Keeps running afterward (logs at
 ## local/server.log) until Ctrl+C, which stops the backgrounded server
 ## cleanly -- no orphaned process left behind.
 start-app:
@@ -113,8 +122,10 @@ e2e-install:
 ## Run the E2E test suite. Unlike test/test-integration, this doesn't
 ## start its own database or server -- needs a real app already running
 ## against a real, migrated + seeded Postgres (run-postgres, migrate-up,
-## `cabal run server` in another terminal, then seed-db -- or just
-## `make start-app`). See e2e/README.md for the full sequence and how to
-## run it headed/in UI mode to watch it drive a browser.
+## `cabal run server` in another terminal, then seed-db and
+## seed-demo-data -- or just `make start-app`). The suite drives the
+## demo projects, so seed-demo-data is not optional for it. See
+## e2e/README.md for the full sequence and how to run it headed/in UI
+## mode to watch it drive a browser.
 test-e2e:
 	cd e2e && npm test

@@ -27,7 +27,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import Data.Time (getCurrentTime)
-import Database.Persist (Entity (..), Key, insert, insertUnique, insert_, selectList, (==.))
+import Database.Persist (Entity (..), Key, insert, insert_, selectList, (==.))
 import Database.Persist.Sql (ConnectionPool, rawExecute, runSqlPool)
 import qualified Domain.Central.Responder.Api.Seed as Seed
 import qualified Domain.Project.Model as M
@@ -114,9 +114,7 @@ testDbConfig dbHost dbPort' =
     }
 
 seedReferenceData :: ConnectionPool -> IO ()
-seedReferenceData pool = flip runSqlPool pool $ do
-  mapM_ insertUnique Seed.nodeStatuses
-  mapM_ insertUnique Seed.nodeTypes
+seedReferenceData = runSqlPool Seed.seedReferenceData
 
 {- | Clears every table a test might have written to, without touching
 the reference data 'seedReferenceData' inserted once at container

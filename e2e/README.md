@@ -36,7 +36,8 @@ make start-app
 make run-postgres      # start Postgres in Docker
 make migrate-up        # apply all migrations
 cabal run server        # start the app, reads .env
-make seed-db           # seed reference data (NodeStatus/NodeType; needs the server already running)
+make seed-db           # reference data (NodeStatus/NodeType; needs the server already running)
+make seed-demo-data    # the demo projects this suite drives, straight into Postgres
 ```
 
 See [`onboarding.md`](../docs/development/onboarding.md) for more on

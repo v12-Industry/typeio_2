@@ -198,7 +198,6 @@ test-suite spec
       , Data.EitherSpec
       , Data.HashTreeSpec
       , Data.Text.UtilSpec
-      , Domain.Central.Responder.Api.SeedFixtureSpec
       , Domain.Project.Graph.CoordSpec
       , Domain.Project.Graph.LayerSpec
       , Domain.Project.Graph.LayoutSpec
