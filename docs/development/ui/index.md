@@ -27,3 +27,6 @@ the layered graph-rendering work.
 See also [`docs/development/frontend/`](../frontend/) for how htmx and
 hyperscript — the client-side libraries doing the swapping and the small
 visual effects — actually work, once that doc lands.
+
+For the mockups a view was designed against, and how much of one to
+take literally, see [`docs/development/ux/`](../ux/).

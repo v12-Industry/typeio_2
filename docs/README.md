@@ -15,7 +15,7 @@ proposals for this project.
   treating a proposal as current guidance.
 - `development/` — reference docs on how the app *actually, currently*
   works, grouped by area (`ui/`, `frontend/`, `backend/`,
-  `visualizations/`), plus onboarding. Each area has an `index.md`
+  `visualizations/`, `ux/`), plus onboarding. Each area has an `index.md`
   linking its own files, except `backend/`, whose files are listed
   individually in the index below. This is the primary
   reference for development decisions — if something isn't reflected here,
@@ -32,6 +32,7 @@ proposals for this project.
 
 - [`development/onboarding.md`](development/onboarding.md) — **start here.** Setup steps and a request-lifecycle walkthrough linking everything else below.
 - [`development/ui/index.md`](development/ui/index.md) — the `#container`/`#view` component pattern, how UI is rendered directly in Haskell (Lucid), the global-vs-scoped CSS split, and the color-token/indicator/loading-state design system.
+- [`development/ux/index.md`](development/ux/index.md) — what the `design/` directory at the repository root is: self-contained interactive HTML mockups, one subdirectory per design effort, read for intent during UI work — reference material rather than a source of truth for implementation, and not shipped.
 - [`development/frontend/index.md`](development/frontend/index.md) — HTMX and hyperscript: the attribute-driven client-side interactivity, with concrete patterns from the codebase.
 - [`development/visualizations/index.md`](development/visualizations/index.md) — what each graph visualization actually draws, one doc per visualization ([Rootless](development/visualizations/rootless.md), [Orbital](development/visualizations/orbital.md)); the switching mechanism itself is [`architecture/visualization-switching.md`](architecture/visualization-switching.md).
 - [`development/backend/routing.md`](development/backend/routing.md) — the `Data.HashTree`-based router: how routes are built, and the prefix-match/per-request-rebuild behavior worth knowing about.

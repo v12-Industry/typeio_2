@@ -57,6 +57,7 @@ cases:
 | Getting set up / how a request flows end-to-end | `docs/development/onboarding.md` |
 | `#container`/`#view`, Lucid rendering, CSS conventions | `docs/development/ui/` |
 | htmx or hyperscript attribute patterns | `docs/development/frontend/` |
+| What `design/` holds and how much authority a mockup has | `docs/development/ux/` |
 | The router, `Env`, containers (DI), or logging | `docs/development/backend/` (one file each) |
 | The `project` DB schema: entities, columns, relationships, ER diagram | `docs/development/backend/database-schema.md` |
 | CI: what it runs, when, and how to reproduce it locally | `docs/development/ci.md` |
