@@ -12,3 +12,8 @@ local/server.log
 *.tfstate.*
 *.tfvars
 crash.log
+
+# macOS Finder metadata, which appears in any directory somebody has
+# opened -- design/ included, since those mockups are opened in a
+# browser from Finder.
+.DS_Store

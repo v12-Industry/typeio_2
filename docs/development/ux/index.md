@@ -14,6 +14,12 @@ design/
     design_standalone.html
 ```
 
+These are **committed to the repository**, mockup and all, so a clone
+has them: every issue in a UI epic points at one by path, and reference
+material only one machine has is not reference material. One file of a
+few hundred KB is a price worth paying for that. Adding a mockup means
+adding its directory here and committing it.
+
 Each mockup is a **single self-contained HTML file**. It opens in a
 browser with no server, no build step and no dependency on this app —
 buttons work, panels open, state changes. That is the point of it: a
