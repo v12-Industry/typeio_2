@@ -140,9 +140,14 @@ still telling the truth about the day it was written.
   `make` targets), not a bare `cabal test`** — the latter runs every
   test-suite in the package, including the Docker-dependent one. Run
   relevant `make migrate-*` commands for migration changes.
-- ⚠️ **`make test-migrations` is currently broken** — it calls
-  `./scripts/test-migrations.sh`, which does not exist anywhere in the
-  repo. Don't rely on it; use `cabal build all` instead until it's fixed.
+- **`make test-migrations`** applies every migration, rolls every one
+  of them back, and applies them again, against a disposable Postgres
+  it starts and removes itself (needs Docker and the `migrate` CLI).
+  Run it for a change under `migrations/` — the round trip is what
+  catches a `.down.sql` that leaves something behind, which a one-way
+  `migrate up` never will. CI runs the same script via
+  `.github/workflows/migration-test.yml` on any PR touching
+  `migrations/`.
 
 ## Database Schema (`project`)
 
@@ -403,7 +408,6 @@ Quick summary:
 
 ## Known Gotchas
 
-- **`make test-migrations` is broken** — see Setup section above.
 - **A solution-proposal's "Decision" section isn't proof it was built.**
   A proposal can carry a confident write-up and a "Decided" status for
   something that was never implemented, or that was later decided

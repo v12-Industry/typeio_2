@@ -71,9 +71,13 @@ cover the rest of the migration lifecycle — see the `Makefile`.
 standard check. A unit suite also exists (`cabal test` / `make test`)
 and runs in CI on every PR (see [`ci.md`](ci.md)) — running it locally
 first is optional but catches a failure faster than waiting on CI.
-`make test-migrations` is currently broken (it calls a script,
-`scripts/test-migrations.sh`, that doesn't exist in the repo) — don't
-rely on it.
+`make test-migrations` covers a change under `migrations/`: it applies
+every migration, rolls every one of them back, and applies them again,
+against a disposable Postgres it starts and removes itself — so it
+never touches the database in your `.env`. It needs Docker and the
+`migrate` CLI. The second pass up is the point: a `.down.sql` that
+leaves a constraint or type behind survives a one-way `migrate up` and
+only fails the next time someone rolls back and forward again.
 
 **Formatting** is automated via Fourmolu (`fourmolu.yaml` at the repo
 root) — `make format` formats every `.hs` file in place, `make

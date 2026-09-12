@@ -13,7 +13,7 @@ MIGRATE=migrate
 MIGRATIONS_DIR=migrations
 
 # --- Commands ---
-.PHONY: check-db-env migrate-up migrate-down migrate-new migrate-force migrate-down-all migrate-version start-app test test-integration test-e2e e2e-install format format-check
+.PHONY: check-db-env test-migrations migrate-up migrate-down migrate-new migrate-force migrate-down-all migrate-version start-app test test-integration test-e2e e2e-install format format-check
 
 ## Fail early, and legibly, when the database variables are missing.
 ## Without this, DB_URL still interpolates -- into
@@ -27,7 +27,11 @@ check-db-env:
 		exit 1; \
 	fi
 
-## Run migratin tests
+## Apply every migration, roll every one of them back, and apply them
+## again -- against a disposable Postgres the script starts and removes
+## itself, never the database in .env. Needs Docker and the `migrate`
+## CLI. Set MIGRATION_TEST_DB_URL to point it at a database that is
+## already disposable (what CI does) and it skips the container.
 test-migrations:
 	./scripts/test-migrations.sh
 

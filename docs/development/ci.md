@@ -275,6 +275,51 @@ the merge with no bypass. Open PRs may still need a rebase onto `main`
 afterwards, since a `pull_request` run uses the workflow file from the
 PR's own head rather than the base branch's.
 
+## Migration test workflow
+
+`.github/workflows/migration-test.yml` runs
+`scripts/test-migrations.sh` against a `postgres:15` service container:
+apply every migration, roll every one of them back, apply them all
+again.
+
+**The second pass up is the whole point.** Nothing else here ever rolls
+a migration back — the integration and E2E suites apply the `.up.sql`
+files to a fresh container and stop — so a `.down.sql` that leaves a
+constraint, sequence or type behind passes both of those and only fails
+the day someone rolls back and forward again. The script also checks the
+set of files before it touches a database: every `.up.sql` paired with a
+`.down.sql`, versions numbered sequentially with no gap or duplicate.
+
+`make test-migrations` runs the same script locally, against a
+disposable Postgres it starts and removes itself rather than the
+database in your `.env`. CI hands it a service container instead via
+`MIGRATION_TEST_DB_URL`, which makes it skip starting its own.
+
+Two things differ from the required checks above, both following from
+this **not** being one:
+
+- **It is path-filtered at the workflow level**, to `migrations/`, the
+  script, and the workflow file. The required checks deliberately avoid
+  `paths` and skip internally instead, because a check GitHub never
+  sees reads as missing forever and blocks the merge. That hazard only
+  applies to a required check.
+- **It has no `merge_group` trigger**, for the same reason — the queue
+  only needs to evaluate checks it is required to wait for.
+
+Making it required means adding `merge_group`, moving the path filter
+into a `changes` step the way `integration-test` does, landing that on
+`main`, and only then adding the context to both required-checks lists
+(see [Merge queue](#merge-queue)) — in that order, for the reason given
+at the end of [Integration test workflow](#integration-test-workflow).
+
+The `migrate` CLI is pinned to an exact release in the workflow rather
+than tracking latest: this check reports on the migrations, and a CLI
+moving underneath it would turn a green run red with nothing in the
+repo having changed.
+
+**Runtime**: under a minute. There is no GHC or cabal in this job —
+it is the SQL and the CLI, nothing else.
+
 ## Security scan workflow
 
 `.github/workflows/security-scan.yml` runs
@@ -560,6 +605,18 @@ It needs Docker locally (see [Integration test workflow](#integration-test-workf
 above for what it runs in CI). See
 [`integration-testing.md`](integration-testing.md) for the full
 write-up of how the suite works and what it covers.
+
+A change under `migrations/` has its own command, which needs Docker
+and the `migrate` CLI:
+
+```
+make test-migrations
+```
+
+It is the same script CI runs (see
+[Migration test workflow](#migration-test-workflow) above), against a
+disposable Postgres it starts and removes itself — never the database
+in your `.env`.
 
 The E2E suite is separate again, and doesn't have a single `cabal`
 command — it needs a real running server and database, not just

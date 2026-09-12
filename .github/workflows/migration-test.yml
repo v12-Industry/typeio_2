@@ -1,0 +1,78 @@
+name: Migration Test
+
+# Applies every migration, rolls every one of them back, and applies
+# them again -- `scripts/test-migrations.sh`. See
+# docs/development/ci.md's "Migration test workflow" section.
+#
+# The second `up` is what this exists for. Nothing else in CI ever rolls
+# a migration back: the integration and E2E suites apply the up
+# migrations to a fresh container and stop there, so a `.down.sql` that
+# leaves a constraint, sequence or type behind is invisible until
+# someone rolls back and forward again by hand.
+#
+# NOT currently a required status check, which is why this one is
+# path-filtered at the workflow level and has no `merge_group` trigger
+# -- both of which the required checks deliberately avoid, because a
+# required check GitHub never sees is "missing" forever and blocks the
+# merge. Making this required means adding `merge_group`, moving the
+# filter into a `changes` step the way `integration-test` does, landing
+# that on main, and only then adding the context to the required-checks
+# lists (see ci.md).
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'migrations/**'
+      - 'scripts/test-migrations.sh'
+      - '.github/workflows/migration-test.yml'
+
+concurrency:
+  group: migration-test-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  migration-test:
+    # Same pinned-OS reasoning as test.yml. No GHC or cabal here: this
+    # check is the SQL and the `migrate` CLI, with no Haskell in it at
+    # all, which is what keeps it to well under a minute.
+    runs-on: ubuntu-24.04
+
+    # A service container rather than the script's own disposable one:
+    # the runner has Docker either way, but a service is up before the
+    # first step runs and torn down by the runner itself. The script
+    # takes it via MIGRATION_TEST_DB_URL and skips starting its own.
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: typeio_migration
+          POSTGRES_PASSWORD: typeio_migration
+          POSTGRES_DB: typeio_migration
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U typeio_migration -d typeio_migration"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # Pinned to an exact release rather than tracking latest: this
+      # check reports on the migrations, and a CLI that moved underneath
+      # it would make a green run go red with nothing in the repo having
+      # changed.
+      - name: Install the migrate CLI
+        env:
+          MIGRATE_VERSION: v4.18.2
+        run: |
+          curl -fsSL "https://github.com/golang-migrate/migrate/releases/download/${MIGRATE_VERSION}/migrate.linux-amd64.tar.gz" \
+            | tar xz migrate
+          sudo install -m 0755 migrate /usr/local/bin/migrate
+          migrate -version
+
+      - name: Apply, roll back, and re-apply every migration
+        env:
+          MIGRATION_TEST_DB_URL: postgres://typeio_migration:typeio_migration@localhost:5432/typeio_migration?sslmode=disable
+        run: ./scripts/test-migrations.sh
