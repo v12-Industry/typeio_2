@@ -126,71 +126,24 @@ svg {
   opacity: 0;
 }
 
-#node-detail {
-  max-width: 65%;
-}
-
-#node-detail header h2 {
-  display: inline-block;
-  margin: 0;
-}
-
-#node-detail .column-textarea {
-  display: flex;
-  flex-direction: column;
-  align-items: left;
-}
-
-#node-detail .column-textarea label {
-  margin-bottom: 0.6rem;
-}
-
-#node-detail select {
-  max-width: 50%;
-}
-
-#node-detail header {
-  display: flex;
-  flex-direction: column;
-}
-
-#node-detail section {
-  margin-bottom: 1rem;
-  max-width: 100%;
-}
-
-#node-detail label p {
-  display: inline-block;
-  margin: 0;
-}
-
-#node-detail .indicator-label {
-  display: flex;
-  justify-content: space-between;
-  width: 100%;
-  font-size: 14.5px;
-}
-
-#node-detail i {
-  color: var(--success);
-  display: inline-block;
-  font-size: 1rem;
-}
-
-#node-detail .property-label {
-  font-weight: bold;
-}
-
-#node-detail .property-value {
-  text-align: left;
-}
-
+/* The panel's two columns. Percentages here had to agree with each
+   other to add up and did not -- an action rail of 12% beside a detail
+   of 65% leaves a quarter of the panel spoken for by nothing. The rail
+   is as wide as its buttons; the detail takes the rest. */
 .panel-actions {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
   margin-right: 1rem;
-  width: 12%;
+  flex: 0 0 auto;
+}
+
+#node-detail {
+  flex: 1 1 auto;
+  /* A flex item is floored at its content's width, so one long
+     unbroken title would otherwise push the panel past the width it
+     was given. */
+  min-width: 0;
 }
 
 .pill-button.selected {
@@ -199,36 +152,195 @@ svg {
   box-shadow: none;
 }
 
-#node-detail input, textarea {
-  background-color: var(--border-color);
-  border:           none;
-  box-sizing:       border-box;
-  color:            var(--text-primary);
-  display:          inline-block;
-  position:         relative;
-  font-family:      system-ui, sans-serif;
-  font-size:        1rem;
-  outline:          none;
-  padding:          0 0.5rem;
-  width:            15rem;
+/* One field per row, its name above its control rather than beside it:
+   a value is what the eye is looking for, and a name set small, muted
+   and in caps stays legible without competing for that. Every field in
+   the panel keeps the same rhythm whether it is being read or edited. */
+#node-detail section {
+  margin-bottom: 1rem;
+  max-width: 100%;
 }
 
-#node-detail input {
-  box-shadow:  none;
-  height:      2rem;
-  line-height: 2rem;
+#node-detail section:last-child {
+  margin-bottom: 0;
 }
 
-#node-detail textarea {
-  padding-top: 0.5rem;
-  height:      5rem;
-  max-width:   15rem;
-  resize:      none;
+#node-detail header {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1rem;
+}
+
+#node-detail header h2 {
+  margin: 0;
+  font-size: 1.0625rem;
+  line-height: 1.3;
+  /* Titles are free text and arrive as long as somebody typed them. */
+  overflow-wrap: anywhere;
+}
+
+#node-detail section p {
+  margin: 0;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+#node-detail .property-label {
+  font-size: 0.6875rem;
+  font-weight: bold;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+#node-detail .property-value {
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+/* The label row of an editable field: its name, and the save indicator
+   pushed to the far end. The row keeps its height whether or not an
+   indicator is in it, so a tick appearing mid-edit cannot shunt the
+   field below it down a line. */
+#node-detail .indicator-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  margin-bottom: 0.5rem;
+  min-height: 1.25rem;
+}
+
+#node-detail .indicator-box {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 0 0 auto;
+  min-width: 1rem;
+  min-height: 1rem;
+}
+
+#node-detail label p {
+  display: inline-block;
+  margin: 0;
+}
+
+#node-detail i {
+  color: var(--success);
+  display: inline-block;
+  font-size: 1rem;
+}
+
+#node-detail .column-textarea {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
 }
 
 #node-detail label {
   display: inline-block;
-  width:   4rem;
+}
+
+/* Controls fill the field rather than sitting at a fixed 15rem inside
+   it: anything narrower than the panel leaves a ragged right edge down
+   the form, and the panel's own width is already the decision about
+   how wide this is. */
+#node-detail input,
+#node-detail textarea,
+#node-detail select {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  background-color: var(--border-color);
+  border: none;
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-family: system-ui, sans-serif;
+  font-size: 1rem;
+  outline: none;
+  padding: 0 0.5rem;
+}
+
+#node-detail input {
+  box-shadow: none;
+  height: 2rem;
+  line-height: 2rem;
+}
+
+#node-detail textarea {
+  display: block;
+  padding-top: 0.5rem;
+  height: 5rem;
+  resize: vertical;
+}
+
+/* Named for the shape it takes beside the panel's pill buttons, which
+   it sits directly under -- a square-cornered dropdown there reads as
+   an unstyled leftover. Sized to its content rather than the field
+   width: a status is one short word, and a full-width control implies
+   a value long enough to need it. */
+#node-detail .pill-dropdown {
+  width: auto;
+  max-width: 100%;
+  border: 2px solid var(--border-color);
+  border-radius: 999px;
+  background-color: transparent;
+  padding: 0.2rem 0.6rem;
+  height: 2rem;
+  cursor: pointer;
+}
+
+/* The properties block, read or edited: names in one column, values in
+   another, so values line up down the panel instead of being flung to
+   the far edge by a space-between and landing wherever each name's
+   length left them. */
+#node-properties {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+#node-properties article {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+}
+
+/* Every direct child is a row item: a name, a value, or -- in the edit
+   form, which wraps its label and control together -- a pair of both.
+   That pair stacks, so an edited field reads the same way as the title
+   and description above it rather than being the one row in the form
+   with its name off to the side. */
+#node-properties article > span {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* The name of an edited property. The read-only side reaches the same
+   place through .property-label; this is the form's own markup, which
+   puts its name in a <label> instead. */
+#node-properties label p {
+  font-size: 0.6875rem;
+  font-weight: bold;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+#node-properties .property-label {
+  flex: 0 0 7rem;
+}
+
+#node-properties .property-value {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 /* A floating window anchored to the node it describes, not a column

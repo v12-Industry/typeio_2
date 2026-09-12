@@ -136,5 +136,28 @@ Hyperscript does not rank its operators, so every arithmetic expression
 in `anchorBehavior` is parenthesised — mixing `+` and `/` without
 brackets is a parse error there, not a precedence surprise.
 
+## The node panel's fields
+
+Every field in `#node-panel` is laid out the same way whether it is
+being read or edited: its name above its value, the name set small,
+muted and in caps so the value is what the eye lands on, and one
+rhythm of space between fields. The panel is narrow and stacked, which
+is what makes a name-beside-value form read as ragged in it.
+
+Two things there that are alignment decisions rather than decoration:
+
+- **The read-only properties are two columns**, a fixed name column and
+  a value column, so `active` and `work` start at the same place down
+  the panel. Spreading each row's name and value to opposite edges
+  instead leaves every value at a different x, decided by how long its
+  name happened to be.
+- **The save-indicator slot keeps its size when it is empty.** A tick
+  arriving mid-edit would otherwise change its label row's height and
+  shunt every field below it down a line, in the middle of typing.
+
+The panel's own two columns — the action rail and the detail beside it
+— are sized by content and remainder rather than by percentages that
+have to be kept adding up.
+
 See [htmx.md](../frontend/htmx.md) (once it lands) for the attribute
 helpers themselves.
