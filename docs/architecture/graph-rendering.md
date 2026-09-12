@@ -699,7 +699,9 @@ are the parts to be careful around:
 - **The script announces; it does not decide.** Its whole outward
   interface is one `graph:viewport` event carrying `{x, y, k,
   adjusted}`, and one set of data attributes it is told the opening view
-  through. `adjusted` travels with the event because the listener wants
+  through. Inbound it takes one event too — `graph:reveal`, a `{nodeId}`
+  the view then moves the least it can to put on screen — so "this node
+  matters" is a decision made elsewhere and only carried out here. `adjusted` travels with the event because the listener wants
   to know whether the view is the user's or just the one it opened at.
   Keeping the URL vocabulary out of this file is deliberate: see
   [`../development/frontend/index.md`](../development/frontend/index.md)'s

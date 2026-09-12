@@ -218,3 +218,87 @@ test('the panel follows its node, flipping sides to stay on the canvas', async (
   await panTo(0.8);
   await expect.poll(async () => side(page, node.id)).toBe('above');
 });
+
+// Selecting a node brings it into view. That is visible only in the
+// transform -- the drawing the server sends is the same either way --
+// so a browser is the only tier that can see it at all.
+const layerTransform = async (page: import('@playwright/test').Page) => {
+  const raw = await page.locator('#graph-zoom-layer').getAttribute('transform');
+  // d3 writes "translate(x,y) scale(k)", and omits scale at k === 1.
+  const t = /translate\(\s*([-\d.e]+)\s*,\s*([-\d.e]+)\s*\)/.exec(raw ?? '');
+  const s = /scale\(\s*([-\d.e]+)\s*\)/.exec(raw ?? '');
+  return {
+    x: t ? parseFloat(t[1]) : 0,
+    y: t ? parseFloat(t[2]) : 0,
+    k: s ? parseFloat(s[1]) : 1,
+  };
+};
+
+const onCanvas = async (page: import('@playwright/test').Page, nodeId: string) => {
+  const { shape, frame } = await geometry(page, nodeId);
+  return (
+    shape.x >= frame.x &&
+    shape.y >= frame.y &&
+    shape.x + shape.width <= frame.x + frame.width &&
+    shape.y + shape.height <= frame.y + frame.height
+  );
+};
+
+test('selecting a node parked off the canvas brings it into view', async ({ page, request }) => {
+  const project = await createProject(page, 'E2E reveal');
+  const node = await addNode(request, project.id, 'E2E reveal node');
+
+  // A view left far from the drawing -- what a stale link, or a pan
+  // somebody walked away from, leaves behind. The node is nowhere near
+  // the canvas when the page arrives.
+  await page.goto(
+    `/ui/project/vw?projectId=${project.id}&nodeId=${node.id}` +
+      `&visualizationMode=Rootless&viewX=-1800&viewY=-1400&viewScale=1`
+  );
+  await expect(page.locator('#node-detail header h2')).toHaveText(node.title);
+  await expect(page.locator('#graph-zoom-layer')).toHaveAttribute('transform', /translate/, {
+    timeout: 10_000,
+  });
+
+  // Polled: the reveal runs off the same requestAnimationFrame the
+  // opening transform does, so the first paint can still be the view
+  // the URL asked for.
+  await expect.poll(async () => onCanvas(page, node.id)).toBe(true);
+
+  // ...and the panel that asked for the reveal is clear of the node it
+  // has just brought on screen, rather than parked on top of it.
+  await expect.poll(async () => side(page, node.id)).not.toBe('overlapping');
+});
+
+test('selecting a node already in view does not move the graph', async ({ page, request }) => {
+  const project = await createProject(page, 'E2E reveal steady');
+  const node = await addNode(request, project.id, 'E2E reveal steady node');
+
+  // The opening view, with nothing selected. It centres the drawing, so
+  // this single node is comfortably on the canvas already.
+  await page.goto(`/ui/project/vw?projectId=${project.id}&visualizationMode=Rootless`);
+  await expect(page.locator('#graph-zoom-layer')).toHaveAttribute('transform', /translate/, {
+    timeout: 10_000,
+  });
+  const opening = await layerTransform(page);
+
+  // The same view, with the node selected. A reveal that recentred
+  // rather than nudging would show up here as a jump.
+  await page.goto(
+    `/ui/project/vw?projectId=${project.id}&nodeId=${node.id}&visualizationMode=Rootless`
+  );
+  await expect(page.locator('#node-detail header h2')).toHaveText(node.title);
+  await expect(page.locator('#graph-zoom-layer')).toHaveAttribute('transform', /translate/, {
+    timeout: 10_000,
+  });
+  await expect.poll(async () => onCanvas(page, node.id)).toBe(true);
+
+  const after = await layerTransform(page);
+  expect(after.x).toBeCloseTo(opening.x, 1);
+  expect(after.y).toBeCloseTo(opening.y, 1);
+  expect(after.k).toBeCloseTo(opening.k, 2);
+
+  // And nothing was written to the URL: the view was never adjusted, so
+  // it stays the plain link it was reached by.
+  expect(new URL(page.url()).searchParams.get('viewScale')).toBeNull();
+});

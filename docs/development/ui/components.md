@@ -159,5 +159,34 @@ The panel's own two columns — the action rail and the detail beside it
 — are sized by content and remainder rather than by percentages that
 have to be kept adding up.
 
+## A selected node is brought into view
+
+Selecting a node — clicking it, or arriving on a link that names one —
+puts that node on the canvas. The panel asks for it: `revealBehavior`
+in `ProjectManage/Node.hs` sends `graph:reveal` with the node's id to
+`#tree-container`, and the viewport moves the drawing the least it can
+to satisfy it. The panel does not do the moving, and the viewport does
+not know what a selection is; the event is the whole of the agreement
+between them.
+
+Three rules shape what "the least it can" means:
+
+- **A node already on the canvas is not moved at all.** Selection never
+  jogs the drawing under the pointer, and a node that can be seen but
+  has no room beneath it is the panel's problem, not the viewport's —
+  it flips above.
+- **A node that has to move lands with room under it**, a band kept
+  clear for the panel that is about to anchor there, so the common case
+  opens below its node rather than flipped. On a canvas too short for
+  that band to leave the node anywhere, the band is dropped.
+- **The scale is left alone** unless the node is too big to be shown
+  whole at it, which is the only case where panning cannot succeed on
+  its own.
+
+A reveal that arrives before the drawing has taken its opening
+position is held and applied straight after it. On a link that names a
+node, the panel and the graph arrive together, and whichever landed
+first would otherwise decide whether the node is on screen.
+
 See [htmx.md](../frontend/htmx.md) (once it lands) for the attribute
 helpers themselves.

@@ -75,6 +75,8 @@ templateNodePanel nid pid = do
           <> " on htmx:beforeCleanupElement remove .node-highlight from "
           <> nodeSel
           <> " "
+          <> revealBehavior (intToText nid)
+          <> " "
           <> anchorBehavior shapeSel
     ]
     $ do
@@ -129,6 +131,13 @@ templateNodePanel nid pid = do
     -- docs/development/ui/components.md, "The node panel is anchored, not docked"
     shapeSel =
       "<#tree-container [data-node-id='" <> intToText nid <> "']/>"
+
+revealBehavior :: Text -> Text
+revealBehavior nid =
+  T.unwords
+    [ "on load or htmx:afterSwap from #tree-container"
+    , "send graph:reveal(nodeId: " <> nid <> ") to #tree-container"
+    ]
 
 -- docs/development/ui/components.md, "The node panel is anchored, not docked"
 anchorBehavior :: Text -> Text

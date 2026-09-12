@@ -116,7 +116,11 @@ covered:
   is a real region sized against the viewport rather than a strip
   collapsed to whatever the drawing happened to be, that the closed node
   panel takes no box at all, and that the open one overlaps the canvas
-  without changing its size.
+  without changing its size. Also the panel's anchoring — it sits on its
+  node, follows it while the graph moves underneath, and flips sides
+  when the room runs out — and the reveal that pairs with it: selecting
+  a node parked off the canvas pans it into view, and selecting one
+  already in view moves nothing.
 - **`tests/project-index-scroll.spec.ts`** — a bug fix's regression
   test, not one of the four candidate workflows above. Seeds
   enough projects to overflow the viewport and asserts the project
