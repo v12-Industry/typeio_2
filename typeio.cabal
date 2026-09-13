@@ -95,6 +95,7 @@ library servant-app
       , Domain.Project.Responder.Ui.ProjectIndex.View
       , Domain.Project.Responder.Ui.ProjectManage.Link
       , Domain.Project.Responder.Ui.ProjectManage.Node
+      , Domain.Project.Responder.Ui.ProjectManage.Node.Create
       , Domain.Project.Responder.Ui.ProjectManage.Node.Description
       , Domain.Project.Responder.Ui.ProjectManage.Node.Detail
       , Domain.Project.Responder.Ui.ProjectManage.Node.Edit
@@ -104,6 +105,7 @@ library servant-app
       , Domain.Project.Responder.Ui.ProjectManage.Node.Title
       , Domain.Project.Responder.Ui.ProjectManage.Node.Validation
       , Domain.Project.Responder.Ui.ProjectManage.SaveState
+      , Domain.Project.Responder.Ui.ProjectManage.Stats
       , Domain.Project.Responder.Ui.ProjectManage.View
       , Domain.Project.Visualization.Common
       , Domain.Project.Visualization.Dispatch
@@ -183,8 +185,6 @@ library src
       , Domain.Project.Responder.Ui.Container
       -- Exposed for `test-suite integration`, which asserts on the page
       -- shell these render and on its htmx wiring.
-      , Domain.Project.Responder.Ui.ProjectManage.Node.Create
-      , Domain.Project.Responder.Ui.ProjectManage.Stats
       -- Exposed so `test-suite spec` can import it: the static-asset
       -- caching headers are a pure function of a file's metadata, and
       -- the suite covers them.

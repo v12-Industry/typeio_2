@@ -9,7 +9,8 @@ module App.Server
   ) where
 
 import App.Api
-  ( Api
+  ( AddWorkUi
+  , Api
   , CreateProjectUi
   , ManageProjectUi
   , NodeFieldUi
@@ -38,12 +39,14 @@ import qualified Domain.Project.Responder.Ui.ProjectCreate.View as CreateView
 import qualified Domain.Project.Responder.Ui.ProjectIndex.List as IndexList
 import qualified Domain.Project.Responder.Ui.ProjectIndex.View as IndexView
 import qualified Domain.Project.Responder.Ui.ProjectManage.Node as NodePanel
+import qualified Domain.Project.Responder.Ui.ProjectManage.Node.Create as AddWork
 import qualified Domain.Project.Responder.Ui.ProjectManage.Node.Description as NodeDescription
 import qualified Domain.Project.Responder.Ui.ProjectManage.Node.Detail as NodeDetail
 import qualified Domain.Project.Responder.Ui.ProjectManage.Node.Edit as NodeEdit
 import qualified Domain.Project.Responder.Ui.ProjectManage.Node.Refresh as NodeRefresh
 import qualified Domain.Project.Responder.Ui.ProjectManage.Node.Status as NodeStatus
 import qualified Domain.Project.Responder.Ui.ProjectManage.Node.Title as NodeTitle
+import qualified Domain.Project.Responder.Ui.ProjectManage.Stats as ProjectStats
 import qualified Domain.Project.Responder.Ui.ProjectManage.View as ManageView
 import qualified Domain.Project.Visualization.Dispatch as Graph
 import qualified Domain.System.Responder.Config as SystemConfig
@@ -81,7 +84,8 @@ manageProjectUi :: ServerT ManageProjectUi AppM
 manageProjectUi =
   ManageView.handler
     :<|> Graph.handler
-    :<|> (nodeUi :<|> nodeFieldUi)
+    :<|> (nodeUi :<|> nodeFieldUi :<|> addWorkUi)
+    :<|> ProjectStats.handler
 
 nodeUi :: ServerT NodeUi AppM
 nodeUi =
@@ -95,6 +99,9 @@ nodeFieldUi =
   NodeTitle.handler
     :<|> NodeDescription.handler
     :<|> NodeStatus.handler
+
+addWorkUi :: ServerT AddWorkUi AppM
+addWorkUi = AddWork.handler :<|> AddWork.submitHandler
 
 hoisted :: Env -> Server Api
 hoisted ev = hoistServer api (nt ev) server

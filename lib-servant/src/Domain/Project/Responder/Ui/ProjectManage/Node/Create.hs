@@ -1,9 +1,12 @@
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Domain.Project.Responder.Ui.ProjectManage.Node.Create where
 
+import App.Env (AppM, runDb)
+import App.Handler (htmlError)
 import Common.Validation
   ( ValidationErr
   , isNotEmpty
@@ -15,6 +18,9 @@ import Common.Validation
 import Common.Web.Attributes
 import Common.Web.Query (lookupVal)
 import Control.Monad (forM_, unless)
+import Control.Monad.Error.Class (throwError)
+import Control.Monad.IO.Class (liftIO)
+import Control.Monad.Reader (ReaderT)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Either (hoistMaybe, runEitherT)
 import Data.ByteString (ByteString)
@@ -24,7 +30,7 @@ import Data.Text.Encoding (decodeUtf8)
 import Data.Text.Util (intToText)
 import Data.Time (UTCTime, getCurrentTime)
 import Database.Persist (Entity (..))
-import Database.Persist.Sql (ConnectionPool, fromSqlKey, insert, runSqlPool)
+import Database.Persist.Sql (ConnectionPool, Key, SqlBackend, fromSqlKey, insert, runSqlPool)
 import qualified Domain.Project.Model as M
 import Domain.Project.Responder.Ui.ProjectManage.Link
   ( addWorkSubmitLink
@@ -38,9 +44,11 @@ import Domain.Project.Responder.Ui.ProjectManage.Node.Query
   )
 import Lucid
 import Network.HTTP.Types (HeaderName, status200, status422, status500)
-import Network.HTTP.Types.URI (QueryText, queryToQueryText)
+import Network.HTTP.Types.URI (queryToQueryText)
 import Network.Wai (Application, queryString, responseLBS)
 import Network.Wai.Parse (lbsBackEnd, parseRequestBody)
+import Servant (Header, Headers, addHeader, err422, err500)
+import Web.FormUrlEncoded (Form, lookupMaybe)
 
 data CreateWorkError
   = ProjectMissing
@@ -72,11 +80,7 @@ handlePostWork pl req respond = do
     Right pid -> case validateTitle (param "title" form) of
       Left es -> respond . invalid . templateAddWork pid $ es
       Right ttl -> do
-        rslt <- flip runSqlPool pl . runEitherT $ do
-          prj <- lift (queryProject pid) >>= hoistMaybe ProjectMissing
-          sts <- lift (queryNodeStatus "active") >>= hoistMaybe ReferenceMissing
-          typ <- lift (queryNodeType "work") >>= hoistMaybe ReferenceMissing
-          lift . insert $ newWorkNode now ttl prj sts typ
+        rslt <- runSqlPool (createWork now ttl pid) pl
         case rslt of
           Left ProjectMissing ->
             respond
@@ -104,6 +108,17 @@ htmlContent = ("Content-Type", "text/html")
 
 createdTrigger :: (HeaderName, ByteString)
 createdTrigger = ("HX-Trigger", "nodeCreated")
+
+createWork ::
+  UTCTime ->
+  Text ->
+  Int64 ->
+  ReaderT SqlBackend IO (Either CreateWorkError (Key M.Node))
+createWork now ttl pid = runEitherT $ do
+  prj <- lift (queryProject pid) >>= hoistMaybe ProjectMissing
+  sts <- lift (queryNodeStatus "active") >>= hoistMaybe ReferenceMissing
+  typ <- lift (queryNodeType "work") >>= hoistMaybe ReferenceMissing
+  lift . insert $ newWorkNode now ttl prj sts typ
 
 newWorkNode ::
   UTCTime ->
@@ -195,3 +210,31 @@ validateTitle raw = runValidation id $ do
       >>= isThere "Title is required"
       >>= isNotEmpty "Title cannot be empty"
   return ttl
+
+handler :: Int64 -> AppM (Html ())
+handler pid = pure (templateAddWork pid [])
+
+submitHandler :: Form -> AppM (Headers '[Header "HX-Trigger" Text] (Html ()))
+submitHandler form = do
+  now <- liftIO getCurrentTime
+  case validateProjectId (look "projectId") of
+    Left es -> throwError (htmlError err422 (templateErrors es))
+    Right pid -> case validateTitle (look "title") of
+      Left es -> throwError (htmlError err422 (templateAddWork pid es))
+      Right ttl -> do
+        rslt <- runDb (createWork now ttl pid)
+        case rslt of
+          Left ProjectMissing ->
+            throwError (htmlError err422 (templateAddWork pid ["Project not found"]))
+          Left ReferenceMissing ->
+            throwError
+              ( htmlError
+                  err500
+                  (templateErrors ["The database is missing its reference data"])
+              )
+          Right ky ->
+            pure (addHeader "nodeCreated" (templateCreated (fromSqlKey ky) pid))
+  where
+    look k = case lookupMaybe k form of
+      Right (Just v) -> Just v
+      _ -> Nothing

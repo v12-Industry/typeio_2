@@ -4,11 +4,14 @@
 
 module Domain.Project.Responder.Ui.ProjectManage.Stats
   ( handleGetProjectStats
+  , handler
   , templateProjectStats
+  , queryProjectStats
   , queryStatusCounts
   , queryStatusVocabulary
   ) where
 
+import App.Env (AppM, runDb)
 import Common.Validation
   ( ValidationErr
   , isNotEmpty
@@ -67,10 +70,7 @@ handleGetProjectStats pl req respond =
         . responseLBS status400 []
         $ "Error"
     Right pid -> do
-      stats <- flip runSqlPool pl $ do
-        vocabulary <- queryStatusVocabulary
-        counts <- queryStatusCounts pid
-        return (projectStats vocabulary counts)
+      stats <- runSqlPool (queryProjectStats pid) pl
       respond
         . responseLBS status200 []
         . renderBS
@@ -99,6 +99,12 @@ validateForm fm = runValidation id $ do
       >>= isNotEmpty "Project id must have a value"
       >>= valRead "Project id must be valid integer"
   return pid
+
+queryProjectStats :: Int64 -> ReaderT SqlBackend IO ProjectStats
+queryProjectStats pid = do
+  vocabulary <- queryStatusVocabulary
+  counts <- queryStatusCounts pid
+  return (projectStats vocabulary counts)
 
 queryStatusVocabulary :: ReaderT SqlBackend IO [Text]
 queryStatusVocabulary = do
@@ -137,3 +143,6 @@ statRow cls label value =
 
 statusLabel :: Text -> Text
 statusLabel st = T.toUpper (T.take 1 st) <> T.drop 1 st
+
+handler :: Int64 -> AppM (Html ())
+handler pid = templateProjectStats <$> runDb (queryProjectStats pid)
