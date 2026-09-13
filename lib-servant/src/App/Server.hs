@@ -8,7 +8,16 @@ module App.Server
   , server
   ) where
 
-import App.Api (Api, CreatedNode (..), Health (..), ProjectApi, api)
+import App.Api
+  ( Api
+  , CreateProjectUi
+  , CreatedNode (..)
+  , Health (..)
+  , HxRedirect
+  , ProjectApi
+  , ProjectsUi
+  , api
+  )
 import App.Env (AppM, Env (..), runDb, withEnv)
 import App.Middleware (withMiddleware)
 import Config.App (AppConfig (..), loadConfig)
@@ -20,9 +29,10 @@ import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (asks, runReaderT)
 import Data.Aeson (encode, object, (.=))
 import Data.Text (Text, pack)
+import Data.Text.Encoding (decodeUtf8)
 import Data.Text.Util (intToText)
 import Data.Time (getCurrentTime)
-import Database.Persist (Entity (..))
+import Database.Persist (Entity (..), entityVal)
 import Database.Persist.Sql (fromSqlKey)
 import Domain.Central.Responder.Api.Seed (seedReferenceData)
 import Domain.Central.Responder.Ui.Empty (templateEmpty)
@@ -31,6 +41,10 @@ import qualified Domain.Project.Responder.Api.Node.Post as NodePost
 import qualified Domain.Project.Responder.Api.NodeStatus.Get as NodeStatusGet
 import qualified Domain.Project.Responder.Api.NodeType.Get as NodeTypeGet
 import qualified Domain.Project.Responder.Api.Project.Get as ProjectGet
+import qualified Domain.Project.Responder.Ui.ProjectCreate.Submit as Submit
+import qualified Domain.Project.Responder.Ui.ProjectCreate.View as CreateView
+import qualified Domain.Project.Responder.Ui.ProjectIndex.List as IndexList
+import qualified Domain.Project.Responder.Ui.ProjectIndex.View as IndexView
 import Domain.System.Responder.Config (ConfigDisplay, configDisplay)
 import Lucid (Html)
 import Network.Wai (Application)
@@ -48,6 +62,7 @@ import Servant
   , err500
   , errBody
   , hoistServer
+  , noHeader
   , serve
   , (:<|>) (..)
   )
@@ -60,6 +75,8 @@ server =
     :<|> seedDatabase
     :<|> systemConfig
     :<|> projectApi
+    :<|> projectsUi
+    :<|> createProjectUi
 
 projectApi :: ServerT ProjectApi AppM
 projectApi =
@@ -102,6 +119,36 @@ postNode form = do
   where
     errJson es = encode (object ["error" .= es])
     serverErr = errJson ["Internal server error" :: Text]
+
+projectsUi :: ServerT ProjectsUi AppM
+projectsUi = projectIndexVw :<|> projectList
+
+projectIndexVw :: AppM (Html ())
+projectIndexVw = pure IndexView.projectIndexVwTemplate
+
+projectList :: AppM (Html ())
+projectList = do
+  ps <- runDb IndexList.queryProjectVw
+  pure $ case ps of
+    [] -> IndexList.templateEmptyProjects
+    _ -> IndexList.templateList (map entityVal ps)
+
+createProjectUi :: ServerT CreateProjectUi AppM
+createProjectUi = createProjectVw :<|> submitProject
+
+createProjectVw :: AppM (Html ())
+createProjectVw = pure (CreateView.projectCreateVwTemplate CreateView.emptyForm mempty)
+
+submitProject :: Form -> AppM HxRedirect
+submitProject f = do
+  let form = Submit.formToAddProjectForm f
+  now <- liftIO getCurrentTime
+  rslt <- runDb (Submit.createProject form now)
+  pure $ case rslt of
+    Right _ -> addHeader (decodeUtf8 (snd Submit.redirectHeader)) mempty
+    Left (Submit.FormValidationFail es) ->
+      noHeader (CreateView.projectCreateVwTemplate form es)
+    Left _ -> noHeader (CreateView.projectCreateVwTemplate form ["Could not create the project"])
 
 healthz :: AppM Health
 healthz =

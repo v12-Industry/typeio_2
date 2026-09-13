@@ -5,7 +5,10 @@
 module App.Api
   ( Api
   , ProjectApi
+  , ProjectsUi
+  , CreateProjectUi
   , CreatedNode (..)
+  , HxRedirect
   , Health (..)
   , api
   ) where
@@ -63,12 +66,27 @@ type ProjectApi =
     :<|> "node-types" :> Get '[JSON] [NodeTypeGet.NodeType]
     :<|> "projects" :> Get '[JSON] [ProjectGet.Project]
 
+-- htmx redirects by header rather than by status, so the success and
+-- failure arms of a submit share one status and differ by whether the
+-- header is present.
+type HxRedirect = Headers '[Header "HX-Location" Text] (Html ())
+
+type ProjectsUi =
+  "vw" :> Get '[HTML] (Html ())
+    :<|> "list" :> Get '[HTML] (Html ())
+
+type CreateProjectUi =
+  "vw" :> Get '[HTML] (Html ())
+    :<|> "submit" :> ReqBody '[FormUrlEncoded] Form :> Post '[HTML] HxRedirect
+
 type Api =
   "healthz" :> Get '[JSON] Health
     :<|> "ui" :> "central" :> "empty" :> Get '[HTML] (Html ())
     :<|> "api" :> "central" :> "seed-database" :> Post '[JSON] Text
     :<|> "api" :> "system" :> "config" :> Get '[JSON] ConfigDisplay
     :<|> "api" :> "project" :> ProjectApi
+    :<|> "ui" :> "projects" :> ProjectsUi
+    :<|> "ui" :> "create-project" :> CreateProjectUi
 
 api :: Proxy Api
 api = Proxy
