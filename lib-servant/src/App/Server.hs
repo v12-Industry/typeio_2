@@ -16,6 +16,7 @@ import App.Api
   , Health (..)
   , HxRedirect
   , ManageProjectUi
+  , NodeFieldUi
   , NodeUi
   , ProjectApi
   , ProjectsUi
@@ -31,16 +32,18 @@ import Configuration.Dotenv (defaultConfig, loadFile)
 import Control.Exception (SomeException, try)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.IO.Class (liftIO)
-import Control.Monad.Reader (asks, runReaderT)
+import Control.Monad.Reader (ReaderT, asks, runReaderT)
+import Control.Monad.Trans.Class (lift)
+import Control.Monad.Trans.Either (EitherT, firstEitherT, hoistMaybe, runEitherT)
 import Data.Aeson (encode, object, (.=))
 import Data.Int (Int64)
 import Data.Maybe (fromMaybe)
-import Data.Text (Text, pack)
+import Data.Text (Text, pack, unpack)
 import Data.Text.Encoding (decodeUtf8)
 import Data.Text.Util (intToText)
 import Data.Time (getCurrentTime)
-import Database.Persist (Entity (..), entityKey, entityVal)
-import Database.Persist.Sql (fromSqlKey)
+import Database.Persist (Entity (..), entityKey, entityVal, replace)
+import Database.Persist.Sql (SqlBackend, fromSqlKey)
 import Domain.Central.Responder.Api.Seed (seedReferenceData)
 import Domain.Central.Responder.Ui.Empty (templateEmpty)
 import qualified Domain.Project.Model as M
@@ -54,16 +57,22 @@ import qualified Domain.Project.Responder.Ui.ProjectCreate.View as CreateView
 import qualified Domain.Project.Responder.Ui.ProjectIndex.List as IndexList
 import qualified Domain.Project.Responder.Ui.ProjectIndex.View as IndexView
 import qualified Domain.Project.Responder.Ui.ProjectManage.Node as NodePanel
+import qualified Domain.Project.Responder.Ui.ProjectManage.Node.Description as NodeDescription
 import qualified Domain.Project.Responder.Ui.ProjectManage.Node.Detail as NodeDetail
 import qualified Domain.Project.Responder.Ui.ProjectManage.Node.Edit as NodeEdit
 import qualified Domain.Project.Responder.Ui.ProjectManage.Node.Query as NodeQuery
 import qualified Domain.Project.Responder.Ui.ProjectManage.Node.Refresh as NodeRefresh
-import Domain.Project.Responder.Ui.ProjectManage.Node.Validation (nodeInProject)
+import qualified Domain.Project.Responder.Ui.ProjectManage.Node.Status as NodeStatus
+import qualified Domain.Project.Responder.Ui.ProjectManage.Node.Title as NodeTitle
+import Domain.Project.Responder.Ui.ProjectManage.Node.Validation
+  ( nodeInProject
+  , validateNodeProjectId
+  )
 import qualified Domain.Project.Responder.Ui.ProjectManage.View as ManageView
 import qualified Domain.Project.Visualization.Common as Viz
 import Domain.Project.Visualization.Dispatch (renderFor)
 import Domain.System.Responder.Config (ConfigDisplay, configDisplay)
-import Lucid (Html)
+import Lucid (Html, renderBS)
 import Network.Wai (Application)
 import Network.Wai.Handler.Warp (run)
 import Platform.Build (BuildInfo (..), buildInfo)
@@ -73,6 +82,7 @@ import Servant
   , Headers
   , NoContent (..)
   , Server
+  , ServerError
   , ServerT
   , Union
   , WithStatus (..)
@@ -81,6 +91,7 @@ import Servant
   , err422
   , err500
   , errBody
+  , errHeaders
   , hoistServer
   , noHeader
   , respond
@@ -173,7 +184,10 @@ submitProject f = do
     Left _ -> noHeader (CreateView.projectCreateVwTemplate form ["Could not create the project"])
 
 manageProjectUi :: ServerT ManageProjectUi AppM
-manageProjectUi = manageProjectVw :<|> projectGraph :<|> nodeUi
+manageProjectUi =
+  manageProjectVw
+    :<|> projectGraph
+    :<|> (nodeUi :<|> nodeFieldUi)
 
 manageProjectVw ::
   Int64 ->
@@ -275,6 +289,95 @@ nodeRefresh pid nid clientTitle mwrap = do
           respond (WithStatus @200 (NodeRefresh.templateRefresh wrapWidth nde))
   where
     wrapWidth = fromMaybe NodeRefresh.defaultWrapWidth mwrap
+nodeFieldUi :: ServerT NodeFieldUi AppM
+nodeFieldUi = putNodeTitle :<|> putNodeDescription :<|> putNodeStatus
+
+putNodeTitle :: Form -> AppM (Html ())
+putNodeTitle form =
+  updateNodeField
+    NodeTitle.templateNodeNotFound
+    NodeTitle.templatePostFail
+    NodeTitle.templatePostSuccess
+    $ do
+      pyld <-
+        firstEitherT FieldInvalid
+          . NodeTitle.validatePayload
+          . NodeTitle.formToPutNodeTitleForm
+          $ form
+      nde <- nodeForUpdate (NodeTitle.payloadProjectId pyld) (NodeTitle.payloadNodeId pyld)
+      lift . replace (entityKey nde) $
+        (entityVal nde) {M.nodeTitle = unpack (NodeTitle.payloadTitle pyld)}
+
+putNodeDescription :: Form -> AppM (Html ())
+putNodeDescription form =
+  updateNodeField
+    NodeDescription.templateNodeNotFound
+    NodeDescription.templatePutFail
+    NodeDescription.templatePutSuccess
+    $ do
+      pyld <-
+        firstEitherT FieldInvalid
+          . NodeDescription.validatePayload
+          . NodeDescription.formToPutNodeDescriptionForm
+          $ form
+      nde <-
+        nodeForUpdate
+          (NodeDescription.payloadProjectId pyld)
+          (NodeDescription.payloadNodeId pyld)
+      lift . replace (entityKey nde) $
+        (entityVal nde) {M.nodeDescription = unpack (NodeDescription.payloadDescription pyld)}
+
+putNodeStatus :: Form -> AppM (Html ())
+putNodeStatus form =
+  updateNodeField
+    NodeStatus.templateNodeNotFound
+    NodeStatus.templatePostFail
+    NodeStatus.templatePostSuccess
+    $ do
+      pyld <-
+        firstEitherT FieldInvalid
+          . NodeStatus.validatePayload
+          . NodeStatus.formToPostNodeStatusForm
+          $ form
+      nde <- nodeForUpdate (NodeStatus.payloadProjectId pyld) (NodeStatus.payloadNodeId pyld)
+      sts <-
+        lift (NodeStatus.queryStatus (NodeStatus.payloadStatus pyld))
+          >>= hoistMaybe (FieldInvalid ["Node status is required"])
+      lift . replace (entityKey nde) $
+        (entityVal nde) {M.nodeNodeStatusId = entityKey sts}
+
+data FieldUpdateErr
+  = FieldInvalid [Text]
+  | FieldNodeMissing
+
+nodeForUpdate ::
+  Int64 ->
+  Int64 ->
+  EitherT FieldUpdateErr (ReaderT SqlBackend IO) (Entity M.Node)
+nodeForUpdate pid nid =
+  lift (NodeQuery.queryNode nid)
+    >>= hoistMaybe FieldNodeMissing
+    >>= firstEitherT FieldInvalid . validateNodeProjectId pid
+
+updateNodeField ::
+  Html () ->
+  ([Text] -> Html ()) ->
+  Html () ->
+  EitherT FieldUpdateErr (ReaderT SqlBackend IO) () ->
+  AppM (Html ())
+updateNodeField missing invalid ok act = do
+  rslt <- runDb (runEitherT act)
+  case rslt of
+    Left (FieldInvalid es) -> throwError (htmlError err422 (invalid es))
+    Left FieldNodeMissing -> throwError (htmlError err404 missing)
+    Right () -> pure ok
+
+htmlError :: ServerError -> Html () -> ServerError
+htmlError er tpl =
+  er
+    { errBody = renderBS tpl
+    , errHeaders = [("Content-Type", "text/html")]
+    }
 
 healthz :: AppM Health
 healthz =
