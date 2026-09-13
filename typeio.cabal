@@ -92,6 +92,13 @@ library servant-app
       , Domain.Project.Responder.Ui.ProjectIndex.List
       , Domain.Project.Responder.Ui.ProjectIndex.View
       , Domain.Project.Responder.Ui.ProjectManage.Link
+      , Domain.Project.Responder.Ui.ProjectManage.SaveState
+      , Domain.Project.Responder.Ui.ProjectManage.View
+      , Domain.Project.Visualization.Common
+      , Domain.Project.Visualization.Dispatch
+      , Domain.Project.Visualization.Orbital.Responder
+      , Domain.Project.Visualization.Orbital.View
+      , Domain.Project.Visualization.Rootless.Responder
     build-depends:
       aeson
       , base ^>=4.18.3.0
@@ -117,13 +124,13 @@ library servant-app
       , servant
       , servant-server
       , transformers-either
-      , wai-extra
       , text
       , time
       , transformers
       , unliftio-core
       , uuid
       , wai
+      , wai-extra
       , wai-middleware-static
       , warp
     hs-source-dirs:   lib-servant/src
@@ -159,17 +166,12 @@ library src
       -- engine.
       -- Exposed for `test-suite integration`'s CommonSpec, which asserts
       -- on the SVG this renders.
-      , Domain.Project.Visualization.Common
       -- Exposed for the switch's own integration spec, so it
       -- exercises the real `renderFor` table rather than a copy that
       -- could drift from it.
       , Domain.Project.Responder.Ui.Container
-      , Domain.Project.Visualization.Orbital.Responder
-      , Domain.Project.Visualization.Orbital.View
-      , Domain.Project.Visualization.Rootless.Responder
       -- Exposed for `test-suite integration`, which asserts on the page
       -- shell these render and on its htmx wiring.
-      , Domain.Project.Responder.Ui.ProjectManage.View
       , Domain.Project.Responder.Ui.ProjectManage.Node.Edit
       , Domain.Project.Responder.Ui.ProjectManage.Node.Create
       , Domain.Project.Responder.Ui.ProjectManage.Node.Description
@@ -195,7 +197,6 @@ library src
       , Domain.Project.Responder.Ui.ProjectManage.Node.Query
       , Domain.Project.Responder.Ui.ProjectManage.Node.Refresh
       , Domain.Project.Responder.Ui.ProjectManage.Node.Validation
-      , Domain.Project.Responder.Ui.ProjectManage.SaveState
       , Domain.System.Container
       , Domain.System.Middleware.Container
       , Domain.System.Responder.Container

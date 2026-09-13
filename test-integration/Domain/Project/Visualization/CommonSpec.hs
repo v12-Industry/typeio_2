@@ -28,8 +28,8 @@ import qualified Data.ByteString.Lazy.Char8 as LC8
 import Data.Int (Int64)
 import Data.List (isInfixOf)
 import Database.Persist.Sql (ConnectionPool, fromSqlKey)
-import Domain.Project.Responder.Ui.Container (renderFor)
 import Domain.Project.Visualization.Common (handleGraph)
+import Domain.Project.Visualization.Dispatch (renderFor)
 import Integration.Support
   ( resetBetweenTests
   , seedDependency
