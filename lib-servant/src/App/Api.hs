@@ -9,6 +9,7 @@ module App.Api
   , CreateProjectUi
   , ManageProjectUi
   , NodeUi
+  , NodeFieldUi
   , CreatedNode (..)
   , HxRedirect
   , Health (..)
@@ -37,6 +38,7 @@ import Servant.API
   , Optional
   , Post
   , PostCreated
+  , Put
   , QueryParam'
   , ReqBody
   , Required
@@ -115,6 +117,11 @@ type NodeUi =
       :> QueryParam' '[Optional, Strict] "wrapWidth" Int
       :> UVerb 'GET '[HTML] '[WithStatus 200 (Html ()), WithStatus 204 NoContent]
 
+type NodeFieldUi =
+  "title" :> ReqBody '[FormUrlEncoded] Form :> Put '[HTML] (Html ())
+    :<|> "description" :> ReqBody '[FormUrlEncoded] Form :> Put '[HTML] (Html ())
+    :<|> "status" :> ReqBody '[FormUrlEncoded] Form :> Put '[HTML] (Html ())
+
 type ManageProjectUi =
   "vw"
     :> ProjectIdParam
@@ -128,7 +135,7 @@ type ManageProjectUi =
       :> ProjectIdParam
       :> VisualizationParam
       :> Get '[HTML] (Html ())
-    :<|> "node" :> NodeUi
+    :<|> "node" :> (NodeUi :<|> NodeFieldUi)
 
 type Api =
   "healthz" :> Get '[JSON] Health

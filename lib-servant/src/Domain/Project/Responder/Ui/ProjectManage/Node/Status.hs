@@ -1,8 +1,10 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeApplications #-}
 
-module Domain.Project.Responder.Ui.ProjectManage.Node.Description where
+module Domain.Project.Responder.Ui.ProjectManage.Node.Status where
 
 import Common.Validation
 import Domain.Project.Responder.Ui.ProjectManage.Node.Query
@@ -11,6 +13,7 @@ import Lucid
 
 import qualified Domain.Project.Model as M
 
+import Control.Monad.Reader (ReaderT)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Either
   ( EitherT
@@ -20,31 +23,34 @@ import Control.Monad.Trans.Either
   , runEitherT
   )
 import Data.Int (Int64)
+import Data.Maybe (listToMaybe)
 import Data.Text (Text, unpack)
 import Data.Text.Encoding (decodeUtf8)
 import Database.Esqueleto.Experimental
 import Network.HTTP.Types (status200, status404, status422)
 import Network.Wai (Application, responseLBS)
 import Network.Wai.Parse (Param, lbsBackEnd, parseRequestBody)
+import Web.FormUrlEncoded (Form, lookupMaybe)
 
-data PutNodeDescriptionErr
+data PostNodeStatusErr
   = InvalidParams [ValidationErr]
   | MissingNode
+  | MissingStatus
 
-data PutNodeDescriptionForm = PutNodeDescriptionForm
-  { formNodeDescription :: Maybe Text
+data PostNodeStatusForm = PostNodeStatusForm
+  { formNodeStatus :: Maybe Text
   , formNodeId :: Maybe Text
   , formProjectId :: Maybe Text
   }
 
-data PutNodeDescriptionPayload = PutNodeDescriptionPayload
-  { payloadDescription :: Text
+data PostNodeStatusPayload = PostNodeDescriptionPayload
+  { payloadStatus :: Text
   , payloadNodeId :: Int64
   , payloadProjectId :: Int64
   }
 
-handlePutDescription :: ConnectionPool -> Application
-handlePutDescription pl req rspnd = do
+handlePutNodeStatus :: ConnectionPool -> Application
+handlePutNodeStatus pl req rspnd = do
   form <- reqForm . fst <$> parseRequestBody lbsBackEnd req
   rslt <- flip runSqlPool pl . runEitherT $ do
     pyld <-
@@ -57,8 +63,11 @@ handlePutDescription pl req rspnd = do
         >>= ( firstEitherT InvalidParams
                 . validateNodeProjectId (payloadProjectId pyld)
             )
+    st <-
+      lift (queryStatus . payloadStatus $ pyld)
+        >>= hoistMaybe MissingStatus
     lift . replace (entityKey nd) $
-      (entityVal nd) {M.nodeDescription = unpack . payloadDescription $ pyld}
+      (entityVal nd) {M.nodeNodeStatusId = entityKey st}
   case rslt of
     Left (InvalidParams e) ->
       rspnd
@@ -66,7 +75,7 @@ handlePutDescription pl req rspnd = do
           status422
           [("Content-Type", "text/html")]
         . renderBS
-        . templatePutFail
+        . templatePostFail
         $ e
     Left MissingNode ->
       rspnd
@@ -75,46 +84,76 @@ handlePutDescription pl req rspnd = do
           [("Content-Type", "text/html")]
         . renderBS
         $ templateNodeNotFound
+    Left MissingStatus ->
+      rspnd
+        . responseLBS
+          status422
+          [("Content-Type", "text/html")]
+        . renderBS
+        $ templatePostFail ["Node status is required"]
     Right _ ->
       rspnd
         . responseLBS
           status200
           [("Content-Type", "text/html")]
         . renderBS
-        $ templatePutSuccess
+        $ templatePostSuccess
 
-reqForm :: [Param] -> PutNodeDescriptionForm
+queryStatus ::
+  Text ->
+  ReaderT SqlBackend IO (Maybe (Entity M.NodeStatus))
+queryStatus st = do
+  ns <- select $ do
+    s <- from $ table @M.NodeStatus
+    where_ $ s.nodeStatusId ==. (val . unpack $ st)
+    limit 1
+    pure s
+  return . listToMaybe $ ns
+
+formToPostNodeStatusForm :: Form -> PostNodeStatusForm
+formToPostNodeStatusForm f =
+  PostNodeStatusForm
+    { formNodeStatus = look "status"
+    , formNodeId = look "nodeId"
+    , formProjectId = look "projectId"
+    }
+  where
+    look k = case lookupMaybe k f of
+      Right (Just v) -> Just v
+      _ -> Nothing
+
+reqForm :: [Param] -> PostNodeStatusForm
 reqForm ps =
-  PutNodeDescriptionForm
-    { formNodeDescription = decodeUtf8 <$> lookup "description" ps
+  PostNodeStatusForm
+    { formNodeStatus = decodeUtf8 <$> lookup "status" ps
     , formNodeId = decodeUtf8 <$> lookup "nodeId" ps
     , formProjectId = decodeUtf8 <$> lookup "projectId" ps
     }
 
-templatePutSuccess :: Html ()
-templatePutSuccess = do
+templatePostSuccess :: Html ()
+templatePostSuccess = do
   i_ [class_ "material-icons"] "done"
 
 templateNodeNotFound :: Html ()
 templateNodeNotFound = do
   p_ [] "Node not found"
 
-templatePutFail :: [ValidationErr] -> Html ()
-templatePutFail es = do
+templatePostFail :: [ValidationErr] -> Html ()
+templatePostFail es = do
   i_ [class_ "material-icons"] "error"
   ul_ [] $ mapM_ (li_ [] . toHtml) es
 
 validatePayload ::
   Monad m =>
-  PutNodeDescriptionForm ->
-  EitherT [ValidationErr] m PutNodeDescriptionPayload
+  PostNodeStatusForm ->
+  EitherT [ValidationErr] m PostNodeStatusPayload
 validatePayload form =
   hoistEither . runValidation id $ do
-    dsc <-
-      formNodeDescription form
+    st <-
+      formNodeStatus form
         .$ id
-        >>= isThere "Node description is required"
-        >>= isNotEmpty "Node description cannot be empty"
+        >>= isThere "Node status is required"
+        >>= isNotEmpty "Node status cannot be empty"
     nid <-
       formNodeId form
         .$ unpack
@@ -128,7 +167,7 @@ validatePayload form =
         >>= isNotEmpty "Project id must have value"
         >>= valRead "Project id must be valid integer"
     return $
-      PutNodeDescriptionPayload
-        <$> dsc
+      PostNodeDescriptionPayload
+        <$> st
         <*> nid
         <*> pid
