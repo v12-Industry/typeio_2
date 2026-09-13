@@ -7,6 +7,7 @@ module Domain.Project.Responder.Ui.ProjectManage.Node.Edit where
 
 import App.Env (AppM, runDb)
 import App.Handler (renderNode)
+import App.Link (nodeDescriptionLink, nodeStatusLink, nodeTitleLink)
 import Common.Validation
   ( ValidationErr
   , isNotEmpty
@@ -150,7 +151,7 @@ templateNodeEdit nsts (Entity k nde) = do
       , id_ "title"
       , value_ (pack . M.nodeTitle $ nde)
       , name_ "title"
-      , hxPut_ "/ui/project/node/title"
+      , hxPut_ nodeTitleLink
       , hxPushUrl_ False
       , hxInclude_ "this"
       , hxTrigger_ "input changed delay:500ms"
@@ -176,7 +177,7 @@ templateNodeEdit nsts (Entity k nde) = do
     textarea_
       [ id_ "description"
       , name_ "description"
-      , hxPut_ "/ui/project/node/description"
+      , hxPut_ nodeDescriptionLink
       , hxPushUrl_ False
       , hxInclude_ "this"
       , hxTrigger_ "input changed delay:500ms"
@@ -198,7 +199,7 @@ templateNodeEdit nsts (Entity k nde) = do
           [ id_ "status"
           , class_ "property-value pill-dropdown"
           , name_ "status"
-          , hxPut_ "/ui/project/node/status"
+          , hxPut_ nodeStatusLink
           , hxPushUrl_ False
           , hxInclude_ "this"
           , hxTrigger_ "change"

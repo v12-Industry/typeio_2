@@ -2,6 +2,7 @@
 
 module Common.Web.Template.MainHeader where
 
+import App.Link (projectIndexLink)
 import Common.Web.Attributes
 import Data.Text (Text)
 import Lucid
@@ -15,7 +16,7 @@ templateNavHeaderWith current trailing = do
   header_ [class_ "nav"] $ do
     h1_
       [ class_ "logo"
-      , hxGet_ "/ui/projects/vw"
+      , hxGet_ projectIndexLink
       , hxPushUrl_ True
       , hxSwap_ "innerHTML"
       , hxTarget_ "#container"

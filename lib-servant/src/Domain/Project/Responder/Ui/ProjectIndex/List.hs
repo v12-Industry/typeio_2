@@ -7,6 +7,7 @@
 module Domain.Project.Responder.Ui.ProjectIndex.List where
 
 import App.Env (AppM, runDb)
+import App.Link
 import Common.Web.Attributes
 import Control.Monad (forM_)
 import Control.Monad.Reader (ReaderT)
@@ -25,7 +26,6 @@ import Database.Persist (Entity (..))
 import Database.Persist.Postgresql (ConnectionPool)
 import Database.Persist.Sql (SqlBackend, runSqlPool)
 import qualified Domain.Project.Model as M
-import Domain.Project.Responder.Ui.ProjectManage.Link
 import Lucid
 import Network.HTTP.Types (status200)
 import Network.Wai (Response, ResponseReceived, responseLBS)

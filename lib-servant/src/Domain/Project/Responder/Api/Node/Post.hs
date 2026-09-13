@@ -8,7 +8,9 @@
 
 module Domain.Project.Responder.Api.Node.Post where
 
+import App.Api (CreatedNode (..))
 import App.Env (AppM, runDb)
+import App.Link (nodeResourceLink)
 import Common.Either (listToEither)
 import Common.Validation
   ( ValidationErr
@@ -263,13 +265,6 @@ insertNode pyl tm = do
     _ <- lift $ insert nd
     return nd
 
-newtype CreatedNode = CreatedNode
-  { createdNodeId :: Int64
-  }
-
-instance ToJSON CreatedNode where
-  toJSON n = object ["nodeId" .= createdNodeId n]
-
 handler ::
   Form ->
   AppM (Headers '[Header "Location" Text] CreatedNode)
@@ -286,7 +281,7 @@ handler form = do
       let nid = fromSqlKey ky
        in pure $
             addHeader
-              ("/api/project/nodes/" <> intToText nid)
+              (nodeResourceLink nid)
               (CreatedNode nid)
   where
     errJson es = encode (object ["error" .= es])

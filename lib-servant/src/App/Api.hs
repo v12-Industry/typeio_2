@@ -11,20 +11,21 @@ module App.Api
   , NodeUi
   , NodeFieldUi
   , AddWorkUi
+  , CreatedNode (..)
+  , HxRedirect
   , api
   ) where
 
 import App.Html (HTML)
 import Config.Visualization (Visualization)
+import Data.Aeson (ToJSON, object, toJSON, (.=))
 import Data.Int (Int64)
 import Data.Proxy (Proxy (..))
 import Data.Text (Text)
 import qualified Domain.Project.Responder.Api.Node.Get as NodeGet
-import Domain.Project.Responder.Api.Node.Post (CreatedNode)
 import qualified Domain.Project.Responder.Api.NodeStatus.Get as NodeStatusGet
 import qualified Domain.Project.Responder.Api.NodeType.Get as NodeTypeGet
 import qualified Domain.Project.Responder.Api.Project.Get as ProjectGet
-import Domain.Project.Responder.Ui.ProjectCreate.Submit (HxRedirect)
 import Domain.System.Responder.Config (ConfigDisplay)
 import Domain.System.Responder.Health (Health)
 import Lucid (Html)
@@ -50,6 +51,18 @@ import Servant.API
   , (:>)
   )
 import Web.FormUrlEncoded (Form)
+
+newtype CreatedNode = CreatedNode
+  { createdNodeId :: Int64
+  }
+
+instance ToJSON CreatedNode where
+  toJSON n = object ["nodeId" .= createdNodeId n]
+
+{- htmx redirects by header rather than by status, so the success and
+   failure arms of a submit share one status and differ by whether the
+   header is present. -}
+type HxRedirect = Headers '[Header "HX-Location" Text] (Html ())
 
 type ProjectApi =
   "nodes" :> Get '[JSON] [NodeGet.Node]

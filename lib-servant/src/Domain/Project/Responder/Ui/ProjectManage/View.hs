@@ -3,6 +3,7 @@
 module Domain.Project.Responder.Ui.ProjectManage.View where
 
 import App.Env (AppM)
+import App.Link
 import Common.Validation
   ( ValidationErr
   , isNotEmpty
@@ -22,7 +23,6 @@ import Data.Text (Text, pack, unpack)
 import qualified Data.Text as T
 import Data.Text.Encoding (decodeUtf8)
 import Data.Text.Util (intToText)
-import Domain.Project.Responder.Ui.ProjectManage.Link
 import Domain.Project.Responder.Ui.ProjectManage.SaveState (templateSaveState)
 import Lucid
 import Network.HTTP.Types (QueryText, status200, status302, status403)
@@ -296,9 +296,4 @@ handler pid nid mviz vx vy vk =
    the raw query string, so the base the viewport appends to is canonical
    whatever the client sent. -}
 viewBaseFromParams :: Int64 -> Maybe Int64 -> Visualization -> Text
-viewBaseFromParams pid nid viz =
-  "/ui/project/vw?projectId="
-    <> intToText pid
-    <> maybe "" (\n -> "&nodeId=" <> intToText n) nid
-    <> "&visualizationMode="
-    <> pack (show viz)
+viewBaseFromParams pid nid viz = projectViewLink pid nid (Just viz)

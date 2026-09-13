@@ -3,6 +3,7 @@
 module Domain.Project.Responder.Ui.ProjectManage.Node where
 
 import App.Env (AppM)
+import App.Link
 import Common.Validation
   ( ValidationErr
   , isNotEmpty
@@ -17,7 +18,6 @@ import Data.Int (Int64)
 import Data.Text (Text, unpack)
 import qualified Data.Text as T
 import Data.Text.Util (intToText)
-import Domain.Project.Responder.Ui.ProjectManage.Link
 import Lucid
 import Network.HTTP.Types.Status (status200, status400)
 import Network.HTTP.Types.URI (QueryText, queryToQueryText)
@@ -106,7 +106,7 @@ templateNodePanel nid pid = do
         $ i_ [class_ "material-icons"] "check"
       button_
         [ class_ "pill-button"
-        , hxGet_ "/ui/central/empty"
+        , hxGet_ emptyLink
         , hxPushUrl'_ $ projectLink pid
         , hxSwap_ "innerHTML"
         , hxTarget_ "#node-panel"

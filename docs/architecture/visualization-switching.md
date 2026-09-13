@@ -134,12 +134,14 @@ Worth knowing, because it is the part that is easy to get wrong: the
 browser navigates to `/ui/project/vw`, and the drawing arrives by a
 *separate* htmx request to `/ui/project/graph`. So the project page
 resolves `visualizationMode` and forwards it into that link
-(`ProjectManage.Link.graphLink`). **A parameter on the page URL alone
+(`App.Link.graphLink`). **A parameter on the page URL alone
 would do nothing at all.**
 
 It is forwarded as a rendered constructor name, never as text passed
 through from the request, so nothing a caller sends can end up
-concatenated into the link.
+concatenated into the link. The link itself is derived from the route
+type with `safeLink`, so the parameter's name and the path both come
+from `App.Api` rather than from a string in the caller.
 
 ## 3. The isolation rule
 

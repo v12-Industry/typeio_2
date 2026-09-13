@@ -8,6 +8,11 @@ module Domain.Project.Visualization.Orbital.View
   , nodeHue
   ) where
 
+import App.Link
+  ( nodePanelLink
+  , nodeRefreshLink
+  , projectViewLink
+  )
 import Common.Web.Attributes
 import Common.Web.Elements
 import Control.Monad (forM_)
@@ -33,14 +38,9 @@ import Domain.Project.Orbit.Types
   , Size (..)
   , boundsSize
   )
-import Domain.Project.Responder.Ui.ProjectManage.Link
-  ( nodePanelLink
-  , nodeRefreshLink
-  )
 import Domain.Project.Visualization.Common
   ( FrameBox (..)
   , graphFrame
-  , pushUrl
   )
 import Lucid
 
@@ -104,7 +104,7 @@ discGroup pid cfg facts disc =
     , hxGet_ (nodePanelLink rawId pid)
     , hxTrigger_ "click"
     , hxTarget_ "#node-panel"
-    , hxPushUrl'_ (pushUrl rawId pid)
+    , hxPushUrl'_ (projectViewLink pid (Just rawId) Nothing)
     , hxSwap_ "innerHTML"
     ]
     $ do
