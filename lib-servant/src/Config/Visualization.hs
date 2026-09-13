@@ -5,17 +5,20 @@ module Config.Visualization
   , VisualizationChoice (..)
   , chosenVisualization
   , defaultVisualization
+  , parseVisualization
   , resolveVisualization
+  , visualizationText
   ) where
 
 import Data.Aeson (ToJSON, toJSON)
 import Data.Text (Text, unpack)
+import qualified Data.Text as T
 import Text.Read (readMaybe)
 
 data Visualization
   = Rootless
   | Orbital
-  deriving (Eq, Read, Show)
+  deriving (Bounded, Enum, Eq, Read, Show)
 
 instance ToJSON Visualization where
   toJSON = toJSON . show
@@ -36,3 +39,13 @@ resolveVisualization :: Maybe Text -> VisualizationChoice
 resolveVisualization Nothing = AsRequested defaultVisualization
 resolveVisualization (Just raw) =
   maybe (FellBack defaultVisualization) AsRequested (readMaybe (unpack raw))
+
+visualizationText :: Visualization -> Text
+visualizationText Rootless = "Rootless"
+visualizationText Orbital = "Orbital"
+
+parseVisualization :: Text -> Maybe Visualization
+parseVisualization raw =
+  lookup
+    (T.toLower raw)
+    [(T.toLower (visualizationText v), v) | v <- [minBound .. maxBound]]
