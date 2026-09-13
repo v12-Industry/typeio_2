@@ -82,6 +82,14 @@ library servant-app
       , Domain.System.Middleware.Logging.Response
       , Domain.System.Middleware.RequestId
       , Domain.System.Responder.Config
+      , Domain.Project.Responder.Ui.ProjectManage.Link
+      , Domain.Project.Responder.Ui.ProjectManage.SaveState
+      , Domain.Project.Responder.Ui.ProjectManage.View
+      , Domain.Project.Visualization.Common
+      , Domain.Project.Visualization.Orbital.Responder
+      , Domain.Project.Visualization.Orbital.View
+      , Domain.Project.Visualization.Rootless.Responder
+      , Domain.Project.Visualization.Dispatch
     build-depends:
       aeson
       , base ^>=4.18.3.0
@@ -106,6 +114,7 @@ library servant-app
       , resource-pool
       , servant
       , servant-server
+      , transformers-either
       , text
       , time
       , transformers
@@ -149,17 +158,12 @@ library src
       , Domain.Project.Responder.Ui.ProjectCreate.Submit
       -- Exposed for `test-suite integration`'s CommonSpec, which asserts
       -- on the SVG this renders.
-      , Domain.Project.Visualization.Common
       -- Exposed for the switch's own integration spec, so it
       -- exercises the real `renderFor` table rather than a copy that
       -- could drift from it.
       , Domain.Project.Responder.Ui.Container
-      , Domain.Project.Visualization.Orbital.Responder
-      , Domain.Project.Visualization.Orbital.View
-      , Domain.Project.Visualization.Rootless.Responder
       -- Exposed for `test-suite integration`, which asserts on the page
       -- shell these render and on its htmx wiring.
-      , Domain.Project.Responder.Ui.ProjectManage.View
       , Domain.Project.Responder.Ui.ProjectManage.Node.Edit
       , Domain.Project.Responder.Ui.ProjectManage.Node.Create
       , Domain.Project.Responder.Ui.ProjectManage.Node.Description
@@ -184,13 +188,11 @@ library src
       , Domain.Project.Responder.Api.NodeType.Get
       , Domain.Project.Responder.Api.Project.Get
       , Domain.Project.Responder.Api.Container
-      , Domain.Project.Responder.Ui.ProjectManage.Link
       , Domain.Project.Responder.Ui.ProjectManage.Node
       , Domain.Project.Responder.Ui.ProjectManage.Node.Detail
       , Domain.Project.Responder.Ui.ProjectManage.Node.Query
       , Domain.Project.Responder.Ui.ProjectManage.Node.Refresh
       , Domain.Project.Responder.Ui.ProjectManage.Node.Validation
-      , Domain.Project.Responder.Ui.ProjectManage.SaveState
       , Domain.Project.Responder.Ui.ProjectCreate.View
       , Domain.Project.Responder.Ui.ProjectIndex.List
       , Domain.Project.Responder.Ui.ProjectIndex.View

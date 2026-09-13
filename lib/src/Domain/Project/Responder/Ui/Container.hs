@@ -1,6 +1,5 @@
 module Domain.Project.Responder.Ui.Container where
 
-import Config.Visualization (Visualization (..))
 import Database.Persist.Sql (ConnectionPool)
 import Domain.Project.Responder.Ui.ProjectCreate.Submit (handleProjectSubmit)
 import Domain.Project.Responder.Ui.ProjectCreate.View (handleProjectCreateVw)
@@ -16,9 +15,8 @@ import Domain.Project.Responder.Ui.ProjectManage.Node.Status (handlePutNodeStatu
 import Domain.Project.Responder.Ui.ProjectManage.Node.Title (handlePutTitle)
 import Domain.Project.Responder.Ui.ProjectManage.Stats (handleGetProjectStats)
 import Domain.Project.Responder.Ui.ProjectManage.View (handleProjectManageView)
-import Domain.Project.Visualization.Common (RenderGraph, handleGraph)
-import qualified Domain.Project.Visualization.Orbital.Responder as Orbital
-import qualified Domain.Project.Visualization.Rootless.Responder as Rootless
+import Domain.Project.Visualization.Common (handleGraph)
+import Domain.Project.Visualization.Dispatch (renderFor)
 import Network.Wai
   ( Application
   , Response
@@ -43,10 +41,6 @@ data Container = Container
   , putNodeTitle :: Application
   , submitProject :: Application
   }
-
-renderFor :: Visualization -> RenderGraph
-renderFor Rootless = Rootless.renderGraph
-renderFor Orbital = Orbital.renderGraph
 
 defaultContainer :: ConnectionPool -> Container
 defaultContainer pl =
