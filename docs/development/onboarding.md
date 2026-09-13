@@ -42,7 +42,7 @@ want a piece of this running on its own:
 make run-postgres      # start Postgres in Docker
 make migrate-up        # apply all migrations
 cabal build all        # build everything
-cabal run server        # start the app, reads .env
+cabal run servant-server  # start the app, reads .env
 make seed-db           # reference data, through the app (needs the server already running)
 make seed-demo-data    # the demo projects, straight into Postgres
 ```
