@@ -87,6 +87,11 @@ library servant-app
       , Domain.Project.Responder.Api.NodeStatus.Get
       , Domain.Project.Responder.Api.NodeType.Get
       , Domain.Project.Responder.Api.Project.Get
+      , Domain.Project.Responder.Ui.ProjectCreate.Submit
+      , Domain.Project.Responder.Ui.ProjectCreate.View
+      , Domain.Project.Responder.Ui.ProjectIndex.List
+      , Domain.Project.Responder.Ui.ProjectIndex.View
+      , Domain.Project.Responder.Ui.ProjectManage.Link
     build-depends:
       aeson
       , base ^>=4.18.3.0
@@ -152,7 +157,6 @@ library src
       -- reason: it is pure and dependency-free, so `test-suite spec`
       -- covers it. Deliberately not under Graph.*, which is the layered
       -- engine.
-      , Domain.Project.Responder.Ui.ProjectCreate.Submit
       -- Exposed for `test-suite integration`'s CommonSpec, which asserts
       -- on the SVG this renders.
       , Domain.Project.Visualization.Common
@@ -186,16 +190,12 @@ library src
       , Domain.Central.Responder.Api.Container
       , Domain.Project.Container
       , Domain.Project.Responder.Api.Container
-      , Domain.Project.Responder.Ui.ProjectManage.Link
       , Domain.Project.Responder.Ui.ProjectManage.Node
       , Domain.Project.Responder.Ui.ProjectManage.Node.Detail
       , Domain.Project.Responder.Ui.ProjectManage.Node.Query
       , Domain.Project.Responder.Ui.ProjectManage.Node.Refresh
       , Domain.Project.Responder.Ui.ProjectManage.Node.Validation
       , Domain.Project.Responder.Ui.ProjectManage.SaveState
-      , Domain.Project.Responder.Ui.ProjectCreate.View
-      , Domain.Project.Responder.Ui.ProjectIndex.List
-      , Domain.Project.Responder.Ui.ProjectIndex.View
       , Domain.System.Container
       , Domain.System.Middleware.Container
       , Domain.System.Responder.Container
