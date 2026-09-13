@@ -14,13 +14,16 @@ import App.Api
   , CreatedNode (..)
   , Health (..)
   , HxRedirect
+  , ManageProjectUi
   , ProjectApi
   , ProjectsUi
   , api
   )
 import App.Env (AppM, Env (..), runDb, withEnv)
 import App.Middleware (withMiddleware)
+import App.Params ()
 import Config.App (AppConfig (..), loadConfig)
+import Config.Visualization (Visualization, defaultVisualization)
 import Config.Web (WebConfig (..))
 import Configuration.Dotenv (defaultConfig, loadFile)
 import Control.Exception (SomeException, try)
@@ -28,11 +31,13 @@ import Control.Monad.Error.Class (throwError)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (asks, runReaderT)
 import Data.Aeson (encode, object, (.=))
+import Data.Int (Int64)
+import Data.Maybe (fromMaybe)
 import Data.Text (Text, pack)
 import Data.Text.Encoding (decodeUtf8)
 import Data.Text.Util (intToText)
 import Data.Time (getCurrentTime)
-import Database.Persist (Entity (..), entityVal)
+import Database.Persist (Entity (..), entityKey, entityVal)
 import Database.Persist.Sql (fromSqlKey)
 import Domain.Central.Responder.Api.Seed (seedReferenceData)
 import Domain.Central.Responder.Ui.Empty (templateEmpty)
@@ -45,6 +50,9 @@ import qualified Domain.Project.Responder.Ui.ProjectCreate.Submit as Submit
 import qualified Domain.Project.Responder.Ui.ProjectCreate.View as CreateView
 import qualified Domain.Project.Responder.Ui.ProjectIndex.List as IndexList
 import qualified Domain.Project.Responder.Ui.ProjectIndex.View as IndexView
+import qualified Domain.Project.Responder.Ui.ProjectManage.View as ManageView
+import qualified Domain.Project.Visualization.Common as Viz
+import Domain.Project.Visualization.Dispatch (renderFor)
 import Domain.System.Responder.Config (ConfigDisplay, configDisplay)
 import Lucid (Html)
 import Network.Wai (Application)
@@ -77,6 +85,7 @@ server =
     :<|> projectApi
     :<|> projectsUi
     :<|> createProjectUi
+    :<|> manageProjectUi
 
 projectApi :: ServerT ProjectApi AppM
 projectApi =
@@ -149,6 +158,51 @@ submitProject f = do
     Left (Submit.FormValidationFail es) ->
       noHeader (CreateView.projectCreateVwTemplate form es)
     Left _ -> noHeader (CreateView.projectCreateVwTemplate form ["Could not create the project"])
+manageProjectUi :: ServerT ManageProjectUi AppM
+manageProjectUi = manageProjectVw :<|> projectGraph
+
+manageProjectVw ::
+  Int64 ->
+  Maybe Int64 ->
+  Maybe Visualization ->
+  Maybe Double ->
+  Maybe Double ->
+  Maybe Double ->
+  AppM (Html ())
+manageProjectVw pid nid mviz vx vy vk =
+  pure $
+    ManageView.templateProject
+      ManageView.ManageProjectPayload
+        { ManageView.payloadNodeId = nid
+        , ManageView.payloadProjectId = pid
+        , ManageView.payloadVisualization = viz
+        , ManageView.payloadView = ManageView.ViewTransform <$> vx <*> vy <*> vk
+        , ManageView.payloadViewBase = viewBase pid nid viz
+        }
+  where
+    viz = fromMaybe defaultVisualization mviz
+
+-- Rebuilt from the parameters the route actually parsed rather than from
+-- the raw query string, so the base the viewport appends to is canonical
+-- whatever the client sent.
+viewBase :: Int64 -> Maybe Int64 -> Visualization -> Text
+viewBase pid nid viz =
+  "/ui/project/vw?projectId="
+    <> intToText pid
+    <> maybe "" (\n -> "&nodeId=" <> intToText n) nid
+    <> "&visualizationMode="
+    <> pack (show viz)
+
+projectGraph :: Int64 -> Maybe Visualization -> AppM (Html ())
+projectGraph pid mviz = do
+  ns <- runDb (Viz.queryNodes pid)
+  case ns of
+    [] -> throwError err404 {errBody = encode (object ["error" .= noNodes])}
+    _ -> do
+      ds <- runDb (Viz.queryDependencies (map (fromSqlKey . entityKey) ns))
+      pure $ renderFor (fromMaybe defaultVisualization mviz) pid ns ds
+  where
+    noNodes = "No nodes found for the project" :: Text
 
 healthz :: AppM Health
 healthz =
