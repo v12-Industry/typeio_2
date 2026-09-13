@@ -71,18 +71,14 @@ export async function addNode(
     throw new Error(`addNode: POST /api/project/nodes failed: ${created.status()} ${await created.text()}`);
   }
 
-  // The POST response above is just "Ok" -- no created-node id -- so
-  // fetch it back to find the id. Domain.Project.Responder.Api.Node.Get
-  // returns every node in the database, unfiltered by project (
-  // filed as a follow-up, not fixed here); the timestamped title is
-  // what actually picks out the right one.
-  const allNodes = await request.get('/api/project/nodes').then(r => r.json());
-  const node = allNodes.find((n: { title: string }) => n.title === title);
-  if (!node) {
-    throw new Error(`addNode: no node titled ${JSON.stringify(title)} in ${JSON.stringify(allNodes)}`);
+  // The 201 carries the created node's id, so there is nothing to look
+  // back up.
+  const { nodeId } = await created.json();
+  if (nodeId === undefined) {
+    throw new Error(`addNode: no nodeId in ${await created.text()}`);
   }
 
-  return { id: String(node.nodeId), title, description, projectId };
+  return { id: String(nodeId), title, description, projectId };
 }
 
 // Creates a project via a direct POST to the same endpoint the

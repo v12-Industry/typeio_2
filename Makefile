@@ -96,7 +96,7 @@ seed-demo-data:
 ## Start Postgres, apply migrations, start the app in the background,
 ## wait for it to be ready, then seed it -- reference data through the
 ## app, demo projects straight into Postgres -- one command in place of
-## run-postgres/migrate-up/cabal run server/seed-db/seed-demo-data run
+## run-postgres/migrate-up/cabal run servant-server/seed-db/seed-demo-data run
 ## by hand across separate terminals. Keeps running afterward (logs at
 ## local/server.log) until Ctrl+C, which stops the backgrounded server
 ## cleanly -- no orphaned process left behind.
@@ -122,7 +122,7 @@ e2e-install:
 ## Run the E2E test suite. Unlike test/test-integration, this doesn't
 ## start its own database or server -- needs a real app already running
 ## against a real, migrated + seeded Postgres (run-postgres, migrate-up,
-## `cabal run server` in another terminal, then seed-db and
+## `cabal run servant-server` in another terminal, then seed-db and
 ## seed-demo-data -- or just `make start-app`). The suite drives the
 ## demo projects, so seed-demo-data is not optional for it. See
 ## e2e/README.md for the full sequence and how to run it headed/in UI

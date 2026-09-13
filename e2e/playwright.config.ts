@@ -8,7 +8,7 @@ import { defineConfig, devices } from '@playwright/test';
 // this suite drives a real running server + real seeded Postgres,
 // started manually the same way local development already does
 // (`make run-postgres`, `make migrate-up`, `make seed-db`,
-// `cabal run server`) -- see README.md for the exact sequence.
+// `cabal run servant-server`) -- see README.md for the exact sequence.
 //
 // CI-wired: .github/workflows/e2e-test.yml runs this suite for real on
 // run-e2e-labeled PRs, the weekly schedule, and workflow_dispatch.

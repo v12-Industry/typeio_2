@@ -43,7 +43,7 @@ mkdir -p "$(dirname "$LOG_FILE")"
 : > "$LOG_FILE"
 echo "🚀 Starting the app in the background..."
 echo "📝 Logging to $LOG_FILE"
-cabal run server > "$LOG_FILE" 2>&1 &
+cabal run servant-server > "$LOG_FILE" 2>&1 &
 SERVER_PID=$!
 
 # --- Wait for readiness ---
@@ -78,5 +78,5 @@ echo "   Press Ctrl+C to stop."
 
 # Block here so this script -- and `make start-app` -- keeps running
 # (and Ctrl+C keeps working normally) for as long as the server does,
-# same as a foregrounded `cabal run server` would.
+# same as a foregrounded `cabal run servant-server` would.
 wait "$SERVER_PID"
