@@ -41,6 +41,7 @@ library servant-app
       App.Api
       , App.Env
       , App.Html
+      , App.Params
       , App.Server
       , Common.Either
       , Common.Validation
@@ -81,6 +82,7 @@ library servant-app
       , esqueleto
       , fast-logger
       , gitrev
+      , http-api-data
       , http-media
       , http-types
       , lucid2
@@ -241,7 +243,8 @@ test-suite spec
     main-is:            Spec.hs
     hs-source-dirs:     test
     other-modules:
-      Common.EitherSpec
+      App.ParamsSpec
+      , Common.EitherSpec
       , Common.ValidationSpec
       , Common.Web.QuerySpec
       , Config.AppSpec
@@ -267,6 +270,8 @@ test-suite spec
       , src
       , servant-app
       , aeson
+      , http-api-data
+      , persistent
       , bytestring
       , case-insensitive
       , hashable

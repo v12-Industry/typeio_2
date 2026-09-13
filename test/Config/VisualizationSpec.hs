@@ -7,7 +7,9 @@ import Config.Visualization
   , VisualizationChoice (..)
   , chosenVisualization
   , defaultVisualization
+  , parseVisualization
   , resolveVisualization
+  , visualizationText
   )
 import Data.Text (pack)
 import Test.Hspec
@@ -68,3 +70,34 @@ spec = do
               `shouldBe` AsRequested v
         )
         [Rootless, Orbital]
+
+  describe "visualizationText" $ do
+    it "spells each visualization the way the app's URLs already do" $ do
+      visualizationText Rootless `shouldBe` "Rootless"
+      visualizationText Orbital `shouldBe` "Orbital"
+
+    -- Stated rather than derived from `show`. A new constructor has to be
+    -- given a URL spelling deliberately, and -Wall reports the gap.
+    it "agrees with show for every visualization" $
+      mapM_
+        (\v -> visualizationText v `shouldBe` pack (show v))
+        [minBound .. maxBound :: Visualization]
+
+  describe "parseVisualization" $ do
+    it "parses the canonical spelling" $
+      parseVisualization "Rootless" `shouldBe` Just Rootless
+
+    it "is case-insensitive, so a hand-typed URL still works" $ do
+      parseVisualization "rootless" `shouldBe` Just Rootless
+      parseVisualization "ORBITAL" `shouldBe` Just Orbital
+
+    it "refuses a visualization that no longer exists" $
+      parseVisualization "Layered" `shouldBe` Nothing
+
+    it "refuses an empty value" $
+      parseVisualization "" `shouldBe` Nothing
+
+    it "round-trips every visualization through visualizationText" $
+      mapM_
+        (\v -> parseVisualization (visualizationText v) `shouldBe` Just v)
+        [minBound .. maxBound :: Visualization]
