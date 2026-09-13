@@ -28,7 +28,7 @@ import Data.ByteString (ByteString, toStrict)
 import Data.Maybe (listToMaybe)
 import qualified Data.Text as T (Text, unpack)
 import Data.Text.Encoding (decodeUtf8)
-import Data.Time (getCurrentTime)
+import Data.Time (UTCTime, getCurrentTime)
 import Database.Esqueleto.Experimental
   ( from
   , insert
@@ -39,7 +39,7 @@ import Database.Esqueleto.Experimental
   , where_
   , (==.)
   )
-import Database.Persist (Entity (..))
+import Database.Persist (Entity (..), Key)
 import Database.Persist.Sql
   ( ConnectionPool
   , SqlBackend
@@ -59,6 +59,7 @@ import Lucid (renderBS)
 import Network.HTTP.Types (HeaderName, status200, status500)
 import Network.Wai (Application, responseLBS)
 import Network.Wai.Parse (Param, lbsBackEnd, parseRequestBody)
+import Web.FormUrlEncoded (Form, lookupMaybe)
 
 data ProjectAddResult
   = MissingNodeStatus
@@ -86,31 +87,48 @@ paramForm ps =
     , V.title = decodeUtf8 <$> lookup "title" ps
     }
 
+createProject ::
+  V.AddProjectForm ->
+  UTCTime ->
+  ReaderT SqlBackend IO (Either ProjectAddResult (Key M.Node))
+createProject form now = runEitherT $ do
+  pyld <- hoistEither . buildPayload $ form
+  st <-
+    lift (queryStatus "active")
+      >>= hoistMaybe MissingNodeStatus
+  tp <-
+    lift (queryType "project_root")
+      >>= hoistMaybe MissingNodeType
+  pkey <- lift . insert $ M.Project
+  let nd =
+        M.Node
+          { M.nodeCreated = now
+          , M.nodeDeleted = Nothing
+          , M.nodeDescription = T.unpack . description $ pyld
+          , M.nodeNodeStatusId = entityKey st
+          , M.nodeNodeTypeId = entityKey tp
+          , M.nodeProjectId = pkey
+          , M.nodeTitle = T.unpack . title $ pyld
+          , M.nodeUpdated = now
+          }
+  lift . insert $ nd
+
+formToAddProjectForm :: Form -> V.AddProjectForm
+formToAddProjectForm f =
+  V.AddProjectForm
+    { V.description = look "description"
+    , V.title = look "title"
+    }
+  where
+    look k = case lookupMaybe k f of
+      Right (Just v) -> Just v
+      _ -> Nothing
+
 handleProjectSubmit :: ConnectionPool -> Application
 handleProjectSubmit pl req respond = do
   form <- paramForm . fst <$> parseRequestBody lbsBackEnd req
   now <- getCurrentTime
-  rslt <- flip runSqlPool pl . runEitherT $ do
-    pyld <- hoistEither . buildPayload $ form
-    st <-
-      lift (queryStatus "active")
-        >>= hoistMaybe MissingNodeStatus
-    tp <-
-      lift (queryType "project_root")
-        >>= hoistMaybe MissingNodeType
-    pkey <- lift . insert $ M.Project
-    let nd =
-          M.Node
-            { M.nodeCreated = now
-            , M.nodeDeleted = Nothing
-            , M.nodeDescription = T.unpack . description $ pyld
-            , M.nodeNodeStatusId = entityKey st
-            , M.nodeNodeTypeId = entityKey tp
-            , M.nodeProjectId = pkey
-            , M.nodeTitle = T.unpack . title $ pyld
-            , M.nodeUpdated = now
-            }
-    lift . insert $ nd
+  rslt <- flip runSqlPool pl $ createProject form now
   case rslt of
     Left (FormValidationFail es) -> formAgain form es
     Left MissingNodeStatus -> errorRes ("Missing node status" :: T.Text)
