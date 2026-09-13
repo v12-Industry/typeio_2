@@ -1,102 +1,74 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-{- | Integration coverage for 'handlePutDescription', building on the
-infrastructure and pattern established in the pilot
+{- | Integration coverage for @PUT /ui/project/node/description@,
+building on the infrastructure and pattern established in the pilot
 ('Domain.Project.Responder.Api.Node.PostSpec').
 -}
 module Domain.Project.Responder.Ui.ProjectManage.Node.DescriptionSpec (spec) where
 
-import qualified Data.ByteString.Lazy.Char8 as LC8
+import qualified Data.ByteString.Char8 as C8
 import Data.Int (Int64)
-import Data.List (isInfixOf)
 import Database.Persist (get)
 import Database.Persist.Sql (fromSqlKey, runSqlPool)
 import qualified Domain.Project.Model as M
-import Domain.Project.Responder.Ui.ProjectManage.Node.Description (handlePutDescription)
 import Integration.Support
-  ( resetBetweenTests
+  ( SResponse
+  , TestApp (..)
+  , bodyOf
+  , formBody
+  , httpPut
+  , resetBetweenTests
   , seedProjectWithRootNode
-  , withTestDatabase
-  )
-import Network.HTTP.Types (hContentType, methodPut)
-import Network.Wai (defaultRequest, requestHeaders, requestMethod)
-import Network.Wai.Test
-  ( SRequest (..)
-  , SResponse (..)
-  , assertStatus
-  , runSession
-  , srequest
+  , shouldContainStr
+  , statusOf
+  , withTestApp
   )
 import Test.Hspec
 
 spec :: Spec
-spec = aroundAll withTestDatabase $
+spec = aroundAll withTestApp $
   beforeWith resetBetweenTests $
-    describe "handlePutDescription (integration)" $ do
-      it "replaces the Node's description in the database" $ \pool -> do
-        (projectKey, rootKey) <- seedProjectWithRootNode pool
+    describe "PUT /ui/project/node/description (integration)" $ do
+      it "replaces the Node's description in the database" $ \ta -> do
+        (projectKey, rootKey) <- seedProjectWithRootNode ta
 
-        runSession
-          ( do
-              resp <-
-                srequest $
-                  putDescriptionRequest
-                    (fromSqlKey rootKey)
-                    (fromSqlKey projectKey)
-                    "UpdatedDescription"
-              assertStatus 200 resp
-          )
-          (handlePutDescription pool)
+        resp <-
+          putDescription
+            ta
+            (fromSqlKey rootKey)
+            (fromSqlKey projectKey)
+            "UpdatedDescription"
+        statusOf resp `shouldBe` 200
 
-        updated <- flip runSqlPool pool $ get rootKey
+        updated <- flip runSqlPool (testPool ta) $ get rootKey
         case updated of
           Just nd -> M.nodeDescription nd `shouldBe` "UpdatedDescription"
           Nothing -> expectationFailure "expected the root Node to still exist"
 
-      it "rejects an empty description with 422 rather than a 500" $ \pool -> do
-        (projectKey, rootKey) <- seedProjectWithRootNode pool
+      it "rejects an empty description with 422 rather than a 500" $ \ta -> do
+        (projectKey, rootKey) <- seedProjectWithRootNode ta
 
-        body <-
-          runSession
-            ( do
-                resp <-
-                  srequest $
-                    putDescriptionRequest
-                      (fromSqlKey rootKey)
-                      (fromSqlKey projectKey)
-                      ""
-                assertStatus 422 resp
-                pure . LC8.unpack . simpleBody $ resp
-            )
-            (handlePutDescription pool)
+        resp <- putDescription ta (fromSqlKey rootKey) (fromSqlKey projectKey) ""
+        statusOf resp `shouldBe` 422
 
         -- A validation failure is the caller's, not the server's.
         -- It also has to be swappable: htmx does not swap 5xx at
         -- all, so under a 500 these messages were rendered and then
         -- dropped on the floor, and the field showed nothing.
-        body `shouldSatisfy` isInfixOf "Node description cannot be empty"
+        bodyOf resp `shouldContainStr` "Node description cannot be empty"
 
-      it "returns 404 when the node doesn't exist" $ \pool ->
-        runSession
-          ( do
-              resp <- srequest $ putDescriptionRequest 999999 999999 "desc"
-              assertStatus 404 resp
-          )
-          (handlePutDescription pool)
+      it "returns 404 when the node doesn't exist" $ \ta -> do
+        resp <- putDescription ta 999999 999999 "desc"
+        statusOf resp `shouldBe` 404
 
-putDescriptionRequest :: Int64 -> Int64 -> LC8.ByteString -> SRequest
-putDescriptionRequest nodeId projectId descr =
-  SRequest
-    { simpleRequest =
-        defaultRequest
-          { requestMethod = methodPut
-          , requestHeaders = [(hContentType, "application/x-www-form-urlencoded")]
-          }
-    , simpleRequestBody =
-        "description="
-          <> descr
-          <> "&nodeId="
-          <> LC8.pack (show nodeId)
-          <> "&projectId="
-          <> LC8.pack (show projectId)
-    }
+putDescription :: TestApp -> Int64 -> Int64 -> C8.ByteString -> IO SResponse
+putDescription ta nodeId projectId descr =
+  httpPut
+    ta
+    "/ui/project/node/description"
+    ( formBody
+        [ ("description", descr)
+        , ("nodeId", C8.pack (show nodeId))
+        , ("projectId", C8.pack (show projectId))
+        ]
+    )

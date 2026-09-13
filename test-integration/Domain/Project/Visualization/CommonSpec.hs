@@ -2,57 +2,54 @@
 
 {- | Integration coverage for the visualization switch.
 
-Which drawing to render is a property of the /request/ now, not of the
-process: an optional @visualizationMode@ query parameter, defaulting to
+Which drawing to render is a property of the /request/: an optional
+@visualizationMode@ query parameter, defaulting to
 'defaultVisualization' when absent. Nothing about it is read from the
 environment, so none of this belongs in @Config.AppSpec@.
 
 The point of testing it at this tier rather than by calling
-'resolveVisualization' directly is that the interesting failure is not
-"does the string parse" but "does the right drawing come back". So each
-case asserts on the rendered markup, and the drawings are told apart by
-things only one of them emits. A value that names no
-visualization is answered with a redirect to the default rather than an
-error, so those cases assert on the Location header instead.
+'Config.Visualization.parseVisualization' directly is that the
+interesting failure is not "does the string parse" but "does the right
+drawing come back". So each case asserts on the rendered markup, and
+the drawings are told apart by things only one of them emits.
 
-This deliberately drives 'handleGraph' with the real
-'Domain.Project.Responder.Ui.Container.renderFor' table, not a copy: a
-spec with its own table would keep passing if the app's table lost an
+A value that names no visualization is refused with a 400 rather than
+corrected, so those cases assert on the status instead. Casing is not
+such a value: the vocabulary is stated explicitly and parsed
+case-insensitively, so a wrong-cased constructor is simply accepted.
+
+This drives the route, not a copy of its dispatch table: a spec with
+its own table would keep passing if the application's table lost an
 entry.
 -}
 module Domain.Project.Visualization.CommonSpec (spec) where
 
 import Config.Visualization (defaultVisualization)
-import qualified Data.ByteString.Char8 as C8
-import qualified Data.ByteString.Lazy.Char8 as LC8
 import Data.Int (Int64)
-import Data.List (isInfixOf)
-import Database.Persist.Sql (ConnectionPool, fromSqlKey)
-import Domain.Project.Visualization.Common (handleGraph)
-import Domain.Project.Visualization.Dispatch (renderFor)
+import Data.Text (Text, pack)
+import Database.Persist.Sql (fromSqlKey)
 import Integration.Support
-  ( resetBetweenTests
+  ( TestApp
+  , bodyOf
+  , httpGet
+  , resetBetweenTests
   , seedDependency
   , seedProjectWithRootNode
   , seedWorkNode
-  , withTestDatabase
-  )
-import Network.HTTP.Types (Query, methodGet, status200, status302)
-import Network.Wai (Request, defaultRequest, queryString, requestMethod)
-import Network.Wai.Test
-  ( SResponse (..)
-  , request
-  , runSession
+  , shouldContainStr
+  , shouldNotContainStr
+  , statusOf
+  , withTestApp
   )
 import Test.Hspec
 
 spec :: Spec
-spec = aroundAll withTestDatabase $
+spec = aroundAll withTestApp $
   beforeWith resetBetweenTests $
-    describe "handleGraph, the visualizationMode switch (integration)" $ do
-      it "serves the rootless drawing when asked for it" $ \pool -> do
-        pid <- fixture pool
-        body <- graphBody pool pid [("visualizationMode", Just "Rootless")]
+    describe "the visualizationMode switch (integration)" $ do
+      it "serves the rootless drawing when asked for it" $ \ta -> do
+        pid <- fixture ta
+        body <- graphBody ta (graphUrl pid <> "&visualizationMode=Rootless")
 
         -- Rects, from the shared layout engine. The project root is
         -- absent by design and no containment edge is derived to reach
@@ -61,136 +58,87 @@ spec = aroundAll withTestDatabase $
         body `shouldNotContainStr` "<rect class=\"root"
         body `shouldNotContainStr` "link-contains"
 
-      it "serves the orbital drawing when asked for it" $ \pool -> do
-        pid <- fixture pool
-        body <- graphBody pool pid [("visualizationMode", Just "Orbital")]
+      it "serves the orbital drawing when asked for it" $ \ta -> do
+        pid <- fixture ta
+        body <- graphBody ta (graphUrl pid <> "&visualizationMode=Orbital")
 
         -- Circles rather than rects: a different geometry entirely.
         body `shouldContainStr` "<circle class=\"work"
         body `shouldNotContainStr` "<rect class=\"work"
 
-      it "falls back to the default when the parameter is absent" $ \pool -> do
+      it "falls back to the default when the parameter is absent" $ \ta -> do
         -- Asserted against `defaultVisualization` rather than against
         -- whichever drawing that happens to be today. The convention is
         -- "whichever visualization was added most recently", so the
         -- answer changes; that it agrees with the binding should not.
-        pid <- fixture pool
-        implicit <- graphBody pool pid []
+        pid <- fixture ta
+        implicit <- graphBody ta (graphUrl pid)
         explicit <-
-          graphBody
-            pool
-            pid
-            [("visualizationMode", Just (C8.pack (show defaultVisualization)))]
+          graphBody ta (graphUrl pid <> "&visualizationMode=" <> defaultMode)
 
         implicit `shouldBe` explicit
 
-      it "redirects an empty parameter to the default rather than treating it as absent" $ \pool -> do
+      it "accepts a known visualization in the wrong case" $ \ta -> do
+        -- The vocabulary is stated explicitly and matched
+        -- case-insensitively, so casing is not a way to get this
+        -- parameter wrong.
+        pid <- fixture ta
+        lower <- graphBody ta (graphUrl pid <> "&visualizationMode=rootless")
+        exact <- graphBody ta (graphUrl pid <> "&visualizationMode=Rootless")
+
+        lower `shouldBe` exact
+
+      it "refuses a value that names no visualization" $ \ta -> do
+        pid <- fixture ta
+        resp <- httpGet ta (graphUrl pid <> "&visualizationMode=Radial")
+
+        statusOf resp `shouldBe` 400
+
+      it "refuses an empty value rather than treating it as absent" $ \ta -> do
         -- `?visualizationMode=` is a value that is present and does not
-        -- parse, not a missing one -- `lookupVal` returns `Just ""`.
-        -- An absent parameter is answered directly; this one is
-        -- corrected, so the caller can see what they actually got.
-        pid <- fixture pool
-        resp <- graphResponse pool pid [("visualizationMode", Just "")]
+        -- parse, not a missing one. The parameter is Strict, so it is
+        -- refused rather than silently defaulted.
+        pid <- fixture ta
+        resp <- httpGet ta (graphUrl pid <> "&visualizationMode=")
 
-        simpleStatus resp `shouldBe` status302
-        locationOf resp `shouldBe` Just (defaultModeLocation pid)
+        statusOf resp `shouldBe` 400
 
-      it "redirects a value that names no visualization" $ \pool -> do
-        pid <- fixture pool
-        resp <- graphResponse pool pid [("visualizationMode", Just "Radial")]
+      it "refuses a project id that is not a number" $ \ta -> do
+        resp <- httpGet ta "/ui/project/graph?projectId=0x1"
 
-        simpleStatus resp `shouldBe` status302
-        locationOf resp `shouldBe` Just (defaultModeLocation pid)
+        statusOf resp `shouldBe` 400
 
-      it "redirects a known constructor in the wrong case" $ \pool -> do
-        -- `Read` is case-sensitive on constructor names, the same way
-        -- ENV is (see Common.ValidationSpec). This is the most likely
-        -- way to get the parameter wrong by hand.
-        pid <- fixture pool
-        resp <- graphResponse pool pid [("visualizationMode", Just "orbital")]
+      it "refuses a missing project id" $ \ta -> do
+        resp <- httpGet ta "/ui/project/graph"
 
-        simpleStatus resp `shouldBe` status302
-        locationOf resp `shouldBe` Just (defaultModeLocation pid)
+        statusOf resp `shouldBe` 400
 
-      it "keeps the other parameters when it redirects" $ \pool -> do
-        -- The correction must not lose the project or node the caller
-        -- asked for.
-        pid <- fixture pool
-        resp <-
-          graphResponse
-            pool
-            pid
-            [("visualizationMode", Just "Radial"), ("nodeId", Just "7")]
+      -- The drawing is of the project's nodes, so a project with none
+      -- is a 404 rather than an empty canvas.
+      it "answers a project with no nodes with a 404" $ \ta -> do
+        resp <- httpGet ta (graphUrl 999999)
 
-        locationOf resp
-          `shouldBe` Just
-            ( "?projectId="
-                <> C8.pack (show pid)
-                <> "&visualizationMode="
-                <> C8.pack (show defaultVisualization)
-                <> "&nodeId=7"
-            )
+        statusOf resp `shouldBe` 404
 
-      it "redirects somewhere that does not redirect again" $ \pool -> do
-        -- A correction pointing at another invalid value would loop the
-        -- browser rather than draw anything.
-        pid <- fixture pool
-        first <- graphResponse pool pid [("visualizationMode", Just "Radial")]
-        simpleStatus first `shouldBe` status302
-
-        second <-
-          graphResponse
-            pool
-            pid
-            [("visualizationMode", Just (C8.pack (show defaultVisualization)))]
-        simpleStatus second `shouldBe` status200
-
-{- | A project with a root, two work nodes and a real dependency —
+{- | A project with a root, two work nodes and a real dependency --
 enough for every drawing to render something distinguishable.
 -}
-fixture :: ConnectionPool -> IO Int64
-fixture pool = do
-  (projectKey, _) <- seedProjectWithRootNode pool
-  a <- seedWorkNode pool projectKey "First"
-  b <- seedWorkNode pool projectKey "Second"
-  seedDependency pool a b
+fixture :: TestApp -> IO Int64
+fixture ta = do
+  (projectKey, _) <- seedProjectWithRootNode ta
+  a <- seedWorkNode ta projectKey "First"
+  b <- seedWorkNode ta projectKey "Second"
+  seedDependency ta a b
   pure (fromSqlKey projectKey)
 
-graphBody :: ConnectionPool -> Int64 -> Query -> IO String
-graphBody pool pid extra = do
-  resp <- graphResponse pool pid extra
-  simpleStatus resp `shouldBe` status200
-  pure . LC8.unpack . simpleBody $ resp
+graphBody :: TestApp -> Text -> IO String
+graphBody ta url = do
+  resp <- httpGet ta url
+  statusOf resp `shouldBe` 200
+  pure (bodyOf resp)
 
-graphResponse :: ConnectionPool -> Int64 -> Query -> IO SResponse
-graphResponse pool pid extra =
-  runSession (request (graphRequest pid extra)) (handleGraph renderFor pool)
+graphUrl :: Int64 -> Text
+graphUrl pid = "/ui/project/graph?projectId=" <> pack (show pid)
 
-graphRequest :: Int64 -> Query -> Request
-graphRequest pid extra =
-  defaultRequest
-    { requestMethod = methodGet
-    , queryString = ("projectId", Just . C8.pack . show $ pid) : extra
-    }
-
-shouldContainStr :: String -> String -> Expectation
-shouldContainStr haystack needle =
-  if needle `isInfixOf` haystack
-    then pure ()
-    else expectationFailure ("expected the response to contain " <> show needle)
-
-shouldNotContainStr :: String -> String -> Expectation
-shouldNotContainStr haystack needle =
-  if needle `isInfixOf` haystack
-    then expectationFailure ("expected the response not to contain " <> show needle)
-    else pure ()
-
-locationOf :: SResponse -> Maybe C8.ByteString
-locationOf = lookup "Location" . simpleHeaders
-
-defaultModeLocation :: Int64 -> C8.ByteString
-defaultModeLocation pid =
-  "?projectId="
-    <> C8.pack (show pid)
-    <> "&visualizationMode="
-    <> C8.pack (show defaultVisualization)
+defaultMode :: Text
+defaultMode = pack (show defaultVisualization)

@@ -19,157 +19,154 @@ the panel highlight and the label refresh both find one arbitrary copy.
 -}
 module Domain.Project.Visualization.Orbital.ResponderSpec (spec) where
 
-import qualified Data.ByteString.Char8 as C8
-import qualified Data.ByteString.Lazy.Char8 as LC8
 import Data.Int (Int64)
-import Data.List (isInfixOf, isPrefixOf, nub, tails)
-import Database.Persist.Sql (ConnectionPool, Key, fromSqlKey)
+import Data.List (isPrefixOf, nub, tails)
+import Data.Text (Text, pack)
+import Database.Persist.Sql (Key, fromSqlKey)
 import qualified Domain.Project.Model as M
-import Domain.Project.Visualization.Orbital.Responder (handleProjectGraph)
 import Integration.Support
-  ( resetBetweenTests
+  ( TestApp
+  , bodyOf
+  , countStr
+  , httpGet
+  , resetBetweenTests
   , seedDependency
   , seedProjectWithRootNode
   , seedWorkNode
-  , withTestDatabase
-  )
-import Network.HTTP.Types (methodGet)
-import Network.Wai (Request, defaultRequest, queryString, requestMethod)
-import Network.Wai.Test
-  ( SResponse (..)
-  , assertStatus
-  , request
-  , runSession
+  , shouldContainStr
+  , shouldNotContainStr
+  , statusOf
+  , withTestApp
   )
 import Test.Hspec
 
 spec :: Spec
-spec = aroundAll withTestDatabase $
+spec = aroundAll withTestApp $
   beforeWith resetBetweenTests $
-    describe "handleProjectGraph, orbital (integration)" $ do
-      it "draws the work as circles, and no project root" $ \pool -> do
-        (projectKey, _) <- seedProjectWithRootNode pool
-        _ <- seedWorkNode pool projectKey "Build the thing"
+    describe "GET /ui/project/graph?visualizationMode=Orbital (integration)" $ do
+      it "draws the work as circles, and no project root" $ \ta -> do
+        (projectKey, _) <- seedProjectWithRootNode ta
+        _ <- seedWorkNode ta projectKey "Build the thing"
 
-        body <- graphBody pool (fromSqlKey projectKey)
+        body <- graphBody ta (fromSqlKey projectKey)
 
         body `shouldContainStr` "<circle class=\"work"
         -- Rootless-like: the project node is not in the picture. There
         -- is no `root` shape of any kind to find.
         body `shouldNotContainStr` "class=\"root\""
 
-      it "drops a stored dependency that pointed at the root" $ \pool -> do
+      it "drops a stored dependency that pointed at the root" $ \ta -> do
         -- The pre-migration-000009 way of recording membership. Kept,
         -- it would name a node that is not in the drawing -- `orbit` is
         -- total and would draw a link into empty space rather than
         -- failing.
-        (projectKey, rootKey) <- seedProjectWithRootNode pool
-        workKey <- seedWorkNode pool projectKey "Build the thing"
-        seedDependency pool rootKey workKey
+        (projectKey, rootKey) <- seedProjectWithRootNode ta
+        workKey <- seedWorkNode ta projectKey "Build the thing"
+        seedDependency ta rootKey workKey
 
-        body <- graphBody pool (fromSqlKey projectKey)
+        body <- graphBody ta (fromSqlKey projectKey)
 
         countStr "<circle class=\"work" body `shouldBe` 1
         countStr "class=\"link\"" body `shouldBe` 0
 
-      it "still draws a dependency between two work nodes" $ \pool -> do
+      it "still draws a dependency between two work nodes" $ \ta -> do
         -- Every negative assertion here would also pass on a
         -- visualization that drew nothing at all, so pin the positive
         -- case.
-        (projectKey, _) <- seedProjectWithRootNode pool
-        a <- seedWorkNode pool projectKey "First"
-        b <- seedWorkNode pool projectKey "Second"
-        seedDependency pool a b
+        (projectKey, _) <- seedProjectWithRootNode ta
+        a <- seedWorkNode ta projectKey "First"
+        b <- seedWorkNode ta projectKey "Second"
+        seedDependency ta a b
 
-        body <- graphBody pool (fromSqlKey projectKey)
+        body <- graphBody ta (fromSqlKey projectKey)
 
         countStr "<circle class=\"work" body `shouldBe` 2
         body `shouldContainStr` "class=\"link\""
         body `shouldContainStr` "marker-end=\"url(#arrow)\""
 
       describe "replication" $ do
-        it "draws a node once per dependent" $ \pool -> do
+        it "draws a node once per dependent" $ \ta -> do
           -- Two nodes waiting on one. The shared node cannot belong to
           -- both streams, so it is drawn in each -- three nodes, four
           -- circles. This is the whole premise of the visualization.
-          (projectKey, shared) <- sharedDependencyFixture pool
+          (projectKey, shared) <- sharedDependencyFixture ta
 
-          body <- graphBody pool (fromSqlKey projectKey)
+          body <- graphBody ta (fromSqlKey projectKey)
 
           countStr "<circle class=\"work" body `shouldBe` 4
           countStr (dataNodeId shared) body `shouldBe` 2
 
-        it "gives each replica its own id" $ \pool -> do
-          (projectKey, shared) <- sharedDependencyFixture pool
+        it "gives each replica its own id" $ \ta -> do
+          (projectKey, shared) <- sharedDependencyFixture ta
 
-          body <- graphBody pool (fromSqlKey projectKey)
+          body <- graphBody ta (fromSqlKey projectKey)
 
           body `shouldContainStr` discId shared 0
           body `shouldContainStr` discId shared 1
 
-        it "asks the refresh endpoint for the circle's wrap width" $ \pool -> do
+        it "asks the refresh endpoint for the circle's wrap width" $ \ta -> do
           -- A circle fits fewer characters per line than the layered
           -- drawing's box, and both share one refresh endpoint, so each
           -- disc has to say which width it wants. Without it an edited
           -- label comes back wrapped to the other shape.
-          (projectKey, _) <- sharedDependencyFixture pool
+          (projectKey, _) <- sharedDependencyFixture ta
 
-          body <- graphBody pool (fromSqlKey projectKey)
+          body <- graphBody ta (fromSqlKey projectKey)
 
           countStr "wrapWidth=12" body `shouldBe` 4
           body `shouldNotContainStr` "wrapWidth=18"
 
-        it "gives each replica its own label id" $ \pool -> do
+        it "gives each replica its own label id" $ \ta -> do
           -- Unique per circle, which is what the per-node label
           -- refresh needs.
-          (projectKey, shared) <- sharedDependencyFixture pool
+          (projectKey, shared) <- sharedDependencyFixture ta
 
-          body <- graphBody pool (fromSqlKey projectKey)
+          body <- graphBody ta (fromSqlKey projectKey)
 
           body `shouldContainStr` discTextId shared 0
           body `shouldContainStr` discTextId shared 1
 
-        it "opens the same node's panel from either replica" $ \pool -> do
+        it "opens the same node's panel from either replica" $ \ta -> do
           -- Clicking any copy opens the same panel and pushes the same
           -- URL: they are the same node.
-          (projectKey, shared) <- sharedDependencyFixture pool
+          (projectKey, shared) <- sharedDependencyFixture ta
 
-          body <- graphBody pool (fromSqlKey projectKey)
+          body <- graphBody ta (fromSqlKey projectKey)
 
           countStr (panelLink shared (fromSqlKey projectKey)) body
             `shouldBe` 2
 
       describe "replica identity" $ do
-        it "gives every replica of a node the same colour" $ \pool -> do
+        it "gives every replica of a node the same colour" $ \ta -> do
           -- Colour is what tells a reader that two circles are one
           -- node, so a replica in a different hue is not a cosmetic
           -- bug -- it is a false statement about the project.
-          (projectKey, shared) <- sharedDependencyFixture pool
+          (projectKey, shared) <- sharedDependencyFixture ta
 
-          body <- graphBody pool (fromSqlKey projectKey)
+          body <- graphBody ta (fromSqlKey projectKey)
 
           let hues = huesFor (show (fromSqlKey shared)) body
           length hues `shouldBe` 2
           length (nub hues) `shouldBe` 1
 
-        it "gives different nodes different colours" $ \pool -> do
+        it "gives different nodes different colours" $ \ta -> do
           -- The whole palette would satisfy the test above.
-          (projectKey, _) <- sharedDependencyFixture pool
+          (projectKey, _) <- sharedDependencyFixture ta
 
-          body <- graphBody pool (fromSqlKey projectKey)
+          body <- graphBody ta (fromSqlKey projectKey)
 
           let byNode = nub (discHues body)
               distinctHues = nub (map snd byNode)
           length distinctHues `shouldBe` length byNode
 
-        it "highlights every replica from a hover on any of them" $ \pool -> do
+        it "highlights every replica from a hover on any of them" $ \ta -> do
           -- Selects on data-node-id, so one line covers one disc or
           -- five. `.replica-hover` rather than `.node-highlight`: the
           -- node panel owns that class on the same elements, and a
           -- mouseleave must not strip a highlight it put there.
-          (projectKey, shared) <- sharedDependencyFixture pool
+          (projectKey, shared) <- sharedDependencyFixture ta
 
-          body <- graphBody pool (fromSqlKey projectKey)
+          body <- graphBody ta (fromSqlKey projectKey)
 
           body
             `shouldContainStr` ( "add .replica-hover to &lt;[data-node-id=&#39;"
@@ -179,70 +176,70 @@ spec = aroundAll withTestDatabase $
           body `shouldContainStr` "remove .replica-hover from"
 
       describe "the DOM contract" $ do
-        it "carries each node's status as a class on its shape" $ \pool -> do
+        it "carries each node's status as a class on its shape" $ \ta -> do
           -- Status is drawn here as the disc's ring rather than its
           -- fill: the fill's hue is already saying which node a replica
           -- is a replica of. Either way the server's part is the class
           -- and nothing more -- which colour that becomes is the
           -- stylesheet's decision.
-          (projectKey, _) <- seedProjectWithRootNode pool
-          _ <- seedWorkNode pool projectKey "Build the thing"
+          (projectKey, _) <- seedProjectWithRootNode ta
+          _ <- seedWorkNode ta projectKey "Build the thing"
 
-          body <- graphBody pool (fromSqlKey projectKey)
+          body <- graphBody ta (fromSqlKey projectKey)
 
           -- seedWorkNode stores "active", the status every node is
           -- created with.
           body `shouldContainStr` "<circle class=\"work status-active\""
 
-        it "tags every disc with the node it stands for" $ \pool -> do
+        it "tags every disc with the node it stands for" $ \ta -> do
           -- The one thing this visualization owes the Project Manage
           -- UI: the panel highlight and the post-edit flash
           -- both select on this.
-          (projectKey, _) <- seedProjectWithRootNode pool
-          workKey <- seedWorkNode pool projectKey "Build the thing"
+          (projectKey, _) <- seedProjectWithRootNode ta
+          workKey <- seedWorkNode ta projectKey "Build the thing"
 
-          body <- graphBody pool (fromSqlKey projectKey)
+          body <- graphBody ta (fromSqlKey projectKey)
 
           body `shouldContainStr` dataNodeId workKey
 
-        it "wires every disc to the node panel" $ \pool -> do
-          (projectKey, _) <- seedProjectWithRootNode pool
-          _ <- seedWorkNode pool projectKey "Build the thing"
+        it "wires every disc to the node panel" $ \ta -> do
+          (projectKey, _) <- seedProjectWithRootNode ta
+          _ <- seedWorkNode ta projectKey "Build the thing"
 
-          body <- graphBody pool (fromSqlKey projectKey)
+          body <- graphBody ta (fromSqlKey projectKey)
 
           body `shouldContainStr` "hx-target=\"#node-panel\""
           body `shouldContainStr` "hx-trigger=\"click\""
 
-        it "uses its own id prefix rather than the layered one" $ \pool -> do
+        it "uses its own id prefix rather than the layered one" $ \ta -> do
           -- Deliberately a different prefix, not a longer `#node-` id.
           -- Several circles share a node here, so anything still
           -- querying `#node-<id>` should find nothing rather than
           -- silently match one arbitrary replica.
-          (projectKey, _) <- sharedDependencyFixture pool
+          (projectKey, _) <- sharedDependencyFixture ta
 
-          body <- graphBody pool (fromSqlKey projectKey)
+          body <- graphBody ta (fromSqlKey projectKey)
 
           body `shouldNotContainStr` "id=\"node-"
           body `shouldNotContainStr` "id=\"node-text-"
 
-        it "ships the zoom layer and the viewport script" $ \pool -> do
+        it "ships the zoom layer and the viewport script" $ \ta -> do
           -- Comes from the shared frame rather than from anything
           -- written here, which is the point of sharing it.
-          (projectKey, _) <- seedProjectWithRootNode pool
-          _ <- seedWorkNode pool projectKey "Build the thing"
+          (projectKey, _) <- seedProjectWithRootNode ta
+          _ <- seedWorkNode ta projectKey "Build the thing"
 
-          body <- graphBody pool (fromSqlKey projectKey)
+          body <- graphBody ta (fromSqlKey projectKey)
 
           body `shouldContainStr` "id=\"graph-zoom-layer\""
           body `shouldContainStr` "/static/script/graph-viewport.js"
 
-        it "emits no root anchor, so the viewport opens on the eye" $ \pool -> do
+        it "emits no root anchor, so the viewport opens on the eye" $ \ta -> do
           -- There is no root to open on, and the frame's fallback --
           -- the centre of the drawing -- is exactly the eye.
-          (projectKey, _) <- sharedDependencyFixture pool
+          (projectKey, _) <- sharedDependencyFixture ta
 
-          body <- graphBody pool (fromSqlKey projectKey)
+          body <- graphBody ta (fromSqlKey projectKey)
 
           body `shouldNotContainStr` "data-root-x"
           body `shouldContainStr` "data-base-width"
@@ -250,32 +247,25 @@ spec = aroundAll withTestDatabase $
 {- | Two work nodes waiting on a third, plus the project root. Returns
 the project and the shared node -- the one that gets replicated.
 -}
-sharedDependencyFixture :: ConnectionPool -> IO (Key M.Project, Key M.Node)
-sharedDependencyFixture pool = do
-  (projectKey, _) <- seedProjectWithRootNode pool
-  shared <- seedWorkNode pool projectKey "Finish the auth service"
-  a <- seedWorkNode pool projectKey "Publish the launch post"
-  b <- seedWorkNode pool projectKey "Ship the mobile client"
-  seedDependency pool a shared
-  seedDependency pool b shared
+sharedDependencyFixture :: TestApp -> IO (Key M.Project, Key M.Node)
+sharedDependencyFixture ta = do
+  (projectKey, _) <- seedProjectWithRootNode ta
+  shared <- seedWorkNode ta projectKey "Finish the auth service"
+  a <- seedWorkNode ta projectKey "Publish the launch post"
+  b <- seedWorkNode ta projectKey "Ship the mobile client"
+  seedDependency ta a shared
+  seedDependency ta b shared
   pure (projectKey, shared)
 
-graphBody :: ConnectionPool -> Int64 -> IO String
-graphBody pool pid =
-  runSession
-    ( do
-        resp <- request (graphRequest pid)
-        assertStatus 200 resp
-        pure . LC8.unpack . simpleBody $ resp
-    )
-    (handleProjectGraph pool)
+graphBody :: TestApp -> Int64 -> IO String
+graphBody ta pid = do
+  resp <- httpGet ta (graphUrl pid)
+  statusOf resp `shouldBe` 200
+  pure (bodyOf resp)
 
-graphRequest :: Int64 -> Request
-graphRequest pid =
-  defaultRequest
-    { requestMethod = methodGet
-    , queryString = [("projectId", Just . C8.pack . show $ pid)]
-    }
+graphUrl :: Int64 -> Text
+graphUrl pid =
+  "/ui/project/graph?projectId=" <> pack (show pid) <> "&visualizationMode=Orbital"
 
 dataNodeId :: Key M.Node -> String
 dataNodeId k = "data-node-id=\"" <> show (fromSqlKey k) <> "\""
@@ -335,20 +325,3 @@ attrOf name tag =
     [] -> Nothing
   where
     key = name <> "=\""
-
-shouldContainStr :: String -> String -> Expectation
-shouldContainStr haystack needle =
-  (needle `isInfixOf` haystack)
-    `shouldSatisfyWith` ("expected the rendered graph to contain " <> show needle)
-
-shouldNotContainStr :: String -> String -> Expectation
-shouldNotContainStr haystack needle =
-  not (needle `isInfixOf` haystack)
-    `shouldSatisfyWith` ("expected the rendered graph not to contain " <> show needle)
-
-countStr :: String -> String -> Int
-countStr needle = length . filter (needle `isPrefixOf`) . tails
-
-shouldSatisfyWith :: Bool -> String -> Expectation
-shouldSatisfyWith True _ = pure ()
-shouldSatisfyWith False msg = expectationFailure msg

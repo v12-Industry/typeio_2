@@ -1,63 +1,55 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-{- | Integration coverage for 'handleProjectSubmit', building on the
-infrastructure and pattern established in the pilot
-('Domain.Project.Responder.Api.Node.PostSpec').
+{- | Integration coverage for @POST /ui/create-project/submit@.
 
-Unlike the other mutating-responder tests, this handler
-doesn't mutate an existing 'M.Node' -- it's the flow that *creates* a
-'M.Project' and its root 'M.Node' in the first place, so there's no
+Unlike the other mutating routes, this one doesn't mutate an existing
+'M.Node' -- it's the flow that *creates* a 'M.Project' and its root
+'M.Node' in the first place, so there's no
 'Integration.Support.seedProjectWithRootNode' fixture to seed first;
-it only needs the reference data ('withTestDatabase' already seeds
+it only needs the reference data ('withTestApp' already seeds
 \"active\"\/\"project_root\") to exist.
 -}
 module Domain.Project.Responder.Ui.ProjectCreate.SubmitSpec (spec) where
 
-import qualified Data.ByteString.Lazy.Char8 as LC8
+import qualified Data.ByteString.Char8 as C8
 import Database.Persist (Entity (..), Filter, count, selectList, (==.))
 import Database.Persist.Sql (runSqlPool)
 import qualified Domain.Project.Model as M
-import Domain.Project.Responder.Ui.ProjectCreate.Submit (handleProjectSubmit, redirectHeader)
-import Integration.Support (resetBetweenTests, withTestDatabase)
-import Network.HTTP.Types (hContentType, methodPost)
-import Network.Wai (defaultRequest, requestHeaders, requestMethod)
-import Network.Wai.Test
-  ( SRequest (..)
-  , assertHeader
-  , assertNoHeader
-  , assertStatus
-  , runSession
-  , srequest
+import Integration.Support
+  ( SResponse
+  , TestApp (..)
+  , formBody
+  , headerOf
+  , httpPost
+  , resetBetweenTests
+  , statusOf
+  , withTestApp
   )
 import Test.Hspec
 
 spec :: Spec
-spec = aroundAll withTestDatabase $
+spec = aroundAll withTestApp $
   beforeWith resetBetweenTests $
-    describe "handleProjectSubmit (integration)" $ do
-      it "creates a Project and a project_root Node for it" $ \pool -> do
-        runSession
-          ( do
-              resp <- srequest $ submitRequest "ADescription" "ATitle"
-              assertStatus 200 resp
-              -- The Hx-Location redirect header is only ever set on
-              -- the success path (see Submit.hs's `success` branch) --
-              -- checking its exact value doubles as confirming the
-              -- request actually took that branch, not just that it
-              -- returned 200 (the validation-failure branch does too).
-              uncurry assertHeader redirectHeader resp
-          )
-          (handleProjectSubmit pool)
+    describe "POST /ui/create-project/submit (integration)" $ do
+      it "creates a Project and a project_root Node for it" $ \ta -> do
+        resp <- submit ta "ADescription" "ATitle"
+        statusOf resp `shouldBe` 200
+        -- The HX-Location redirect header is only ever set on the
+        -- success path, so checking it doubles as confirming the
+        -- request took that branch rather than just returning 200 (the
+        -- validation-failure branch does too).
+        headerOf "HX-Location" resp
+          `shouldBe` Just "{\"path\":\"/ui/projects/vw\",\"target\":\"#container\"}"
 
-        projectCount <- flip runSqlPool pool $ count ([] :: [Filter M.Project])
+        projectCount <- flip runSqlPool (testPool ta) $ count ([] :: [Filter M.Project])
         projectCount `shouldBe` 1
 
-        rootNodes <- flip runSqlPool pool $ selectList [M.NodeTitle ==. "ATitle"] []
+        rootNodes <- flip runSqlPool (testPool ta) $ selectList [M.NodeTitle ==. "ATitle"] []
         activeStatus <-
-          flip runSqlPool pool $
+          flip runSqlPool (testPool ta) $
             selectList [M.NodeStatusNodeStatusId ==. "active"] []
         rootType <-
-          flip runSqlPool pool $
+          flip runSqlPool (testPool ta) $
             selectList [M.NodeTypeNodeTypeId ==. "project_root"] []
         case (rootNodes, activeStatus, rootType) of
           ([Entity _ nd], [Entity activeKey _], [Entity rootTypeKey _]) -> do
@@ -68,32 +60,20 @@ spec = aroundAll withTestDatabase $
             expectationFailure
               "expected exactly one root Node, and the seeded active/project_root rows"
 
-      it "creates nothing when the payload is invalid" $ \pool -> do
-        runSession
-          ( do
-              resp <- srequest $ submitRequest "" "ATitle"
-              assertStatus 200 resp
-              -- No redirect header on the validation-failure branch --
-              -- distinguishes "form re-rendered" from "project created"
-              -- since both return 200.
-              assertNoHeader (fst redirectHeader) resp
-          )
-          (handleProjectSubmit pool)
+      it "creates nothing when the payload is invalid" $ \ta -> do
+        resp <- submit ta "" "ATitle"
+        statusOf resp `shouldBe` 200
+        -- No redirect header on the validation-failure branch --
+        -- distinguishes "form re-rendered" from "project created"
+        -- since both return 200.
+        headerOf "HX-Location" resp `shouldBe` Nothing
 
-        projectCount <- flip runSqlPool pool $ count ([] :: [Filter M.Project])
+        projectCount <- flip runSqlPool (testPool ta) $ count ([] :: [Filter M.Project])
         projectCount `shouldBe` 0
 
-submitRequest :: LC8.ByteString -> LC8.ByteString -> SRequest
-submitRequest descr title =
-  SRequest
-    { simpleRequest =
-        defaultRequest
-          { requestMethod = methodPost
-          , requestHeaders = [(hContentType, "application/x-www-form-urlencoded")]
-          }
-    , simpleRequestBody =
-        "description="
-          <> descr
-          <> "&title="
-          <> title
-    }
+submit :: TestApp -> C8.ByteString -> C8.ByteString -> IO SResponse
+submit ta descr title =
+  httpPost
+    ta
+    "/ui/create-project/submit"
+    (formBody [("description", descr), ("title", title)])

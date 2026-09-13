@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-{- | Integration coverage for 'handleGetProjectStats'.
+{- | Integration coverage for @GET /ui/project/stats@.
 
 The arithmetic is covered as a pure function in
 @Domain.Project.StatsSpec@; what needs a real database is the pair of
@@ -10,114 +10,99 @@ in the table.
 -}
 module Domain.Project.Responder.Ui.ProjectManage.StatsSpec (spec) where
 
-import qualified Data.ByteString.Char8 as C8
-import qualified Data.ByteString.Lazy.Char8 as LC8
 import Data.Int (Int64)
-import Data.List (isInfixOf)
+import Data.Text (Text, pack)
 import Database.Persist (Entity (..), selectList, update, (=.), (==.))
-import Database.Persist.Sql (ConnectionPool, Key, fromSqlKey, runSqlPool)
+import Database.Persist.Sql (Key, fromSqlKey, runSqlPool)
 import qualified Domain.Project.Model as M
-import Domain.Project.Responder.Ui.ProjectManage.Stats (handleGetProjectStats)
 import Integration.Support
-  ( resetBetweenTests
+  ( TestApp (..)
+  , bodyOf
+  , httpGet
+  , resetBetweenTests
   , seedProjectWithRootNode
   , seedWorkNode
-  , withTestDatabase
-  )
-import Network.HTTP.Types (methodGet)
-import Network.Wai (Request, defaultRequest, queryString, requestMethod)
-import Network.Wai.Test
-  ( SResponse (..)
-  , request
-  , runSession
+  , shouldContainStr
+  , statusOf
+  , withTestApp
   )
 import Test.Hspec
 
 spec :: Spec
-spec = aroundAll withTestDatabase $
+spec = aroundAll withTestApp $
   beforeWith resetBetweenTests $
-    describe "handleGetProjectStats (integration)" $ do
-      it "counts the project's work nodes" $ \pool -> do
-        (projectKey, _) <- seedProjectWithRootNode pool
-        _ <- seedWorkNode pool projectKey "Build the thing"
-        _ <- seedWorkNode pool projectKey "Ship the thing"
+    describe "GET /ui/project/stats (integration)" $ do
+      it "counts the project's work nodes" $ \ta -> do
+        (projectKey, _) <- seedProjectWithRootNode ta
+        _ <- seedWorkNode ta projectKey "Build the thing"
+        _ <- seedWorkNode ta projectKey "Ship the thing"
 
-        body <- statsBody pool (fromSqlKey projectKey)
+        body <- statsBody ta (fromSqlKey projectKey)
 
         body `shouldContainStr` statRow "Total nodes" "2"
 
       -- The root node is a structural row, not work: the drawing leaves
       -- it out, so a count of "nodes" that included it would disagree
       -- with what the user is looking at.
-      it "leaves the project's root node out of the count" $ \pool -> do
-        (projectKey, _) <- seedProjectWithRootNode pool
+      it "leaves the project's root node out of the count" $ \ta -> do
+        (projectKey, _) <- seedProjectWithRootNode ta
 
-        body <- statsBody pool (fromSqlKey projectKey)
+        body <- statsBody ta (fromSqlKey projectKey)
 
         body `shouldContainStr` statRow "Total nodes" "0"
 
-      it "counts only the project asked about" $ \pool -> do
-        (projectKey, _) <- seedProjectWithRootNode pool
-        _ <- seedWorkNode pool projectKey "Ours"
-        (otherKey, _) <- seedProjectWithRootNode pool
-        _ <- seedWorkNode pool otherKey "Someone else's"
-        _ <- seedWorkNode pool otherKey "Also not ours"
+      it "counts only the project asked about" $ \ta -> do
+        (projectKey, _) <- seedProjectWithRootNode ta
+        _ <- seedWorkNode ta projectKey "Ours"
+        (otherKey, _) <- seedProjectWithRootNode ta
+        _ <- seedWorkNode ta otherKey "Someone else's"
+        _ <- seedWorkNode ta otherKey "Also not ours"
 
-        body <- statsBody pool (fromSqlKey projectKey)
+        body <- statsBody ta (fromSqlKey projectKey)
 
         body `shouldContainStr` statRow "Total nodes" "1"
 
       -- A status nothing is sitting in still gets a row, because the
       -- vocabulary comes from the status table rather than from the
       -- rows that happen to exist.
-      it "gives every status in the table a row of its own" $ \pool -> do
-        (projectKey, _) <- seedProjectWithRootNode pool
-        _ <- seedWorkNode pool projectKey "Build the thing"
+      it "gives every status in the table a row of its own" $ \ta -> do
+        (projectKey, _) <- seedProjectWithRootNode ta
+        _ <- seedWorkNode ta projectKey "Build the thing"
 
-        body <- statsBody pool (fromSqlKey projectKey)
+        body <- statsBody ta (fromSqlKey projectKey)
 
         body `shouldContainStr` statRow "Active" "1"
         body `shouldContainStr` statRow "Closed" "0"
         body `shouldContainStr` statRow "Open" "0"
         body `shouldContainStr` statRow "Rejected" "0"
 
-      it "reports completion as the closed share of the work" $ \pool -> do
-        (projectKey, _) <- seedProjectWithRootNode pool
-        done <- seedWorkNode pool projectKey "Finished"
-        _ <- seedWorkNode pool projectKey "Still going"
-        _ <- seedWorkNode pool projectKey "Not started"
-        _ <- seedWorkNode pool projectKey "Also going"
-        closeNode pool done
+      it "reports completion as the closed share of the work" $ \ta -> do
+        (projectKey, _) <- seedProjectWithRootNode ta
+        done <- seedWorkNode ta projectKey "Finished"
+        _ <- seedWorkNode ta projectKey "Still going"
+        _ <- seedWorkNode ta projectKey "Not started"
+        _ <- seedWorkNode ta projectKey "Also going"
+        closeNode ta done
 
-        body <- statsBody pool (fromSqlKey projectKey)
+        body <- statsBody ta (fromSqlKey projectKey)
 
         body `shouldContainStr` statRow "Completion" "25%"
 
-      it "answers a missing project id with a 400 rather than a 500" $ \pool -> do
-        status <-
-          runSession
-            (simpleStatus <$> request (statsRequest []))
-            (handleGetProjectStats pool)
+      it "answers a missing project id with a 400 rather than a 500" $ \ta -> do
+        resp <- httpGet ta "/ui/project/stats"
+        statusOf resp `shouldBe` 400
 
-        show status `shouldContain` "400"
+statsBody :: TestApp -> Int64 -> IO String
+statsBody ta pid = do
+  resp <- httpGet ta (statsUrl pid)
+  statusOf resp `shouldBe` 200
+  pure (bodyOf resp)
 
-statsBody :: ConnectionPool -> Int64 -> IO String
-statsBody pool pid =
-  runSession
-    ( LC8.unpack . simpleBody
-        <$> request (statsRequest [("projectId", Just (C8.pack (show pid)))])
-    )
-    (handleGetProjectStats pool)
+statsUrl :: Int64 -> Text
+statsUrl pid = "/ui/project/stats?projectId=" <> pack (show pid)
 
-statsRequest :: [(C8.ByteString, Maybe C8.ByteString)] -> Request
-statsRequest qs =
-  defaultRequest
-    { requestMethod = methodGet
-    , queryString = qs
-    }
-
-closeNode :: ConnectionPool -> Key M.Node -> IO ()
-closeNode pool nodeKey = flip runSqlPool pool $ do
+closeNode :: TestApp -> Key M.Node -> IO ()
+closeNode ta nodeKey = flip runSqlPool (testPool ta) $ do
   closed <- selectList [M.NodeStatusNodeStatusId ==. "closed"] []
   case closed of
     (Entity closedKey _ : _) -> update nodeKey [M.NodeNodeStatusId =. closedKey]
@@ -130,7 +115,3 @@ statRow label value =
     <> "</span><span class=\"stat-value\">"
     <> value
     <> "</span>"
-
-shouldContainStr :: String -> String -> Expectation
-shouldContainStr haystack needle =
-  (needle `isInfixOf` haystack) `shouldBe` True
