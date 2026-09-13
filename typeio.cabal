@@ -41,6 +41,7 @@ library servant-app
       App.Api
       , App.Env
       , App.Html
+      , App.Middleware
       , App.Params
       , App.Server
       , Common.Either
@@ -72,12 +73,22 @@ library servant-app
       , Logging.Core
       , Logging.Database
       , Platform.Build
+      , Domain.Central.Middleware.IndexRender
+      , Domain.Central.Responder.Api.Seed
+      , Domain.Central.Responder.Ui.Empty
+      , Domain.Central.Responder.Ui.IndexView
+      , Domain.System.Middleware.Logging.Common
+      , Domain.System.Middleware.Logging.Request
+      , Domain.System.Middleware.Logging.Response
+      , Domain.System.Middleware.RequestId
+      , Domain.System.Responder.Config
     build-depends:
       aeson
       , base ^>=4.18.3.0
       , bytestring
       , case-insensitive
       , containers
+      , unordered-containers
       , dotenv
       , esqueleto
       , fast-logger
@@ -101,6 +112,7 @@ library servant-app
       , unliftio-core
       , uuid
       , wai
+      , wai-middleware-static
       , warp
     hs-source-dirs:   lib-servant/src
     default-language: Haskell2010
@@ -127,7 +139,6 @@ library src
       -- `integration` test-suite can import them -- a cabal test-suite
       -- only sees a library's exposed-modules, never its other-modules
       -- (see CLAUDE.md's notes on this from the unit-testing rollout).
-      , Domain.Central.Responder.Api.Seed
       -- The graph layout engine is exposed so `test-suite spec` can
       -- import it: a test-suite only sees a library's exposed-modules.
       -- The orbital visualization's own geometry, exposed for the same
@@ -165,11 +176,8 @@ library src
       Container.Build
       , Container.Root
       , Domain.Central.Container
-      , Domain.Central.Responder.Ui.Empty
-      , Domain.Central.Responder.Ui.IndexView
       , Domain.Central.Responder.Ui.Container
       , Domain.Central.Responder.Api.Container
-      , Domain.Central.Middleware.IndexRender
       , Domain.Project.Container
       , Domain.Project.Responder.Api.Node.Get
       , Domain.Project.Responder.Api.NodeStatus.Get
@@ -189,11 +197,6 @@ library src
       , Domain.System.Container
       , Domain.System.Middleware.Container
       , Domain.System.Responder.Container
-      , Domain.System.Responder.Config
-      , Domain.System.Middleware.RequestId
-      , Domain.System.Middleware.Logging.Common
-      , Domain.System.Middleware.Logging.Request
-      , Domain.System.Middleware.Logging.Response
       , Platform.Web.Router
     other-extensions:
       OverloadedStrings

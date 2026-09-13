@@ -6,15 +6,18 @@ module App.Env
   ) where
 
 import Config.App (AppConfig (..))
-import Control.Monad.Cont (runContT)
+import Control.Monad.Cont (ContT (..), runContT)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ReaderT, asks)
 import Database.Persist.Sql (ConnectionPool, SqlBackend, runSqlPool)
 import Environment.Db (withPool)
+import Environment.Logging (withLogger)
+import Logging.Core (EntryLog)
 import Servant (Handler)
 
 data Env = Env
   { envConfig :: AppConfig
+  , envLogger :: EntryLog
   , envPool :: ConnectionPool
   }
 
@@ -26,4 +29,8 @@ runDb q = do
   liftIO (runSqlPool q pl)
 
 withEnv :: AppConfig -> (Env -> IO a) -> IO a
-withEnv cfg k = runContT (withPool (dbConf cfg)) (k . Env cfg)
+withEnv cfg =
+  runContT $
+    Env cfg
+      <$> withLogger
+      <*> withPool (dbConf cfg)
