@@ -2,6 +2,7 @@
 
 module Domain.Central.Responder.Ui.Empty where
 
+import App.Env (AppM)
 import Lucid
 import Network.HTTP.Types (status200)
 import Network.Wai (Response, ResponseReceived, responseLBS)
@@ -16,3 +17,6 @@ handleGetEmpty res = do
 
 templateEmpty :: Html ()
 templateEmpty = mempty
+
+handler :: AppM (Html ())
+handler = pure templateEmpty

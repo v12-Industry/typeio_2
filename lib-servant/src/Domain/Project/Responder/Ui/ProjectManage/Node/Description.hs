@@ -11,6 +11,8 @@ import Lucid
 
 import qualified Domain.Project.Model as M
 
+import App.Env (AppM)
+import App.Handler (FieldUpdateErr (..), nodeForUpdate, updateNodeField)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Either
   ( EitherT
@@ -145,3 +147,19 @@ validatePayload form =
         <$> dsc
         <*> nid
         <*> pid
+
+handler :: Form -> AppM (Html ())
+handler form =
+  updateNodeField
+    templateNodeNotFound
+    templatePutFail
+    templatePutSuccess
+    $ do
+      pyld <-
+        firstEitherT FieldInvalid
+          . validatePayload
+          . formToPutNodeDescriptionForm
+          $ form
+      nde <- nodeForUpdate (payloadProjectId pyld) (payloadNodeId pyld)
+      lift . replace (entityKey nde) $
+        (entityVal nde) {M.nodeDescription = unpack (payloadDescription pyld)}

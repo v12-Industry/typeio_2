@@ -10,23 +10,22 @@ module App.Api
   , ManageProjectUi
   , NodeUi
   , NodeFieldUi
-  , CreatedNode (..)
-  , HxRedirect
-  , Health (..)
   , api
   ) where
 
 import App.Html (HTML)
 import Config.Visualization (Visualization)
-import Data.Aeson (ToJSON, object, toJSON, (.=))
 import Data.Int (Int64)
 import Data.Proxy (Proxy (..))
 import Data.Text (Text)
 import qualified Domain.Project.Responder.Api.Node.Get as NodeGet
+import Domain.Project.Responder.Api.Node.Post (CreatedNode)
 import qualified Domain.Project.Responder.Api.NodeStatus.Get as NodeStatusGet
 import qualified Domain.Project.Responder.Api.NodeType.Get as NodeTypeGet
 import qualified Domain.Project.Responder.Api.Project.Get as ProjectGet
+import Domain.Project.Responder.Ui.ProjectCreate.Submit (HxRedirect)
 import Domain.System.Responder.Config (ConfigDisplay)
+import Domain.System.Responder.Health (Health)
 import Lucid (Html)
 import Servant.API
   ( FormUrlEncoded
@@ -51,25 +50,6 @@ import Servant.API
   )
 import Web.FormUrlEncoded (Form)
 
-data Health = Health
-  { healthStatus :: Text
-  , healthCommit :: Text
-  }
-
-instance ToJSON Health where
-  toJSON h =
-    object
-      [ "status" .= healthStatus h
-      , "commit" .= healthCommit h
-      ]
-
-newtype CreatedNode = CreatedNode
-  { createdNodeId :: Int64
-  }
-
-instance ToJSON CreatedNode where
-  toJSON n = object ["nodeId" .= createdNodeId n]
-
 type ProjectApi =
   "nodes" :> Get '[JSON] [NodeGet.Node]
     :<|> "nodes"
@@ -78,11 +58,6 @@ type ProjectApi =
     :<|> "node-statuses" :> Get '[JSON] [NodeStatusGet.NodeStatus]
     :<|> "node-types" :> Get '[JSON] [NodeTypeGet.NodeType]
     :<|> "projects" :> Get '[JSON] [ProjectGet.Project]
-
--- htmx redirects by header rather than by status, so the success and
--- failure arms of a submit share one status and differ by whether the
--- header is present.
-type HxRedirect = Headers '[Header "HX-Location" Text] (Html ())
 
 type ProjectsUi =
   "vw" :> Get '[HTML] (Html ())

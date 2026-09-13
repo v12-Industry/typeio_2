@@ -1,11 +1,14 @@
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeOperators #-}
 
 module Domain.Project.Responder.Api.Node.Post where
 
+import App.Env (AppM, runDb)
 import Common.Either (listToEither)
 import Common.Validation
   ( ValidationErr
@@ -15,6 +18,8 @@ import Common.Validation
   , valRead
   , (.$)
   )
+import Control.Monad.Error.Class (throwError)
+import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ReaderT)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Either (hoistEither, hoistMaybe, runEitherT)
@@ -29,6 +34,7 @@ import Data.Int (Int64)
 import Data.Maybe (listToMaybe)
 import Data.Text (Text, unpack)
 import Data.Text.Encoding (decodeUtf8, encodeUtf8)
+import Data.Text.Util (intToText)
 import Data.Time (UTCTime, getCurrentTime)
 import Database.Esqueleto.Experimental
   ( Entity
@@ -43,11 +49,12 @@ import Database.Esqueleto.Experimental
   , (==.)
   )
 import Database.Persist (Entity (..))
-import Database.Persist.Sql (ConnectionPool, SqlBackend, runSqlPool)
+import Database.Persist.Sql (ConnectionPool, SqlBackend, fromSqlKey, runSqlPool)
 import qualified Domain.Project.Model as M
 import Network.HTTP.Types (status200, status404, status422, status500)
 import Network.Wai (Application, responseLBS)
 import Network.Wai.Parse (Param, lbsBackEnd, parseRequestBody)
+import Servant (Header, Headers, addHeader, err404, err422, err500, errBody)
 import Web.FormUrlEncoded (Form, lookupMaybe)
 
 data InsertNodeResult
@@ -255,3 +262,32 @@ insertNode pyl tm = do
             }
     _ <- lift $ insert nd
     return nd
+
+newtype CreatedNode = CreatedNode
+  { createdNodeId :: Int64
+  }
+
+instance ToJSON CreatedNode where
+  toJSON n = object ["nodeId" .= createdNodeId n]
+
+handler ::
+  Form ->
+  AppM (Headers '[Header "Location" Text] CreatedNode)
+handler form = do
+  now <- liftIO getCurrentTime
+  rslt <- runDb (createNode (formToPostNodeForm form) now)
+  case rslt of
+    Left (FailValidation es) -> throwError err422 {errBody = errJson es}
+    Left ProjectNotFound ->
+      throwError err404 {errBody = errJson ["Project not found" :: Text]}
+    Left MissingStatus -> throwError err500 {errBody = serverErr}
+    Left MissingType -> throwError err500 {errBody = serverErr}
+    Right (Entity ky _) ->
+      let nid = fromSqlKey ky
+       in pure $
+            addHeader
+              ("/api/project/nodes/" <> intToText nid)
+              (CreatedNode nid)
+  where
+    errJson es = encode (object ["error" .= es])
+    serverErr = errJson ["Internal server error" :: Text]

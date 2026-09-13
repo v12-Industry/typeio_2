@@ -2,6 +2,7 @@
 
 module Domain.Project.Responder.Ui.ProjectIndex.View where
 
+import App.Env (AppM)
 import Common.Web.Attributes
 import Common.Web.Template.MainHeader (templateNavHeader)
 import Lucid
@@ -35,3 +36,6 @@ projectIndexVwTemplate = do
       , hxSwap_ "innerHTML"
       ]
       mempty
+
+handler :: AppM (Html ())
+handler = pure projectIndexVwTemplate

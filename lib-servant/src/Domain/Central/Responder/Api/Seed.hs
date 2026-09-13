@@ -2,8 +2,10 @@
 
 module Domain.Central.Responder.Api.Seed where
 
+import App.Env (AppM, runDb)
 import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Reader (ReaderT)
+import Data.Text (Text)
 import Database.Persist (insertUnique)
 import Database.Persist.Postgresql (ConnectionPool)
 import Database.Persist.Sql (SqlBackend, runSqlPool)
@@ -38,3 +40,8 @@ nodeStatuses =
   , NodeStatus "open"
   , NodeStatus "rejected"
   ]
+
+handler :: AppM Text
+handler = do
+  runDb seedReferenceData
+  pure "Database seeded successfully"

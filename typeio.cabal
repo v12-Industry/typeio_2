@@ -39,6 +39,7 @@ library servant-app
       warnings
     exposed-modules:
       App.Api
+      , App.Handler
       , App.Env
       , App.Html
       , App.Middleware
@@ -82,6 +83,7 @@ library servant-app
       , Domain.System.Middleware.Logging.Response
       , Domain.System.Middleware.RequestId
       , Domain.System.Responder.Config
+      , Domain.System.Responder.Health
       , Domain.Project.Responder.Api.Node.Get
       , Domain.Project.Responder.Api.Node.Post
       , Domain.Project.Responder.Api.NodeStatus.Get

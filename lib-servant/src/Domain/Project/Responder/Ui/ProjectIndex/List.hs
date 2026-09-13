@@ -6,6 +6,7 @@
 
 module Domain.Project.Responder.Ui.ProjectIndex.List where
 
+import App.Env (AppM, runDb)
 import Common.Web.Attributes
 import Control.Monad (forM_)
 import Control.Monad.Reader (ReaderT)
@@ -87,3 +88,10 @@ templateList ps = div_ [id_ "view"] $ do
                 . show
                 . M.projectVwLastUpdated
               $ p
+
+handler :: AppM (Html ())
+handler = do
+  ps <- runDb queryProjectVw
+  pure $ case ps of
+    [] -> templateEmptyProjects
+    _ -> templateList (map entityVal ps)

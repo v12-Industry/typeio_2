@@ -5,6 +5,7 @@
 
 module Domain.Project.Responder.Api.Project.Get where
 
+import App.Env (AppM, runDb)
 import Control.Monad.Reader (ReaderT)
 import Data.Aeson
   ( ToJSON
@@ -42,3 +43,6 @@ listProjects = map toSchema <$> query
       Project
         { projectId = fromSqlKey k
         }
+
+handler :: AppM [Project]
+handler = runDb listProjects

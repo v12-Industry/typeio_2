@@ -5,6 +5,7 @@
 
 module Domain.Project.Responder.Api.NodeStatus.Get where
 
+import App.Env (AppM, runDb)
 import Control.Monad.Reader (ReaderT)
 import Data.Aeson
   ( ToJSON
@@ -41,3 +42,6 @@ listNodeStatuses = map toSchema <$> query
       NodeStatus
         { nodeStatusId = M.unNodeStatusKey k
         }
+
+handler :: AppM [NodeStatus]
+handler = runDb listNodeStatuses

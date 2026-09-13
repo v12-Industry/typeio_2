@@ -2,6 +2,7 @@
 
 module Domain.Project.Responder.Ui.ProjectManage.Node where
 
+import App.Env (AppM)
 import Common.Validation
   ( ValidationErr
   , isNotEmpty
@@ -177,3 +178,6 @@ validateForm fm = runValidation id $ do
       >>= isNotEmpty "Node id must have a value"
       >>= valRead "Node id must be valid integer"
   return $ GetNodePanelPayload <$> nid <*> pid
+
+handler :: Int64 -> Int64 -> AppM (Html ())
+handler pid nid = pure (templateNodePanel nid pid)
