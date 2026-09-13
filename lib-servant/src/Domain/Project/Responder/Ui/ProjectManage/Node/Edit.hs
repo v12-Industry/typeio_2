@@ -5,6 +5,8 @@
 
 module Domain.Project.Responder.Ui.ProjectManage.Node.Edit where
 
+import App.Env (AppM, runDb)
+import App.Handler (renderNode)
 import Common.Validation
   ( ValidationErr
   , isNotEmpty
@@ -237,3 +239,15 @@ validateForm fm = hoistEither . runValidation id $ do
       >>= isNotEmpty "Node id must have a value"
       >>= valRead "Node id must be valid integer"
   return $ GetNodeEditPayload <$> pid <*> nid
+
+handler :: Int64 -> Int64 -> AppM (Html ())
+handler pid nid =
+  renderNode
+    pid
+    nid
+    templateNodeNotFound
+    templateInvalidParams
+    ( \nde -> do
+        nsts <- runDb queryNodeStatuses
+        pure (templateNodeEdit nsts nde)
+    )

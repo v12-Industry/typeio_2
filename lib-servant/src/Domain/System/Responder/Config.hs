@@ -2,8 +2,10 @@
 
 module Domain.System.Responder.Config where
 
+import App.Env (AppM, Env (..))
 import Config.App (AppConfig (..), EnvironmentName (..))
 import Config.Db (DbConfig (..), connStr)
+import Control.Monad.Reader (asks)
 import Data.Aeson (ToJSON, encode, object, toJSON, (.=))
 import Network.HTTP.Types (status200)
 import Network.Wai (Response, ResponseReceived, responseLBS)
@@ -46,3 +48,6 @@ preprocessConfig env cfg = cfg {dbConf = db'}
   where
     d = dbConf cfg
     db' = d {password = maskField env (password d)}
+
+handler :: AppM ConfigDisplay
+handler = asks (configDisplay . envConfig)

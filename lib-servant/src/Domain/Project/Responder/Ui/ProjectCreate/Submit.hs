@@ -4,9 +4,11 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeOperators #-}
 
 module Domain.Project.Responder.Ui.ProjectCreate.Submit where
 
+import App.Env (AppM, runDb)
 import Common.Validation
   ( ValidationErr
   , isNotEmpty
@@ -14,6 +16,7 @@ import Common.Validation
   , runValidation
   , (.$)
   )
+import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ReaderT)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Either (hoistEither, hoistMaybe, runEitherT)
@@ -26,6 +29,7 @@ import Data.Aeson
   )
 import Data.ByteString (ByteString, toStrict)
 import Data.Maybe (listToMaybe)
+import Data.Text (Text)
 import qualified Data.Text as T (Text, unpack)
 import Data.Text.Encoding (decodeUtf8)
 import Data.Time (UTCTime, getCurrentTime)
@@ -51,14 +55,16 @@ import qualified Domain.Project.Model as M
   , NodeType (..)
   , Project (..)
   )
+import qualified Domain.Project.Responder.Ui.ProjectCreate.View as CreateView
 import qualified Domain.Project.Responder.Ui.ProjectCreate.View as V
   ( AddProjectForm (..)
   , projectCreateVwTemplate
   )
-import Lucid (renderBS)
+import Lucid (Html, renderBS)
 import Network.HTTP.Types (HeaderName, status200, status500)
 import Network.Wai (Application, responseLBS)
 import Network.Wai.Parse (Param, lbsBackEnd, parseRequestBody)
+import Servant (Header, Headers, addHeader, noHeader)
 import Web.FormUrlEncoded (Form, lookupMaybe)
 
 data ProjectAddResult
@@ -199,3 +205,20 @@ queryType tp = do
     limit 1
     pure t
   return . listToMaybe $ ns
+
+{- htmx redirects by header rather than by status, so the success and
+   failure arms of a submit share one status and differ by whether the
+   header is present. -}
+type HxRedirect = Headers '[Header "HX-Location" Text] (Html ())
+
+handler :: Form -> AppM HxRedirect
+handler f = do
+  let form = formToAddProjectForm f
+  now <- liftIO getCurrentTime
+  rslt <- runDb (createProject form now)
+  pure $ case rslt of
+    Right _ -> addHeader (decodeUtf8 (snd redirectHeader)) mempty
+    Left (FormValidationFail es) ->
+      noHeader (CreateView.projectCreateVwTemplate form es)
+    Left _ ->
+      noHeader (CreateView.projectCreateVwTemplate form ["Could not create the project"])

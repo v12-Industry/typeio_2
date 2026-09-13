@@ -4,6 +4,8 @@
 
 module Domain.Project.Responder.Ui.ProjectManage.Node.Detail where
 
+import App.Env (AppM)
+import App.Handler (renderNode)
 import Common.Validation
   ( ValidationErr
   , isNotEmpty
@@ -156,3 +158,12 @@ validateForm fm = hoistEither . runValidation id $ do
       >>= isNotEmpty "Node id must have a value"
       >>= valRead "Node id must be valid integer"
   return $ GetNodeDetailPayload <$> pid <*> nid
+
+handler :: Int64 -> Int64 -> AppM (Html ())
+handler pid nid =
+  renderNode
+    pid
+    nid
+    templateNodeNotFound
+    templateInvalidParams
+    (pure . templateNodeDetail . entityVal)

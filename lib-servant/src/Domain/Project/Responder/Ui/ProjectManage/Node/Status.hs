@@ -13,6 +13,8 @@ import Lucid
 
 import qualified Domain.Project.Model as M
 
+import App.Env (AppM)
+import App.Handler (FieldUpdateErr (..), nodeForUpdate, updateNodeField)
 import Control.Monad.Reader (ReaderT)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Either
@@ -171,3 +173,22 @@ validatePayload form =
         <$> st
         <*> nid
         <*> pid
+
+handler :: Form -> AppM (Html ())
+handler form =
+  updateNodeField
+    templateNodeNotFound
+    templatePostFail
+    templatePostSuccess
+    $ do
+      pyld <-
+        firstEitherT FieldInvalid
+          . validatePayload
+          . formToPostNodeStatusForm
+          $ form
+      nde <- nodeForUpdate (payloadProjectId pyld) (payloadNodeId pyld)
+      sts <-
+        lift (queryStatus (payloadStatus pyld))
+          >>= hoistMaybe (FieldInvalid ["Node status is required"])
+      lift . replace (entityKey nde) $
+        (entityVal nde) {M.nodeNodeStatusId = entityKey sts}

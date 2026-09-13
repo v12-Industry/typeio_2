@@ -1,6 +1,9 @@
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeOperators #-}
 
 module Domain.Project.Responder.Ui.ProjectManage.Node.Refresh where
 
@@ -16,7 +19,9 @@ import Lucid
 
 import qualified Domain.Project.Model as M
 
+import App.Env (AppM, runDb)
 import Common.Web.Query (lookupVal)
+import Control.Monad.Error.Class (throwError)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Either
   ( EitherT
@@ -33,6 +38,7 @@ import Data.Text.Util (intToText)
 import Database.Esqueleto.Experimental
 import Network.HTTP.Types (QueryText, queryToQueryText, status200, status204, status404, status500)
 import Network.Wai (Application, Request (queryString), responseLBS)
+import Servant (NoContent (..), Union, WithStatus (..), err404, errBody, respond)
 
 data GetNodeRefreshErr
   = InvalidParams [ValidationErr]
@@ -175,3 +181,21 @@ validatePayload form =
         <*> pid
         <*> ttl
         <*> pure (fromMaybe defaultWrapWidth wrp)
+
+handler ::
+  Int64 ->
+  Int64 ->
+  Text ->
+  Maybe Int ->
+  AppM (Union '[WithStatus 200 (Html ()), WithStatus 204 NoContent])
+handler pid nid clientTitle mwrap = do
+  mnde <- runDb (queryNode nid)
+  case mnde >>= either (const Nothing) Just . nodeInProject pid of
+    Nothing -> throwError err404 {errBody = "Node not found"}
+    Just nde
+      | pack (M.nodeTitle (entityVal nde)) == clientTitle ->
+          respond (WithStatus @204 NoContent)
+      | otherwise ->
+          respond (WithStatus @200 (templateRefresh wrapWidth nde))
+  where
+    wrapWidth = fromMaybe defaultWrapWidth mwrap

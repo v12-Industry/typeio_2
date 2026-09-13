@@ -2,6 +2,7 @@
 
 module Domain.Project.Responder.Ui.ProjectCreate.View where
 
+import App.Env (AppM)
 import Common.Web.Attributes
 import Common.Web.Template.MainHeader (templateNavHeader)
 import Control.Monad (forM_, unless)
@@ -60,3 +61,6 @@ projectCreateVwTemplate payload errs = do
   where
     dscr = fromMaybe mempty $ description payload
     ttle = fromMaybe mempty $ title payload
+
+handler :: AppM (Html ())
+handler = pure (projectCreateVwTemplate emptyForm mempty)

@@ -2,6 +2,7 @@
 
 module Domain.Project.Responder.Ui.ProjectManage.View where
 
+import App.Env (AppM)
 import Common.Validation
   ( ValidationErr
   , isNotEmpty
@@ -13,20 +14,17 @@ import Common.Validation
 import Common.Web.Attributes
 import Common.Web.Query (lookupVal, setQueryParam)
 import Common.Web.Template.MainHeader (templateNavHeaderWith)
-import Config.Visualization
-  ( Visualization
-  , VisualizationChoice (..)
-  , resolveVisualization
-  )
+import Config.Visualization (Visualization, VisualizationChoice (..), defaultVisualization, resolveVisualization)
 import Data.ByteString (ByteString)
 import Data.Int (Int64)
+import Data.Maybe (fromMaybe)
 import Data.Text (Text, pack, unpack)
 import qualified Data.Text as T
 import Data.Text.Encoding (decodeUtf8)
+import Data.Text.Util (intToText)
 import Domain.Project.Responder.Ui.ProjectManage.Link
 import Domain.Project.Responder.Ui.ProjectManage.SaveState (templateSaveState)
 import Lucid
-import Lucid.Base (Attributes)
 import Network.HTTP.Types (QueryText, status200, status302, status403)
 import Network.HTTP.Types.URI (queryTextToQuery, queryToQueryText, renderQuery)
 import Network.Wai
@@ -272,3 +270,35 @@ validateForm viz vt base fm = runValidation id $ do
       >>= valRead "Node id must be valid integer"
   return $
     ManageProjectPayload nid <$> pid <*> pure viz <*> pure vt <*> pure base
+
+handler ::
+  Int64 ->
+  Maybe Int64 ->
+  Maybe Visualization ->
+  Maybe Double ->
+  Maybe Double ->
+  Maybe Double ->
+  AppM (Html ())
+handler pid nid mviz vx vy vk =
+  pure $
+    templateProject
+      ManageProjectPayload
+        { payloadNodeId = nid
+        , payloadProjectId = pid
+        , payloadVisualization = viz
+        , payloadView = ViewTransform <$> vx <*> vy <*> vk
+        , payloadViewBase = viewBaseFromParams pid nid viz
+        }
+  where
+    viz = fromMaybe defaultVisualization mviz
+
+{- Rebuilt from the parameters the route actually parsed rather than from
+   the raw query string, so the base the viewport appends to is canonical
+   whatever the client sent. -}
+viewBaseFromParams :: Int64 -> Maybe Int64 -> Visualization -> Text
+viewBaseFromParams pid nid viz =
+  "/ui/project/vw?projectId="
+    <> intToText pid
+    <> maybe "" (\n -> "&nodeId=" <> intToText n) nid
+    <> "&visualizationMode="
+    <> pack (show viz)

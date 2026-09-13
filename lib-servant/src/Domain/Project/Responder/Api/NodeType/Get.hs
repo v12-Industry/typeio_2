@@ -5,6 +5,7 @@
 
 module Domain.Project.Responder.Api.NodeType.Get where
 
+import App.Env (AppM, runDb)
 import Control.Monad.Reader (ReaderT)
 import Data.Aeson
   ( ToJSON
@@ -41,3 +42,6 @@ listNodeTypes = map toSchema <$> query
       NodeType
         { nodeTypeId = M.unNodeTypeKey k
         }
+
+handler :: AppM [NodeType]
+handler = runDb listNodeTypes

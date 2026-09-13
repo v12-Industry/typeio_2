@@ -5,6 +5,7 @@
 
 module Domain.Project.Responder.Api.Node.Get where
 
+import App.Env (AppM, runDb)
 import Control.Monad.Reader (ReaderT)
 import Data.Aeson
   ( ToJSON
@@ -81,3 +82,6 @@ listNodes = map toSchema <$> query
         , title = M.nodeTitle v
         , updated = M.nodeUpdated v
         }
+
+handler :: AppM [Node]
+handler = runDb listNodes
