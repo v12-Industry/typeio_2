@@ -6,6 +6,7 @@
 
 module Domain.Project.Responder.Api.Node.Post where
 
+import Common.Either (listToEither)
 import Common.Validation
   ( ValidationErr
   , isNotEmpty
@@ -24,7 +25,6 @@ import Data.Aeson
   , (.=)
   )
 import Data.ByteString (ByteString)
-import Data.Either (listToEither)
 import Data.Int (Int64)
 import Data.Maybe (listToMaybe)
 import Data.Text (Text, unpack)

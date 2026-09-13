@@ -6,6 +6,7 @@
 
 module Domain.Project.Visualization.Common where
 
+import Common.Either (notNullEither)
 import Common.Validation
   ( ValidationErr
   , isNotEmpty
@@ -29,7 +30,6 @@ import Control.Monad.Trans.Either (hoistEither, runEitherT)
 import Data.Aeson (encode, object, (.=))
 import Data.Bifunctor (first)
 import Data.ByteString (ByteString)
-import Data.Either (notNullEither)
 import Data.Int (Int64)
 import Data.List (sort)
 import Data.Map.Strict (Map)

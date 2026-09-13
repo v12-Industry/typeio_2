@@ -1,16 +1,11 @@
-{-# LANGUAGE PackageImports #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Data.EitherSpec (spec) where
+module Common.EitherSpec (spec) where
 
--- This project's own Data.Either shares a name with base's built-in
--- module of the same name -- PackageImports disambiguates which one is
--- meant ("src" is this internal library's name, per typeio.cabal).
-
+import Common.Either
 import Test.Hspec
 import Test.Hspec.QuickCheck (prop)
 import Test.QuickCheck ((===))
-import "typeio" Data.Either
 
 spec :: Spec
 spec = do

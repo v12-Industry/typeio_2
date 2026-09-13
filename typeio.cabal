@@ -42,18 +42,62 @@ library servant-app
       , App.Env
       , App.Html
       , App.Server
+      , Common.Either
+      , Common.Validation
+      , Common.Web.Attributes
+      , Common.Web.Elements
+      , Common.Web.Query
+      , Common.Web.Template.MainHeader
+      , Config.App
+      , Config.Db
+      , Config.Visualization
+      , Config.Web
+      , Data.Text.Util
+      , Domain.Project.Graph.Coord
+      , Domain.Project.Graph.Layer
+      , Domain.Project.Graph.Layout
+      , Domain.Project.Graph.Order
+      , Domain.Project.Graph.Route
+      , Domain.Project.Graph.Types
+      , Domain.Project.Model
+      , Domain.Project.Node.Status
+      , Domain.Project.Orbit.Layout
+      , Domain.Project.Orbit.Types
+      , Domain.Project.Orbit.Unfold
+      , Domain.Project.Stats
+      , Environment.Db
+      , Environment.Env
+      , Environment.Logging
+      , Logging.Core
+      , Logging.Database
+      , Platform.Build
     build-depends:
       aeson
       , base ^>=4.18.3.0
+      , bytestring
+      , case-insensitive
+      , containers
       , dotenv
+      , esqueleto
+      , fast-logger
+      , gitrev
       , http-media
+      , http-types
       , lucid2
+      , monad-logger
       , mtl
       , persistent
+      , persistent-postgresql
+      , persistent-template
+      , postgresql-simple
+      , resource-pool
       , servant
       , servant-server
-      , src
       , text
+      , time
+      , transformers
+      , unliftio-core
+      , uuid
       , wai
       , warp
     hs-source-dirs:   lib-servant/src
@@ -76,15 +120,7 @@ library src
       Platform.Web
       -- Exposed so `test-suite spec` can import it, same as the modules
       -- below: a test-suite only sees a library's exposed-modules.
-      , Platform.Build
-      , Common.Validation
-      , Config.App
-      , Config.Db
-      , Config.Visualization
-      , Config.Web
-      , Data.Either
       , Data.HashTree
-      , Data.Text.Util
       -- Exposed (rather than other-modules) specifically so the
       -- `integration` test-suite can import them -- a cabal test-suite
       -- only sees a library's exposed-modules, never its other-modules
@@ -92,21 +128,10 @@ library src
       , Domain.Central.Responder.Api.Seed
       -- The graph layout engine is exposed so `test-suite spec` can
       -- import it: a test-suite only sees a library's exposed-modules.
-      , Domain.Project.Graph.Coord
-      , Domain.Project.Graph.Layer
-      , Domain.Project.Graph.Layout
-      , Domain.Project.Graph.Order
-      , Domain.Project.Graph.Route
-      , Domain.Project.Graph.Types
-      , Domain.Project.Model
-      , Domain.Project.Node.Status
       -- The orbital visualization's own geometry, exposed for the same
       -- reason: it is pure and dependency-free, so `test-suite spec`
       -- covers it. Deliberately not under Graph.*, which is the layered
       -- engine.
-      , Domain.Project.Orbit.Layout
-      , Domain.Project.Orbit.Types
-      , Domain.Project.Orbit.Unfold
       , Domain.Project.Responder.Api.Node.Post
       , Domain.Project.Responder.Ui.ProjectCreate.Submit
       -- Exposed for `test-suite integration`'s CommonSpec, which asserts
@@ -128,20 +153,14 @@ library src
       , Domain.Project.Responder.Ui.ProjectManage.Node.Status
       , Domain.Project.Responder.Ui.ProjectManage.Node.Title
       , Domain.Project.Responder.Ui.ProjectManage.Stats
-      , Domain.Project.Stats
-      , Environment.Db
       -- Exposed so `test-suite spec` can import it: the static-asset
       -- caching headers are a pure function of a file's metadata, and
       -- the suite covers them.
       , Platform.Web.Middleware
       -- Exposed for the same reason: the query-parameter helpers are
       -- pure, and the redirect built on them is covered by the suite.
-      , Common.Web.Query
     other-modules:
-      Common.Web.Attributes
-      , Common.Web.Elements
-      , Common.Web.Template.MainHeader
-      , Container.Build
+      Container.Build
       , Container.Root
       , Domain.Central.Container
       , Domain.Central.Responder.Ui.Empty
@@ -173,15 +192,12 @@ library src
       , Domain.System.Middleware.Logging.Common
       , Domain.System.Middleware.Logging.Request
       , Domain.System.Middleware.Logging.Response
-      , Logging.Core
-      , Logging.Database
-      , Environment.Env
-      , Environment.Logging
       , Platform.Web.Router
     other-extensions:
       OverloadedStrings
     build-depends:    
       aeson 
+      , servant-app
       , base ^>=4.18.3.0
       , bytestring
       , case-insensitive
@@ -225,13 +241,13 @@ test-suite spec
     main-is:            Spec.hs
     hs-source-dirs:     test
     other-modules:
-      Common.ValidationSpec
+      Common.EitherSpec
+      , Common.ValidationSpec
       , Common.Web.QuerySpec
       , Config.AppSpec
       , Config.DbSpec
       , Config.VisualizationSpec
       , Config.WebSpec
-      , Data.EitherSpec
       , Data.HashTreeSpec
       , Data.Text.UtilSpec
       , Domain.Project.Graph.CoordSpec
@@ -249,6 +265,7 @@ test-suite spec
     build-depends:
       base ^>=4.18.3.0
       , src
+      , servant-app
       , aeson
       , bytestring
       , case-insensitive
@@ -290,6 +307,7 @@ test-suite integration
     build-depends:
       base ^>=4.18.3.0
       , src
+      , servant-app
       , bytestring
       , directory
       , http-types
