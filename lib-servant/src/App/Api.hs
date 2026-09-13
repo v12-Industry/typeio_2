@@ -10,6 +10,7 @@ module App.Api
   , ManageProjectUi
   , NodeUi
   , NodeFieldUi
+  , AddWorkUi
   , api
   ) where
 
@@ -92,6 +93,11 @@ type NodeUi =
       :> QueryParam' '[Optional, Strict] "wrapWidth" Int
       :> UVerb 'GET '[HTML] '[WithStatus 200 (Html ()), WithStatus 204 NoContent]
 
+type AddWorkUi =
+  ProjectIdParam :> Get '[HTML] (Html ())
+    :<|> ReqBody '[FormUrlEncoded] Form
+      :> Post '[HTML] (Headers '[Header "HX-Trigger" Text] (Html ()))
+
 type NodeFieldUi =
   "title" :> ReqBody '[FormUrlEncoded] Form :> Put '[HTML] (Html ())
     :<|> "description" :> ReqBody '[FormUrlEncoded] Form :> Put '[HTML] (Html ())
@@ -110,7 +116,8 @@ type ManageProjectUi =
       :> ProjectIdParam
       :> VisualizationParam
       :> Get '[HTML] (Html ())
-    :<|> "node" :> (NodeUi :<|> NodeFieldUi)
+    :<|> "node" :> (NodeUi :<|> NodeFieldUi :<|> "create" :> AddWorkUi)
+    :<|> "stats" :> ProjectIdParam :> Get '[HTML] (Html ())
 
 type Api =
   "healthz" :> Get '[JSON] Health
