@@ -23,14 +23,19 @@ instance ToJSON ConfigDisplay where
       , "build" .= bd
       ]
 
+configDisplay :: AppConfig -> ConfigDisplay
+configDisplay cfg = ConfigDisplay cf cs buildInfo
+  where
+    ev = envName cfg
+    cf = preprocessConfig ev cfg
+    cs = maskField ev (connStr . dbConf $ cf)
+
 handleGetConfig :: AppConfig -> (Response -> IO ResponseReceived) -> IO ResponseReceived
-handleGetConfig cfg respond = do
-  let ev = envName cfg
-      cf = preprocessConfig ev cfg
-      cs = maskField ev (connStr . dbConf $ cf)
-      cd = ConfigDisplay cf cs buildInfo
-      js = encode cd
-  respond $ responseLBS status200 [("Content-Type", "application/json")] js
+handleGetConfig cfg respond =
+  respond
+    . responseLBS status200 [("Content-Type", "application/json")]
+    . encode
+    $ configDisplay cfg
 
 maskField :: EnvironmentName -> String -> String
 maskField Production _ = replicate 22 '*'

@@ -1,17 +1,17 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Platform.Web.Middleware where
+module App.Middleware
+  ( withMiddleware
+  ) where
 
+import App.Env (Env (..))
 import Config.App (AppConfig (..), webDefaultPath)
-import Container.Root (RootContainer (..))
 import Data.Text (pack)
-import Domain.Central.Container (CentralContainer (..))
 import Domain.Central.Middleware.IndexRender (renderIndexMiddleware)
-import Domain.Central.Responder.Ui.Container (Container (..))
+import Domain.Central.Responder.Ui.IndexView (handleIndexView)
 import Domain.System.Middleware.Logging.Request (requestLogMiddleware)
 import Domain.System.Middleware.Logging.Response (responseLogMiddleware)
 import Domain.System.Middleware.RequestId (requestIdMiddleware)
-import Environment.Env (Env (..))
 import Network.Wai (Middleware)
 import Network.Wai.Middleware.Static
   ( CacheContainer
@@ -23,10 +23,10 @@ import Network.Wai.Middleware.Static
   , staticWithOptions
   )
 
-withMiddleware :: Env -> RootContainer -> (Middleware -> IO a) -> IO a
-withMiddleware ev ct k = do
+withMiddleware :: Env -> (Middleware -> IO a) -> IO a
+withMiddleware ev k = do
   cc <- initCaching staticCachingStrategy
-  k (allMiddleware ev ct cc)
+  k (allMiddleware ev cc)
 
 staticCachingStrategy :: CachingStrategy
 staticCachingStrategy = CustomCaching $ \fm ->
@@ -35,18 +35,19 @@ staticCachingStrategy = CustomCaching $ \fm ->
   , ("Last-Modified", fm_lastModified fm)
   ]
 
-allMiddleware :: Env -> RootContainer -> CacheContainer -> Middleware
-allMiddleware ev ct cc =
-  let m =
-        [ requestIdMiddleware wc
-        , requestLogMiddleware wc lg
-        , responseLogMiddleware wc lg
-        , renderIndexMiddleware dp . indexView . centralUiContainer . central $ ct
-        , staticWithOptions defaultOptions {cacheContainer = cc}
-        ]
-   in foldr (.) id m
+allMiddleware :: Env -> CacheContainer -> Middleware
+allMiddleware ev cc =
+  foldr
+    (.)
+    id
+    [ requestIdMiddleware wc
+    , requestLogMiddleware wc lg
+    , responseLogMiddleware wc lg
+    , renderIndexMiddleware dp handleIndexView
+    , staticWithOptions defaultOptions {cacheContainer = cc}
+    ]
   where
-    cf = appConf ev
-    lg = logger ev
+    cf = envConfig ev
+    lg = envLogger ev
     wc = webConf cf
     dp = pack (webDefaultPath cf)
