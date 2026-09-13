@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 
 module App.Server
@@ -15,6 +16,7 @@ import App.Api
   , Health (..)
   , HxRedirect
   , ManageProjectUi
+  , NodeUi
   , ProjectApi
   , ProjectsUi
   , api
@@ -41,6 +43,7 @@ import Database.Persist (Entity (..), entityKey, entityVal)
 import Database.Persist.Sql (fromSqlKey)
 import Domain.Central.Responder.Api.Seed (seedReferenceData)
 import Domain.Central.Responder.Ui.Empty (templateEmpty)
+import qualified Domain.Project.Model as M
 import qualified Domain.Project.Responder.Api.Node.Get as NodeGet
 import qualified Domain.Project.Responder.Api.Node.Post as NodePost
 import qualified Domain.Project.Responder.Api.NodeStatus.Get as NodeStatusGet
@@ -50,6 +53,12 @@ import qualified Domain.Project.Responder.Ui.ProjectCreate.Submit as Submit
 import qualified Domain.Project.Responder.Ui.ProjectCreate.View as CreateView
 import qualified Domain.Project.Responder.Ui.ProjectIndex.List as IndexList
 import qualified Domain.Project.Responder.Ui.ProjectIndex.View as IndexView
+import qualified Domain.Project.Responder.Ui.ProjectManage.Node as NodePanel
+import qualified Domain.Project.Responder.Ui.ProjectManage.Node.Detail as NodeDetail
+import qualified Domain.Project.Responder.Ui.ProjectManage.Node.Edit as NodeEdit
+import qualified Domain.Project.Responder.Ui.ProjectManage.Node.Query as NodeQuery
+import qualified Domain.Project.Responder.Ui.ProjectManage.Node.Refresh as NodeRefresh
+import Domain.Project.Responder.Ui.ProjectManage.Node.Validation (nodeInProject)
 import qualified Domain.Project.Responder.Ui.ProjectManage.View as ManageView
 import qualified Domain.Project.Visualization.Common as Viz
 import Domain.Project.Visualization.Dispatch (renderFor)
@@ -62,8 +71,11 @@ import Servant
   ( Handler
   , Header
   , Headers
+  , NoContent (..)
   , Server
   , ServerT
+  , Union
+  , WithStatus (..)
   , addHeader
   , err404
   , err422
@@ -71,6 +83,7 @@ import Servant
   , errBody
   , hoistServer
   , noHeader
+  , respond
   , serve
   , (:<|>) (..)
   )
@@ -158,8 +171,9 @@ submitProject f = do
     Left (Submit.FormValidationFail es) ->
       noHeader (CreateView.projectCreateVwTemplate form es)
     Left _ -> noHeader (CreateView.projectCreateVwTemplate form ["Could not create the project"])
+
 manageProjectUi :: ServerT ManageProjectUi AppM
-manageProjectUi = manageProjectVw :<|> projectGraph
+manageProjectUi = manageProjectVw :<|> projectGraph :<|> nodeUi
 
 manageProjectVw ::
   Int64 ->
@@ -203,6 +217,64 @@ projectGraph pid mviz = do
       pure $ renderFor (fromMaybe defaultVisualization mviz) pid ns ds
   where
     noNodes = "No nodes found for the project" :: Text
+
+nodeUi :: ServerT NodeUi AppM
+nodeUi = nodePanel :<|> nodeDetail :<|> nodeEdit :<|> nodeRefresh
+
+nodePanel :: Int64 -> Int64 -> AppM (Html ())
+nodePanel pid nid = pure (NodePanel.templateNodePanel nid pid)
+
+nodeDetail :: Int64 -> Int64 -> AppM (Html ())
+nodeDetail pid nid =
+  renderNode
+    pid
+    nid
+    NodeDetail.templateNodeNotFound
+    NodeDetail.templateInvalidParams
+    (pure . NodeDetail.templateNodeDetail . entityVal)
+
+nodeEdit :: Int64 -> Int64 -> AppM (Html ())
+nodeEdit pid nid =
+  renderNode
+    pid
+    nid
+    NodeEdit.templateNodeNotFound
+    NodeEdit.templateInvalidParams
+    ( \nde -> do
+        nsts <- runDb NodeEdit.queryNodeStatuses
+        pure (NodeEdit.templateNodeEdit nsts nde)
+    )
+
+renderNode ::
+  Int64 ->
+  Int64 ->
+  Html () ->
+  ([Text] -> Html ()) ->
+  (Entity M.Node -> AppM (Html ())) ->
+  AppM (Html ())
+renderNode pid nid missing invalid found = do
+  mnde <- runDb (NodeQuery.queryNode nid)
+  case mnde of
+    Nothing -> pure missing
+    Just ent -> either (pure . invalid) found (nodeInProject pid ent)
+
+nodeRefresh ::
+  Int64 ->
+  Int64 ->
+  Text ->
+  Maybe Int ->
+  AppM (Union '[WithStatus 200 (Html ()), WithStatus 204 NoContent])
+nodeRefresh pid nid clientTitle mwrap = do
+  mnde <- runDb (NodeQuery.queryNode nid)
+  case mnde >>= either (const Nothing) Just . nodeInProject pid of
+    Nothing -> throwError err404 {errBody = "Node not found"}
+    Just nde
+      | pack (M.nodeTitle (entityVal nde)) == clientTitle ->
+          respond (WithStatus @204 NoContent)
+      | otherwise ->
+          respond (WithStatus @200 (NodeRefresh.templateRefresh wrapWidth nde))
+  where
+    wrapWidth = fromMaybe NodeRefresh.defaultWrapWidth mwrap
 
 healthz :: AppM Health
 healthz =

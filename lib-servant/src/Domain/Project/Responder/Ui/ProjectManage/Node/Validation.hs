@@ -8,14 +8,20 @@ import Data.Int (Int64)
 import Database.Persist.Sql (Entity (..), fromSqlKey)
 import qualified Domain.Project.Model as M
 
-validateNodeProjectId ::
-  Monad m =>
+nodeInProject ::
   Int64 ->
   Entity M.Node ->
-  EitherT [ValidationErr] m (Entity M.Node)
-validateNodeProjectId pid (Entity k e) = hoistEither . runValidation id $ do
+  Either [ValidationErr] (Entity M.Node)
+nodeInProject pid (Entity k e) = runValidation id $ do
   _ <-
     Just e
       .$ (fromSqlKey . M.nodeProjectId)
       >>= isEq pid "Invalid state. Node is not part of project"
   return . Just . Entity k $ e
+
+validateNodeProjectId ::
+  Monad m =>
+  Int64 ->
+  Entity M.Node ->
+  EitherT [ValidationErr] m (Entity M.Node)
+validateNodeProjectId pid = hoistEither . nodeInProject pid

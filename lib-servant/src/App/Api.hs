@@ -8,6 +8,7 @@ module App.Api
   , ProjectsUi
   , CreateProjectUi
   , ManageProjectUi
+  , NodeUi
   , CreatedNode (..)
   , HxRedirect
   , Health (..)
@@ -32,13 +33,17 @@ import Servant.API
   , Header
   , Headers
   , JSON
+  , NoContent
   , Optional
   , Post
   , PostCreated
   , QueryParam'
   , ReqBody
   , Required
+  , StdMethod (GET)
   , Strict
+  , UVerb
+  , WithStatus
   , (:<|>)
   , (:>)
   )
@@ -94,6 +99,22 @@ type VisualizationParam =
 
 type ViewParam n = QueryParam' '[Optional, Strict] n Double
 
+type NodeIdParam = QueryParam' '[Required, Strict] "nodeId" Int64
+
+-- A refresh whose client-held title already matches the stored one answers
+-- 204, which htmx treats as "nothing to swap". The two outcomes are distinct
+-- status codes on one route, so the union verb states both.
+type NodeUi =
+  "panel" :> ProjectIdParam :> NodeIdParam :> Get '[HTML] (Html ())
+    :<|> "detail" :> ProjectIdParam :> NodeIdParam :> Get '[HTML] (Html ())
+    :<|> "edit" :> ProjectIdParam :> NodeIdParam :> Get '[HTML] (Html ())
+    :<|> "refresh"
+      :> ProjectIdParam
+      :> NodeIdParam
+      :> QueryParam' '[Required, Strict] "clientTitle" Text
+      :> QueryParam' '[Optional, Strict] "wrapWidth" Int
+      :> UVerb 'GET '[HTML] '[WithStatus 200 (Html ()), WithStatus 204 NoContent]
+
 type ManageProjectUi =
   "vw"
     :> ProjectIdParam
@@ -107,6 +128,7 @@ type ManageProjectUi =
       :> ProjectIdParam
       :> VisualizationParam
       :> Get '[HTML] (Html ())
+    :<|> "node" :> NodeUi
 
 type Api =
   "healthz" :> Get '[JSON] Health
