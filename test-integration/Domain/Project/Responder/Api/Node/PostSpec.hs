@@ -2,50 +2,46 @@
 
 {- | The pilot integration test from
 @docs/solution-proposals/integration-testing.md@ §3/§11: exercises
-'handlePostNode' against a real, migrated, disposable Postgres
-rather than a hand-built fake -- exactly the multi-table,
+@POST /api/project/nodes@ against a real, migrated, disposable
+Postgres rather than a hand-built fake -- exactly the multi-table,
 foreign-key-driven flow a unit test (with or without a repository
 layer) can't meaningfully cover.
 -}
 module Domain.Project.Responder.Api.Node.PostSpec (spec) where
 
-import qualified Data.ByteString.Lazy.Char8 as LC8
+import qualified Data.ByteString.Char8 as C8
 import Data.Int (Int64)
 import Database.Persist (Entity (..), selectList, (==.))
 import Database.Persist.Sql (fromSqlKey, runSqlPool)
 import qualified Domain.Project.Model as M
-import Domain.Project.Responder.Api.Node.Post (handlePostNode)
 import Integration.Support
-  ( resetBetweenTests
+  ( SResponse
+  , TestApp (..)
+  , formBody
+  , headerOf
+  , httpPost
+  , resetBetweenTests
   , seedProjectWithRootNode
-  , withTestDatabase
-  )
-import Network.HTTP.Types (hContentType, methodPost)
-import Network.Wai (defaultRequest, requestHeaders, requestMethod)
-import Network.Wai.Test
-  ( SRequest (..)
-  , assertStatus
-  , runSession
-  , srequest
+  , statusOf
+  , withTestApp
   )
 import Test.Hspec
 
 spec :: Spec
-spec = aroundAll withTestDatabase $
+spec = aroundAll withTestApp $
   beforeWith resetBetweenTests $
-    describe "handlePostNode (integration)" $ do
-      it "inserts a new work Node into the project, with no dependency row" $ \pool -> do
-        (projectKey, _rootKey) <- seedProjectWithRootNode pool
+    describe "POST /api/project/nodes (integration)" $ do
+      it "inserts a new work Node into the project, with no dependency row" $ \ta -> do
+        (projectKey, _rootKey) <- seedProjectWithRootNode ta
 
-        runSession
-          ( do
-              resp <- srequest $ postNodeRequest (fromSqlKey projectKey) "ANewNode" "NewNode"
-              assertStatus 200 resp
-          )
-          (handlePostNode pool)
+        resp <- postNode ta (fromSqlKey projectKey) "ANewNode" "NewNode"
+        -- 201, not 200: the route is a PostCreated, and the Location
+        -- header is the other half of that answer.
+        statusOf resp `shouldBe` 201
+        headerOf "Location" resp `shouldSatisfy` (/= Nothing)
 
         newNodes <-
-          flip runSqlPool pool $
+          flip runSqlPool (testPool ta) $
             selectList [M.NodeTitle ==. "NewNode"] []
         case newNodes of
           [Entity newNodeKey newNode] -> do
@@ -60,7 +56,7 @@ spec = aroundAll withTestDatabase $
             -- ordering between two pieces of work and layout draws it as
             -- one.
             deps <-
-              flip runSqlPool pool $
+              flip runSqlPool (testPool ta) $
                 selectList [M.DependencyNodeId ==. newNodeKey] []
             length deps `shouldBe` 0
           other ->
@@ -68,31 +64,26 @@ spec = aroundAll withTestDatabase $
               "expected exactly one new Node titled \"NewNode\", got "
                 <> show (length other)
 
-      it "returns 404 when the project doesn't exist" $ \pool ->
-        runSession
-          ( do
-              resp <- srequest $ postNodeRequest 999999 "desc" "title"
-              assertStatus 404 resp
-          )
-          (handlePostNode pool)
+      it "returns 404 when the project doesn't exist" $ \ta -> do
+        resp <- postNode ta 999999 "desc" "title"
+        statusOf resp `shouldBe` 404
 
-{- | Builds a form-encoded @handlePostNode@ request the same way a real
-client would submit it (@application/x-www-form-urlencoded@, per
-'Domain.Project.Responder.Api.Node.Post.paramToPayload').
--}
-postNodeRequest :: Int64 -> LC8.ByteString -> LC8.ByteString -> SRequest
-postNodeRequest projectId descr title =
-  SRequest
-    { simpleRequest =
-        defaultRequest
-          { requestMethod = methodPost
-          , requestHeaders = [(hContentType, "application/x-www-form-urlencoded")]
-          }
-    , simpleRequestBody =
-        "description="
-          <> descr
-          <> "&title="
-          <> title
-          <> "&projectId="
-          <> LC8.pack (show projectId)
-    }
+      -- The payload is validated before a row is written, so a
+      -- rejected one is the caller's 422 rather than a constraint
+      -- violation surfacing as a 500.
+      it "returns 422 for an empty description" $ \ta -> do
+        (projectKey, _) <- seedProjectWithRootNode ta
+        resp <- postNode ta (fromSqlKey projectKey) "" "NewNode"
+        statusOf resp `shouldBe` 422
+
+postNode :: TestApp -> Int64 -> C8.ByteString -> C8.ByteString -> IO SResponse
+postNode ta projectId descr title =
+  httpPost
+    ta
+    "/api/project/nodes"
+    ( formBody
+        [ ("description", descr)
+        , ("title", title)
+        , ("projectId", C8.pack (show projectId))
+        ]
+    )

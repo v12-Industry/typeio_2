@@ -328,6 +328,7 @@ test-suite integration
       , hspec
       , mtl
       , persistent
+      , servant-server
       , testcontainers
       , text
       , time
