@@ -433,7 +433,7 @@ Steps, in order:
    their bind mounts would see an empty directory, and Postgres only
    runs its `docker-entrypoint-initdb.d` scripts once, at that early
    startup.
-3. `cabal run servant-server`, backgrounded (`nohup ... &`, survives the step
+3. `cabal run server`, backgrounded (`nohup ... &`, survives the step
    exiting since the process just keeps running on the same runner),
    pointed at that Postgres via the same env vars `.env` sets locally.
 4. `POST /api/central/seed-database` once the server's reachable — what

@@ -13,28 +13,9 @@ build-type:         Simple
 -- extra-source-files:
 
 common warnings
-    ghc-options: -Wall
+    ghc-options: -Wall -Wunused-packages
 
-executable server
-    import:           warnings
-    -- Warp needs the threaded RTS for its per-connection timeout-manager
-    -- machinery (GHC.Event.Thread.getSystemTimerManager) -- without
-    -- -threaded, the compiled binary links against the non-threaded RTS,
-    -- starts and accepts connections, but crashes handling every single
-    -- request. Nothing in CI or the unit/integration suites starts this
-    -- executable and sends it a real HTTP request over a socket, so
-    -- dropping -threaded would not be caught by any of them.
-    ghc-options:      -threaded -rtsopts "-with-rtsopts=-N"
-    main-is:          Main.hs
-    -- other-modules:
-    -- other-extensions:
-    build-depends:    
-      base ^>=4.18.3.0
-      , src 
-    hs-source-dirs:   exe/server
-    default-language: Haskell2010
-
-library servant-app
+library src
     import:
       warnings
     exposed-modules:
@@ -131,7 +112,6 @@ library servant-app
       , mtl
       , persistent
       , persistent-postgresql
-      , persistent-template
       , postgresql-simple
       , resource-pool
       , servant
@@ -143,106 +123,26 @@ library servant-app
       , unliftio-core
       , uuid
       , wai
-      , wai-extra
       , wai-middleware-static
       , warp
-    hs-source-dirs:   lib-servant/src
+    hs-source-dirs:   lib/src
     default-language: Haskell2010
 
-executable servant-server
+executable server
     import:           warnings
+    -- Warp needs the threaded RTS for its per-connection timeout-manager
+    -- machinery (GHC.Event.Thread.getSystemTimerManager) -- without
+    -- -threaded, the compiled binary links against the non-threaded RTS,
+    -- starts and accepts connections, but crashes handling every single
+    -- request. Nothing in CI or the unit/integration suites starts this
+    -- executable and sends it a real HTTP request over a socket, so
+    -- dropping -threaded would not be caught by any of them.
     ghc-options:      -threaded -rtsopts "-with-rtsopts=-N"
     main-is:          Main.hs
     build-depends:
       base ^>=4.18.3.0
-      , servant-app
-    hs-source-dirs:   exe/servant-server
-    default-language: Haskell2010
-
-library src
-    import:
-      warnings
-    exposed-modules:
-      Platform.Web
-      -- Exposed so `test-suite spec` can import it, same as the modules
-      -- below: a test-suite only sees a library's exposed-modules.
-      , Data.HashTree
-      -- Exposed (rather than other-modules) specifically so the
-      -- `integration` test-suite can import them -- a cabal test-suite
-      -- only sees a library's exposed-modules, never its other-modules
-      -- (see CLAUDE.md's notes on this from the unit-testing rollout).
-      -- The graph layout engine is exposed so `test-suite spec` can
-      -- import it: a test-suite only sees a library's exposed-modules.
-      -- The orbital visualization's own geometry, exposed for the same
-      -- reason: it is pure and dependency-free, so `test-suite spec`
-      -- covers it. Deliberately not under Graph.*, which is the layered
-      -- engine.
-      -- Exposed for `test-suite integration`'s CommonSpec, which asserts
-      -- on the SVG this renders.
-      -- Exposed for the switch's own integration spec, so it
-      -- exercises the real `renderFor` table rather than a copy that
-      -- could drift from it.
-      , Domain.Project.Responder.Ui.Container
-      -- Exposed for `test-suite integration`, which asserts on the page
-      -- shell these render and on its htmx wiring.
-      -- Exposed so `test-suite spec` can import it: the static-asset
-      -- caching headers are a pure function of a file's metadata, and
-      -- the suite covers them.
-      , Platform.Web.Middleware
-      -- Exposed for the same reason: the query-parameter helpers are
-      -- pure, and the redirect built on them is covered by the suite.
-    other-modules:
-      Container.Build
-      , Container.Root
-      , Domain.Central.Container
-      , Domain.Central.Responder.Ui.Container
-      , Domain.Central.Responder.Api.Container
-      , Domain.Project.Container
-      , Domain.Project.Responder.Api.Container
-      , Domain.System.Container
-      , Domain.System.Middleware.Container
-      , Domain.System.Responder.Container
-      , Platform.Web.Router
-    other-extensions:
-      OverloadedStrings
-    build-depends:    
-      aeson 
-      , servant-app
-      , base ^>=4.18.3.0
-      , bytestring
-      , case-insensitive
-      , clay
-      , containers
-      , dotenv
-      , esqueleto
-      , fast-logger
-      , gitrev
-      , hashable
-      , http-types
-      , lucid2
-      , lucid-svg
-      , mtl
-      , monad-logger
-      , network-uri 
-      , persistent
-      , persistent-postgresql
-      , persistent-template
-      , postgresql-simple
-      , resource-pool
-      , time
-      , text
-      , transformers
-      , transformers-base
-      , transformers-either
-      , unliftio-core
-      , unordered-containers
-      , uuid
-      , wai
-      , wai-extra
-      , wai-middleware-static
-      , wai-util
-      , warp
-    hs-source-dirs:   lib/src
+      , src
+    hs-source-dirs:   exe/server
     default-language: Haskell2010
 
 test-suite spec
@@ -252,6 +152,7 @@ test-suite spec
     hs-source-dirs:     test
     other-modules:
       App.LinkSpec
+      , App.MiddlewareSpec
       , App.ParamsSpec
       , Common.EitherSpec
       , Common.ValidationSpec
@@ -260,7 +161,6 @@ test-suite spec
       , Config.DbSpec
       , Config.VisualizationSpec
       , Config.WebSpec
-      , Data.HashTreeSpec
       , Data.Text.UtilSpec
       , Domain.Project.Graph.CoordSpec
       , Domain.Project.Graph.LayerSpec
@@ -272,18 +172,15 @@ test-suite spec
       , Domain.Project.Orbit.UnfoldSpec
       , Domain.Project.StatsSpec
       , Platform.BuildSpec
-      , Platform.Web.MiddlewareSpec
     build-tool-depends: hspec-discover:hspec-discover
     build-depends:
       base ^>=4.18.3.0
       , src
-      , servant-app
       , aeson
       , http-api-data
       , persistent
       , bytestring
       , case-insensitive
-      , hashable
       , containers
       , hspec
       , http-types
@@ -321,18 +218,15 @@ test-suite integration
     build-depends:
       base ^>=4.18.3.0
       , src
-      , servant-app
       , bytestring
       , directory
       , http-types
       , hspec
       , mtl
       , persistent
-      , servant-server
       , testcontainers
       , text
       , time
-      , transformers
       , wai
       , wai-extra
     default-language:   Haskell2010

@@ -185,7 +185,7 @@ jobs:
       # the `migrate` CLI, nothing extra to install on the runner) --
       # here as a plain `docker run` step rather than testcontainers,
       # since this Postgres needs to be up and reachable *before*
-      # `cabal run servant-server` starts, independent of any Haskell test
+      # `cabal run server` starts, independent of any Haskell test
       # process controlling it (unlike test-integration's own suite).
       - name: Start Postgres
         run: |
@@ -216,7 +216,7 @@ jobs:
       # exiting -- the process keeps running for the rest of the job,
       # same runner, no container boundary between steps.
       - name: Start server
-        run: nohup cabal run servant-server > server.log 2>&1 &
+        run: nohup cabal run server > server.log 2>&1 &
 
       # One server serves every visualization -- the drawing is a
       # `visualizationMode` query parameter, so a spec names the one it
