@@ -5,6 +5,7 @@
 
 module Domain.Project.Responder.Api.NodeType.Get where
 
+import Control.Monad.Reader (ReaderT)
 import Data.Aeson
   ( ToJSON
   , encode
@@ -14,7 +15,7 @@ import Data.Aeson
   )
 import Database.Esqueleto.Experimental (from, select, table)
 import Database.Persist (Entity (..))
-import Database.Persist.Sql (ConnectionPool, runSqlPool)
+import Database.Persist.Sql (ConnectionPool, SqlBackend, runSqlPool)
 import qualified Domain.Project.Model as M (NodeType (..), unNodeTypeKey)
 import Network.HTTP.Types (status200)
 import Network.Wai (Response, ResponseReceived, responseLBS)
@@ -29,8 +30,11 @@ instance ToJSON NodeType where
 
 handleGetNodeTypes :: ConnectionPool -> (Response -> IO ResponseReceived) -> IO ResponseReceived
 handleGetNodeTypes pl respond = do
-  ns <- encode . map toSchema <$> runSqlPool query pl
+  ns <- encode <$> runSqlPool listNodeTypes pl
   respond $ responseLBS status200 [("Content-Type", "application/json")] ns
+
+listNodeTypes :: ReaderT SqlBackend IO [NodeType]
+listNodeTypes = map toSchema <$> query
   where
     query = select $ from $ table @M.NodeType
     toSchema (Entity k _) =
