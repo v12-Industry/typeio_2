@@ -40,6 +40,7 @@ library servant-app
     exposed-modules:
       App.Api
       , App.Handler
+      , App.Link
       , App.Env
       , App.Html
       , App.Middleware
@@ -93,7 +94,6 @@ library servant-app
       , Domain.Project.Responder.Ui.ProjectCreate.View
       , Domain.Project.Responder.Ui.ProjectIndex.List
       , Domain.Project.Responder.Ui.ProjectIndex.View
-      , Domain.Project.Responder.Ui.ProjectManage.Link
       , Domain.Project.Responder.Ui.ProjectManage.Node
       , Domain.Project.Responder.Ui.ProjectManage.Node.Create
       , Domain.Project.Responder.Ui.ProjectManage.Node.Description
@@ -251,7 +251,8 @@ test-suite spec
     main-is:            Spec.hs
     hs-source-dirs:     test
     other-modules:
-      App.ParamsSpec
+      App.LinkSpec
+      , App.ParamsSpec
       , Common.EitherSpec
       , Common.ValidationSpec
       , Common.Web.QuerySpec

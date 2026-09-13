@@ -7,6 +7,10 @@ module Domain.Project.Responder.Ui.ProjectManage.Node.Create where
 
 import App.Env (AppM, runDb)
 import App.Handler (htmlError)
+import App.Link
+  ( addWorkSubmitLink
+  , emptyLink
+  )
 import Common.Validation
   ( ValidationErr
   , isNotEmpty
@@ -32,10 +36,6 @@ import Data.Time (UTCTime, getCurrentTime)
 import Database.Persist (Entity (..))
 import Database.Persist.Sql (ConnectionPool, Key, SqlBackend, fromSqlKey, insert, runSqlPool)
 import qualified Domain.Project.Model as M
-import Domain.Project.Responder.Ui.ProjectManage.Link
-  ( addWorkSubmitLink
-  , emptyLink
-  )
 import Domain.Project.Responder.Ui.ProjectManage.Node (templateNodePanel)
 import Domain.Project.Responder.Ui.ProjectManage.Node.Query
   ( queryNodeStatus

@@ -3,6 +3,7 @@
 module Domain.Project.Responder.Ui.ProjectCreate.View where
 
 import App.Env (AppM)
+import App.Link (createProjectSubmitLink)
 import Common.Web.Attributes
 import Common.Web.Template.MainHeader (templateNavHeader)
 import Control.Monad (forM_, unless)
@@ -40,7 +41,7 @@ projectCreateVwTemplate payload errs = do
     form_
       [ id_ "form-create-project"
       , class_ "form-basic"
-      , hxPost_ "/ui/create-project/submit"
+      , hxPost_ createProjectSubmitLink
       ]
       $ do
         span_ $ do

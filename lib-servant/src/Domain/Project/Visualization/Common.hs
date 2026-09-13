@@ -53,6 +53,7 @@ import Database.Esqueleto.Experimental
 import Database.Persist (Entity (..))
 import Database.Persist.Sql (ConnectionPool, SqlBackend, runSqlPool)
 
+import App.Link
 import Domain.Project.Graph.Layout (layout)
 import Domain.Project.Graph.Types
   ( Bounds (..)
@@ -84,7 +85,6 @@ import Domain.Project.Node.Status
   , nodeStatusClass
   , nodeStatusFromKey
   )
-import Domain.Project.Responder.Ui.ProjectManage.Link
 import Lucid
 import Network.HTTP.Types (queryToQueryText, status200, status302, status403)
 import Network.HTTP.Types.URI (QueryText, queryTextToQuery, renderQuery)
@@ -205,14 +205,6 @@ handleGraphWith drawGraph pl req respond = do
       queryToQueryText
         . queryString
         $ req
-
-pushUrl :: Int64 -> Int64 -> Text
-pushUrl nid pid =
-  "/ui/project/vw"
-    <> "?projectId="
-    <> (pack . show $ pid)
-    <> "&nodeId="
-    <> (pack . show $ nid)
 
 queryNodes :: Int64 -> ReaderT SqlBackend IO [Entity M.Node]
 queryNodes pid = do
@@ -462,7 +454,7 @@ nodeGroup sg n =
     , hxGet_ (nodePanelLink rawId pid)
     , hxTrigger_ "click"
     , hxTarget_ "#node-panel"
-    , hxPushUrl'_ (pushUrl rawId pid)
+    , hxPushUrl'_ (projectViewLink pid (Just rawId) Nothing)
     , hxSwap_ "innerHTML"
     ]
     $ do

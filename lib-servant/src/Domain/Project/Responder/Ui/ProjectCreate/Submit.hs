@@ -8,7 +8,9 @@
 
 module Domain.Project.Responder.Ui.ProjectCreate.Submit where
 
+import App.Api (HxRedirect)
 import App.Env (AppM, runDb)
+import App.Link (projectIndexLink)
 import Common.Validation
   ( ValidationErr
   , isNotEmpty
@@ -29,7 +31,6 @@ import Data.Aeson
   )
 import Data.ByteString (ByteString, toStrict)
 import Data.Maybe (listToMaybe)
-import Data.Text (Text)
 import qualified Data.Text as T (Text, unpack)
 import Data.Text.Encoding (decodeUtf8)
 import Data.Time (UTCTime, getCurrentTime)
@@ -60,11 +61,11 @@ import qualified Domain.Project.Responder.Ui.ProjectCreate.View as V
   ( AddProjectForm (..)
   , projectCreateVwTemplate
   )
-import Lucid (Html, renderBS)
+import Lucid (renderBS)
 import Network.HTTP.Types (HeaderName, status200, status500)
 import Network.Wai (Application, responseLBS)
 import Network.Wai.Parse (Param, lbsBackEnd, parseRequestBody)
-import Servant (Header, Headers, addHeader, noHeader)
+import Servant (addHeader, noHeader)
 import Web.FormUrlEncoded (Form, lookupMaybe)
 
 data ProjectAddResult
@@ -165,7 +166,7 @@ redirectHeader =
   let hd =
         encode $
           LocationResponseHeader
-            { path = "/ui/projects/vw"
+            { path = T.unpack projectIndexLink
             , target = "#container"
             }
    in ("Hx-Location", toStrict hd)
@@ -205,11 +206,6 @@ queryType tp = do
     limit 1
     pure t
   return . listToMaybe $ ns
-
-{- htmx redirects by header rather than by status, so the success and
-   failure arms of a submit share one status and differ by whether the
-   header is present. -}
-type HxRedirect = Headers '[Header "HX-Location" Text] (Html ())
 
 handler :: Form -> AppM HxRedirect
 handler f = do

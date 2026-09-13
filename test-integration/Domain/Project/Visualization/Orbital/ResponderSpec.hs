@@ -295,10 +295,10 @@ on it silently matches nothing.
 -}
 panelLink :: Key M.Node -> Int64 -> String
 panelLink k pid =
-  "/ui/project/node/panel?nodeId="
-    <> show (fromSqlKey k)
-    <> "&amp;projectId="
+  "/ui/project/node/panel?projectId="
     <> show pid
+    <> "&amp;nodeId="
+    <> show (fromSqlKey k)
 
 {- | @(node id, hue)@ for every disc in the document, read off the disc
 groups in document order.
