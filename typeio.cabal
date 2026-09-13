@@ -82,6 +82,11 @@ library servant-app
       , Domain.System.Middleware.Logging.Response
       , Domain.System.Middleware.RequestId
       , Domain.System.Responder.Config
+      , Domain.Project.Responder.Api.Node.Get
+      , Domain.Project.Responder.Api.Node.Post
+      , Domain.Project.Responder.Api.NodeStatus.Get
+      , Domain.Project.Responder.Api.NodeType.Get
+      , Domain.Project.Responder.Api.Project.Get
     build-depends:
       aeson
       , base ^>=4.18.3.0
@@ -106,6 +111,8 @@ library servant-app
       , resource-pool
       , servant
       , servant-server
+      , transformers-either
+      , wai-extra
       , text
       , time
       , transformers
@@ -145,7 +152,6 @@ library src
       -- reason: it is pure and dependency-free, so `test-suite spec`
       -- covers it. Deliberately not under Graph.*, which is the layered
       -- engine.
-      , Domain.Project.Responder.Api.Node.Post
       , Domain.Project.Responder.Ui.ProjectCreate.Submit
       -- Exposed for `test-suite integration`'s CommonSpec, which asserts
       -- on the SVG this renders.
@@ -179,10 +185,6 @@ library src
       , Domain.Central.Responder.Ui.Container
       , Domain.Central.Responder.Api.Container
       , Domain.Project.Container
-      , Domain.Project.Responder.Api.Node.Get
-      , Domain.Project.Responder.Api.NodeStatus.Get
-      , Domain.Project.Responder.Api.NodeType.Get
-      , Domain.Project.Responder.Api.Project.Get
       , Domain.Project.Responder.Api.Container
       , Domain.Project.Responder.Ui.ProjectManage.Link
       , Domain.Project.Responder.Ui.ProjectManage.Node

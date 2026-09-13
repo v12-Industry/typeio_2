@@ -28,7 +28,7 @@ import Data.ByteString (ByteString)
 import Data.Int (Int64)
 import Data.Maybe (listToMaybe)
 import Data.Text (Text, unpack)
-import Data.Text.Encoding (decodeUtf8)
+import Data.Text.Encoding (decodeUtf8, encodeUtf8)
 import Data.Time (UTCTime, getCurrentTime)
 import Database.Esqueleto.Experimental
   ( Entity
@@ -48,6 +48,7 @@ import qualified Domain.Project.Model as M
 import Network.HTTP.Types (status200, status404, status422, status500)
 import Network.Wai (Application, responseLBS)
 import Network.Wai.Parse (Param, lbsBackEnd, parseRequestBody)
+import Web.FormUrlEncoded (Form, lookupMaybe)
 
 data InsertNodeResult
   = FailValidation [ValidationErr]
@@ -75,6 +76,18 @@ instance ToJSON PostNodePayload where
       , "title" .= ttl
       ]
 
+formToPostNodeForm :: Form -> PostNodeForm
+formToPostNodeForm f =
+  PostNodeForm
+    { formDescription = look "description"
+    , formProjectId = look "projectId"
+    , formTitle = look "title"
+    }
+  where
+    look k = case lookupMaybe k f of
+      Right (Just v) -> Just (encodeUtf8 v)
+      _ -> Nothing
+
 paramToPayload :: [Param] -> PostNodeForm
 paramToPayload ps =
   PostNodeForm
@@ -83,25 +96,49 @@ paramToPayload ps =
     , formTitle = lookup "title" ps
     }
 
+createNode ::
+  PostNodeForm ->
+  UTCTime ->
+  ReaderT SqlBackend IO (Either InsertNodeResult (Entity M.Node))
+createNode form now = runEitherT $ do
+  pyl <- hoistEither . validateForm $ form
+  pr <-
+    lift (queryProject . projectId $ pyl)
+      >>= hoistMaybe ProjectNotFound
+  st <-
+    lift (queryStatus "active")
+      >>= hoistMaybe MissingStatus
+  tp <-
+    lift (queryType "work")
+      >>= hoistMaybe MissingType
+  let nd = toNode now pyl pr st tp
+  ky <- lift . insert $ nd
+  pure $ Entity ky nd
+
+toNode ::
+  UTCTime ->
+  PostNodePayload ->
+  Entity M.Project ->
+  Entity M.NodeStatus ->
+  Entity M.NodeType ->
+  M.Node
+toNode now pyl pr st tp =
+  M.Node
+    { M.nodeCreated = now
+    , M.nodeDeleted = Nothing
+    , M.nodeDescription = unpack . description $ pyl
+    , M.nodeNodeStatusId = entityKey st
+    , M.nodeNodeTypeId = entityKey tp
+    , M.nodeProjectId = entityKey pr
+    , M.nodeTitle = unpack . title $ pyl
+    , M.nodeUpdated = now
+    }
+
 handlePostNode :: ConnectionPool -> Application
 handlePostNode pl req respond = do
   form <- paramToPayload . fst <$> parseRequestBody lbsBackEnd req
   now <- getCurrentTime
-  rslt <- flip runSqlPool pl . runEitherT $ do
-    pyl <- hoistEither . validateForm $ form
-    pr <-
-      lift (queryProject . projectId $ pyl)
-        >>= hoistMaybe ProjectNotFound
-    st <-
-      lift (queryStatus "active")
-        >>= hoistMaybe MissingStatus
-    tp <-
-      lift (queryType "work")
-        >>= hoistMaybe MissingType
-    let nd = toNode now pyl pr st tp
-    ky <- lift . insert $ nd
-
-    pure $ Entity ky nd
+  rslt <- flip runSqlPool pl $ createNode form now
   case rslt of
     Right _ ->
       respond $
@@ -132,18 +169,6 @@ handlePostNode pl req respond = do
           status500
           [("Content-Type", "application/json")]
           (encode $ object ["error" .= ("Internal server error" :: Text)])
-    toNode now pyl pr st tp =
-      M.Node
-        { M.nodeCreated = now
-        , M.nodeDeleted = Nothing
-        , M.nodeDescription = unpack . description $ pyl
-        , M.nodeNodeStatusId = entityKey st
-        , M.nodeNodeTypeId = entityKey tp
-        , M.nodeProjectId = entityKey pr
-        , M.nodeTitle = unpack . title $ pyl
-        , M.nodeUpdated = now
-        }
-
 validateForm :: PostNodeForm -> Either InsertNodeResult PostNodePayload
 validateForm fm = runValidation FailValidation $ do
   dscr <-

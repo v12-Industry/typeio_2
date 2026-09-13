@@ -5,6 +5,7 @@
 
 module Domain.Project.Responder.Api.Project.Get where
 
+import Control.Monad.Reader (ReaderT)
 import Data.Aeson
   ( ToJSON
   , encode
@@ -15,7 +16,7 @@ import Data.Aeson
 import Data.Int (Int64)
 import Database.Esqueleto.Experimental (from, select, table)
 import Database.Persist (Entity (..))
-import Database.Persist.Sql (ConnectionPool, fromSqlKey, runSqlPool)
+import Database.Persist.Sql (ConnectionPool, SqlBackend, fromSqlKey, runSqlPool)
 import qualified Domain.Project.Model as M (Project (..))
 import Network.HTTP.Types (status200)
 import Network.Wai (Response, ResponseReceived, responseLBS)
@@ -30,8 +31,11 @@ instance ToJSON Project where
 
 handleGetProjects :: ConnectionPool -> (Response -> IO ResponseReceived) -> IO ResponseReceived
 handleGetProjects pl respond = do
-  ns <- encode . map toSchema <$> runSqlPool query pl
+  ns <- encode <$> runSqlPool listProjects pl
   respond $ responseLBS status200 [("Content-Type", "application/json")] ns
+
+listProjects :: ReaderT SqlBackend IO [Project]
+listProjects = map toSchema <$> query
   where
     query = select $ from $ table @M.Project
     toSchema (Entity k _) =
