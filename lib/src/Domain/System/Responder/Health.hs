@@ -2,10 +2,11 @@
 
 module Domain.System.Responder.Health where
 
-import App.Env (AppM)
+import App.Env (AppM, Env (..))
+import Control.Monad.Reader (asks)
 import Data.Aeson (ToJSON, object, toJSON, (.=))
 import Data.Text (Text, pack)
-import Platform.Build (BuildInfo (..), buildInfo)
+import Platform.Build (BuildInfo (..))
 
 data Health = Health
   { healthStatus :: Text
@@ -20,9 +21,11 @@ instance ToJSON Health where
       ]
 
 handler :: AppM Health
-handler =
-  pure
-    Health
-      { healthStatus = "ok"
-      , healthCommit = pack . commit $ buildInfo
-      }
+handler = asks (templateHealth . envBuild)
+
+templateHealth :: BuildInfo -> Health
+templateHealth bi =
+  Health
+    { healthStatus = "ok"
+    , healthCommit = pack . commit $ bi
+    }

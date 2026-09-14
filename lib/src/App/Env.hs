@@ -13,12 +13,14 @@ import Database.Persist.Sql (ConnectionPool, SqlBackend, runSqlPool)
 import Environment.Db (withPool)
 import Environment.Logging (withLogger)
 import Logging.Core (EntryLog)
+import Platform.Build (BuildInfo, loadBuildInfo)
 import Servant (Handler)
 
 data Env = Env
   { envConfig :: AppConfig
   , envLogger :: EntryLog
   , envPool :: ConnectionPool
+  , envBuild :: BuildInfo
   }
 
 type AppM = ReaderT Env Handler
@@ -34,3 +36,4 @@ withEnv cfg =
     Env cfg
       <$> withLogger
       <*> withPool (dbConf cfg)
+      <*> liftIO loadBuildInfo

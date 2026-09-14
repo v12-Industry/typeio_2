@@ -103,7 +103,6 @@ library src
       , dotenv
       , esqueleto
       , fast-logger
-      , gitrev
       , http-api-data
       , http-media
       , http-types
@@ -113,6 +112,7 @@ library src
       , persistent
       , persistent-postgresql
       , postgresql-simple
+      , process
       , resource-pool
       , servant
       , servant-server

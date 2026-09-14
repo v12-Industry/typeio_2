@@ -7,7 +7,7 @@ import Config.App (AppConfig (..), EnvironmentName (..))
 import Config.Db (DbConfig (..), connStr)
 import Control.Monad.Reader (asks)
 import Data.Aeson (ToJSON, object, toJSON, (.=))
-import Platform.Build (BuildInfo, buildInfo)
+import Platform.Build (BuildInfo)
 
 data ConfigDisplay = ConfigDisplay
   { configuration :: AppConfig
@@ -23,8 +23,8 @@ instance ToJSON ConfigDisplay where
       , "build" .= bd
       ]
 
-configDisplay :: AppConfig -> ConfigDisplay
-configDisplay cfg = ConfigDisplay cf cs buildInfo
+configDisplay :: BuildInfo -> AppConfig -> ConfigDisplay
+configDisplay bd cfg = ConfigDisplay cf cs bd
   where
     ev = envName cfg
     cf = preprocessConfig ev cfg
@@ -41,4 +41,4 @@ preprocessConfig env cfg = cfg {dbConf = db'}
     db' = d {password = maskField env (password d)}
 
 handler :: AppM ConfigDisplay
-handler = asks (configDisplay . envConfig)
+handler = configDisplay <$> asks envBuild <*> asks envConfig
