@@ -14,7 +14,7 @@ elsewhere.
 svg_ [ ..., h_ "on load transition my opacity to 1 over 200ms" ] $ do ...
 ```
 
-(`ProjectManage/Graph.hs`) The simplest form: one event (`on load`), one
+(`Visualization/Common.hs`) The simplest form: one event (`on load`), one
 imperative action, no state.
 
 ## The "throwaway trigger element" idiom

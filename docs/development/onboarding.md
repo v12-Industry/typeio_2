@@ -12,7 +12,7 @@ hang off of.
   `Config.Web` look up — `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USER`,
   `DB_PASS`, `DB_POOL_COUNT`, `DB_SCHEMA`, `ENV`,
   `WEB_INDEX_REDIRECT`, `WEB_REQUEST_ID_HEADER`). Loading is silently
-  best-effort (`Platform.Web.loadDotEnv` swallows a missing file), but
+  best-effort (`App.Server.loadDotEnv` swallows a missing file), but
   the app will fail fast at startup with every missing/invalid variable
   listed at once if any of these aren't actually set — see
   [`backend/environment.md`](backend/environment.md). `WEB_PORT` is the
@@ -125,34 +125,36 @@ picks it up automatically via a `PostToolUse` hook. See
 
 Roughly, from `cabal run server` down to a response:
 
-1. **`Platform.Web.main`** loads `.env`, loads and validates config
+1. **`App.Server.main`** loads `.env`, loads and validates config
    (`Config.App`), and acquires the process-lifetime resources —
    config/logger/DB pool — as an `Env` (see
    [`backend/environment.md`](backend/environment.md)).
-2. That `Env` is used to build a `RootContainer` — a tree of
-   already-wired handler functions, one branch per domain, each split
-   into API/UI sub-containers (see
-   [`backend/containers.md`](backend/containers.md)).
-3. Every request passes through an ordered middleware pipeline
-   (`Platform.Web.Middleware`) before routing: a request-id gets tagged
-   on, then request logging, then response logging, then the
-   index-render middleware (`Domain.Central.Middleware.IndexRender` —
-   for a direct/non-htmx request, or an htmx history-restore request, to
-   a `ui/.../vw` path, it re-wraps the response in the full `#container`
-   shell instead of returning a bare fragment, so a refreshed or
-   bookmarked URL still works), then static file serving. Order is
-   load-bearing here — request-id has to run before the two logging
-   middleware, or they'd have nothing to log (see
-   [`backend/logging.md`](backend/logging.md)).
-4. **`Platform.Web.Router.routeRequest`** takes what's left, matches the
-   request path and method against a hand-built route tree, and pulls
-   the specific handler out of the `RootContainer` for that route (see
+2. `App.Server.app` turns that `Env` into a WAI `Application`: it serves
+   the `App.Api.Api` type, with `hoistServer` lowering every handler's
+   `ReaderT Env Handler` into Servant's own `Handler` (see
    [`backend/routing.md`](backend/routing.md)).
-5. The handler runs — usually a DB query via esqueleto/persistent (which
-   is where the *second* logging pipeline, DB query logging, kicks in;
-   also covered in `backend/logging.md`) — and renders `Html ()` via
-   Lucid into the HTTP response body (see
-   [`ui/haskell-rendering.md`](ui/haskell-rendering.md)).
+3. Every request passes through an ordered middleware pipeline
+   (`App.Middleware`, composed *around* the application) before it
+   reaches a route: a request-id gets tagged on, then request logging,
+   then response logging, then the index-render middleware
+   (`Domain.Central.Middleware.IndexRender` — for a direct/non-htmx
+   request, or an htmx history-restore request, to a `ui/.../vw` path,
+   it re-wraps the response in the full `#container` shell instead of
+   returning a bare fragment, so a refreshed or bookmarked URL still
+   works), then static file serving. Order is load-bearing here —
+   request-id has to run before the two logging middleware, or they'd
+   have nothing to log (see [`backend/logging.md`](backend/logging.md)).
+4. **Servant matches the request against the API type**, parses every
+   query parameter and form body it declares, and calls the handler
+   `App.Server` paired with that route. A parameter that is missing or
+   malformed is a 400 here, before any handler runs.
+5. The handler runs in `AppM` — usually a DB query through `runDb`
+   (which is where the *second* logging pipeline, DB query logging,
+   kicks in; also covered in `backend/logging.md`) — and returns
+   `Html ()`, which the `HTML` content type renders into the response
+   body via Lucid (see
+   [`ui/haskell-rendering.md`](ui/haskell-rendering.md) and
+   [`backend/handlers.md`](backend/handlers.md)).
 6. In the browser, that response is usually the result of an
    [htmx](frontend/htmx.md) request swapping into `#container` or a
    narrower target — see [`ui/components.md`](ui/components.md) for what
@@ -165,17 +167,17 @@ Roughly, from `cabal run server` down to a response:
   Lucid-as-templating, and global vs. scoped CSS.
 - [`frontend/index.md`](frontend/index.md) — htmx and hyperscript.
 - [`backend/routing.md`](backend/routing.md),
+  [`backend/handlers.md`](backend/handlers.md),
   [`backend/environment.md`](backend/environment.md),
-  [`backend/containers.md`](backend/containers.md),
-  [`backend/logging.md`](backend/logging.md) — the bespoke backend stack,
-  one concern per file.
+  [`backend/logging.md`](backend/logging.md) — the backend, one concern
+  per file.
 - [`ci.md`](ci.md) — what CI runs on a PR, and how to reproduce it
   locally before pushing.
 - [`unit-testing.md`](unit-testing.md) — where tests live, how to run
   them, and what's in/out of scope.
 - [`integration-testing.md`](integration-testing.md) — the
-  Docker-backed suite that covers responders, which the unit suite
-  deliberately doesn't.
+  Docker-backed suite that drives the real application by URL, covering
+  what the unit suite deliberately doesn't.
 - [`labels.md`](labels.md) — the `type:*`/`area:*` GitHub issue label
   taxonomy, and when to use each.
 - [`release-management.md`](release-management.md) — how to cut a
@@ -189,5 +191,10 @@ Roughly, from `cabal run server` down to a response:
 
 ## A couple of things that will trip you up
 
-- **Routes match on a path prefix, not an exact path** — see
-  [`backend/routing.md`](backend/routing.md) for why.
+- **A malformed query parameter is a 400, not a default.** Every
+  parameter on every route is `Strict`, so `?projectId=` and
+  `?projectId=0x1` are both refused before a handler runs — see
+  [`backend/routing.md`](backend/routing.md#parameters).
+- **Don't write a URL as a string.** `App.Link` derives every one of
+  them from the route type, so a route that moves breaks its callers at
+  compile time instead of at runtime.

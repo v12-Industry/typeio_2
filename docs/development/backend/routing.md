@@ -1,108 +1,177 @@
 # Routing
 
-There is no routing library here — `Platform.Web.Router` is a
-purpose-built router on top of a small trie data structure
-(`Data.HashTree`). This doc explains both, since neither is discoverable
-by name the way a library would be.
+Routes are a **type**. `App.Api` declares the whole API as one Servant
+type, `App.Server` supplies a handler of the matching shape for every
+route in it, and the compiler checks the two against each other. There is
+no route table to keep in sync with anything, and no dispatch code to
+read — adding a route to the type and forgetting to handle it is a type
+error.
 
-## `Data.HashTree`: the data structure
+## The API type
 
-```haskell
-data HashTree k a = Branch (H.HashMap k (HashTree k a)) | Node a
-```
-
-A trie keyed by anything `Hashable` — here, `Text` path segments at the
-top level, and `Method` (HTTP method) one level below each resolved path.
-Three combinators build one:
+`App.Api.Api` is the root, one alternative per top-level route or group:
 
 ```haskell
-(<+>) :: Hashable k => HashTree k a -> k -> HashTree k a -> HashTree k a
-(-|)  :: (HashTree k a -> HashTree k a) -> a -> HashTree k a
-(-<)  :: (HashTree k a -> HashTree k a) -> HashTree k a -> HashTree k a
+type Api =
+  "healthz" :> Get '[JSON] Health
+    :<|> "ui" :> "central" :> "empty" :> Get '[HTML] (Html ())
+    :<|> "api" :> "central" :> "seed-database" :> Post '[JSON] Text
+    :<|> "api" :> "system" :> "config" :> Get '[JSON] ConfigDisplay
+    :<|> "api" :> "project" :> ProjectApi
+    :<|> "ui" :> "projects" :> ProjectsUi
+    :<|> "ui" :> "create-project" :> CreateProjectUi
+    :<|> "ui" :> "project" :> ManageProjectUi
 ```
 
-`t <+> key` is a partially-applied insert: it's a function still waiting
-for what to put at `key`. `-|` finishes it with a **leaf value** (wraps it
-in `Node`); `-<` finishes it with an **already-built subtree** (a
-`Branch`, i.e. more routes nested underneath). That's the whole
-vocabulary — read `<+> "foo" -| x` as "leaf `x` at `foo`" and `<+> "foo"
--< t` as "the whole subtree `t` nested at `foo`":
+A string literal is a path segment, `:>` is "and then", `:<|>` is
+"or". Groups that share a prefix are named types of their own —
+`ProjectApi`, `ManageProjectUi` and so on — so the prefix is written
+once and the group reads as a unit.
+
+`Api` also owns the response types the routes return, `CreatedNode` and
+`HxRedirect`. They live here rather than in the modules that build them
+so that nothing `App.Api` imports can import it back — which is what
+lets every rendering module derive URLs from it (see
+[Links](#links-are-derived-not-written) below).
+
+## Parameters
+
+Every query parameter is `Strict`, so a missing required one or a
+malformed one is a **400 before any handler runs**:
 
 ```haskell
-apiTree :: RootContainer -> Request -> RouteTree
-apiTree ctn req = emptyT
-  <+> "central" -< centralApiTree ctrCtn      -- nested subtree
-  <+> "project" -< projectApiTree prjCtn req
-  <+> "system"  -< systemApiTree  sysCtn req
+type ProjectIdParam = QueryParam' '[Required, Strict] "projectId" Int64
 
-centralApiTree :: CentralApiContainer -> RouteTree
-centralApiTree ctn = emptyT
-  <+> "seed-database" -| only "POST" (apiSeedDatabase ctn)  -- leaf
+type VisualizationParam =
+  QueryParam' '[Optional, Strict] "visualizationMode" Visualization
 ```
 
-Lookup (`findPath`) walks the path segments one at a time, following
-branches, and **stops the instant it reaches a `Node`** — regardless of
-how many path segments are left unconsumed:
+A `Required` parameter arrives at the handler as its plain type; an
+`Optional` one as `Maybe`. Parsing is `FromHttpApiData`, so a parameter's
+vocabulary is stated once as an instance and enforced everywhere the type
+appears — `App.Params` holds the instances the routes need, including
+`Visualization`, which is matched case-insensitively.
+
+`?projectId=0x1` is a 400, not project 1: `parseUrlPiece` for an integral
+type reads decimal, not Haskell literal syntax.
+
+## Verbs, and routes with more than one outcome
+
+The verb at the end of a route states its status and content types.
+`Get '[HTML] (Html ())` renders Lucid markup; `Get '[JSON] [Node]`
+renders JSON; `PostCreated` answers 201.
+
+A route whose success has two shapes says so with `UVerb`, listing every
+status it can answer:
 
 ```haskell
-findPath :: Hashable k => [k] -> HashTree k a -> Maybe a
-findPath _        (Node x)     = Just x
-findPath []       _            = Nothing
-findPath (p : ps) (Branch h)   = H.lookup p h >>= findPath ps
+"refresh"
+  :> ProjectIdParam
+  :> NodeIdParam
+  :> QueryParam' '[Required, Strict] "clientTitle" Text
+  :> QueryParam' '[Optional, Strict] "wrapWidth" Int
+  :> UVerb 'GET '[HTML] '[WithStatus 200 (Html ()), WithStatus 204 NoContent]
 ```
 
-**This means routes match on a path *prefix*, not the full path.** A
-request to `/api/central/seed-database/anything/else` resolves exactly
-the same as `/api/central/seed-database` — the extra segments are simply
-never looked at. There's no trailing-slash or exact-match validation
-happening anywhere in this router. If a handler ever needs to reject
-extra path segments, it has to do that itself; the router won't.
+A refresh whose client-held title already matches the stored one answers
+204, which htmx treats as "nothing to swap"; otherwise it answers 200
+with the new label. Both are on the route type, so the handler must
+produce one of exactly those two.
 
-## `Platform.Web.Router`: the route tree
+Response headers are part of the type too:
 
 ```haskell
-type RouteTree  = HashTree Text MethodTree
-type MethodTree = HashTree Method ((Response -> IO ResponseReceived) -> IO ResponseReceived)
+:> Post '[HTML] (Headers '[Header "HX-Trigger" Text] (Html ()))
 ```
 
-Two levels: path segments resolve to a `MethodTree`, which then resolves
-by HTTP method to the actual handler action. `routeRequest` does both
-lookups in sequence and falls back to a generic 404 if either misses:
+## The server
+
+`App.Server.server` mirrors the shape of `Api`, `:<|>` for `:<|>`:
 
 ```haskell
-routeRequest ctn req = fromMaybe (notFound req) $
-  findPath pth (rootTree ctn req) >>= findPath [mth]
-  where
-    pth = pathInfo req <|> [""]
-    mth = requestMethod req
+server :: ServerT Api AppM
+server =
+  Health.handler
+    :<|> Empty.handler
+    :<|> Seed.handler
+    :<|> SystemConfig.handler
+    :<|> projectApi
+    :<|> projectsUi
+    :<|> createProjectUi
+    :<|> manageProjectUi
 ```
 
-`pathInfo req <|> [""]` is there for exactly one case: WAI's `pathInfo`
-for `GET /` is `[]`, and the root route is registered at key `""`
-(`rootTree`'s `<+> "" -| only "GET" (index ...)`). `[] <|> [""]` (list
-`Alternative` is concatenation) gives `[""]`, which matches. For any
-non-root path this appends a harmless trailing `""` that's never reached,
-because `findPath` already stopped at the `Node` — see the prefix-match
-note above.
+Each leaf is a `handler` exported by the responder module for that route
+(`responder/api/<Domain>/<Verb>.hs`, `responder/ui/<Feature>/`), and each
+group is a local binding assembling that group's handlers. `App.Server`
+holds the wiring and nothing else: no request parsing, no rendering, no
+database access.
 
-The whole tree (`rootTree`, `apiTree`, `uiTree`, ...) is **rebuilt on
-every incoming request** — it's not a static table built once at startup.
-That's why several of the builder functions take `Request` as a
-parameter: routes whose handler needs to read the request directly (e.g.
-`ProjectApi.postNode ctn req`, which is a `Container` field typed
-`Application` — `Request -> (Response -> IO ResponseReceived) -> IO
-ResponseReceived` — partially applied to `req` right there in the tree)
-close over it at tree-construction time. This is cheap: the tree itself
-is a handful of hash-map inserts over small, fixed sets of string/method
-keys, not something that needs caching.
+Handlers run in `AppM = ReaderT Env Handler` (see
+[environment.md](environment.md)), which `hoistServer` lowers into
+Servant's own `Handler` once, at the top:
+
+```haskell
+app :: Env -> Application
+app = serve api . hoisted
+
+hoisted :: Env -> Server Api
+hoisted ev = hoistServer api (nt ev) server
+
+nt :: Env -> AppM a -> Handler a
+nt ev a = runReaderT a ev
+```
+
+A handler asks the environment for what it needs — `runDb` for a query,
+`asks envConfig` for configuration — rather than being handed
+pre-applied functions. That is the whole dependency story.
+
+## Errors
+
+A handler that cannot answer throws a `ServerError`:
+
+```haskell
+throwError err404 {errBody = "Node not found"}
+```
+
+For the UI routes the error body is markup, because htmx swaps a 4xx
+response into the page. `App.Handler.htmlError` attaches a rendered
+`Html ()` with the right content type, and `updateNodeField` turns the
+shared node-update failure cases into 404 or 422 accordingly. Not 5xx:
+htmx declines to swap those at all, so an error message rendered under a
+500 never reaches the page.
+
+## Links are derived, not written
+
+`App.Link` builds every URL the application emits with `safeLink` against
+`App.Api`, so a renamed route or a changed parameter breaks its call
+sites at compile time:
+
+```haskell
+nodePanelLink :: Int64 -> Int64 -> Text
+nodePanelLink nid pid = absolute (link (Proxy @(NodeRoute "panel")) pid nid)
+```
+
+Parameters come out in the order the route type declares them, and free
+text is percent-encoded. No module writes a URL as a string — see
+`App.LinkSpec` for the exact shapes.
+
+## Content types
+
+`HTML` is defined in `App.Html`: an `Accept` instance fixing
+`text/html; charset=utf-8`, and a `MimeRender` instance that is Lucid's
+`renderBS`. That is the entire integration between Servant and the
+rendering layer — a handler returns `Html ()` and the content type
+handles the rest.
 
 ## Adding a route
 
-1. Add the handler to the relevant domain's `Container` (see
-   [containers.md](containers.md)) if it isn't there already.
-2. Add a `<+> "segment" -| only "METHOD" (yourHandler ctn)` (or `-<` a
-   nested subtree, for a path with more segments underneath) at the
-   right point in `Platform.Web.Router`'s tree-building functions
-   (`rootTree`, `apiTree`, `uiTree`, or one of their sub-trees).
-3. There's no separate route registry to update — the tree in
-   `Platform.Web.Router` *is* the registry.
+1. Add it to the right group in `App.Api`, giving every parameter a
+   `Strict` `QueryParam'` and stating the verb's status and content
+   types.
+2. Add a `handler` to the responder module for it, typed to match.
+3. Wire it into the corresponding position in `App.Server`. The compiler
+   will tell you if the shape is wrong, and will not let you forget this
+   step.
+4. If anything links to it, add a builder to `App.Link` and use that
+   rather than writing the URL.

@@ -193,12 +193,14 @@ an issue is. It answers "which larger piece of work is this issue part
 of", so a sequence spanning many issues can be listed with one query:
 
 ```
-gh issue list --label epic:orbital
+gh issue list --label epic:manage-project-ux
 ```
 
-| Label | Groups |
-|---|---|
-| `epic:orbital` | Delivering the orbital dependency-weighted visualization — `../architecture/orbital-dependency-weighted-graph.md` |
+| Label | Groups | Status |
+|---|---|---|
+| `epic:manage-project-ux` | The Manage Project view redesign — `design/project-manage-001` | live |
+| `epic:migrate-servant` | Replacing the bespoke WAI/Warp stack with Servant — `../solution-proposals/servant-migration.md` | retired |
+| `epic:orbital` | Delivering the orbital dependency-weighted visualization — `../architecture/orbital-dependency-weighted-graph.md` | retired |
 
 It is **orthogonal to `viz:*`**, not a replacement for it. An epic
 routinely contains issues with different `viz:*` labels — `epic:orbital`
