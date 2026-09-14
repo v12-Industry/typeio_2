@@ -12,7 +12,7 @@ import Lucid
 import qualified Domain.Project.Model as M
 
 import App.Env (AppM)
-import App.Handler (FieldUpdateErr (..), nodeForUpdate, updateNodeField)
+import App.Handler (FieldUpdateErr (..), lookupNode, updateNodeField)
 import Control.Monad.Reader (ReaderT)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Either
@@ -116,7 +116,7 @@ handler form =
           . validatePayload
           . formToPostNodeStatusForm
           $ form
-      nde <- nodeForUpdate (payloadProjectId pyld) (payloadNodeId pyld)
+      nde <- lookupNode (payloadProjectId pyld) (payloadNodeId pyld)
       sts <-
         lift (queryStatus (payloadStatus pyld))
           >>= hoistMaybe (FieldInvalid ["Node status is required"])

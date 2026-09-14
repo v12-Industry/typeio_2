@@ -10,7 +10,7 @@ import Lucid
 import qualified Domain.Project.Model as M
 
 import App.Env (AppM)
-import App.Handler (FieldUpdateErr (..), nodeForUpdate, updateNodeField)
+import App.Handler (FieldUpdateErr (..), lookupNode, updateNodeField)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Either
   ( EitherT
@@ -103,6 +103,6 @@ handler form =
           . validatePayload
           . formToPutNodeTitleForm
           $ form
-      nde <- nodeForUpdate (payloadProjectId pyld) (payloadNodeId pyld)
+      nde <- lookupNode (payloadProjectId pyld) (payloadNodeId pyld)
       lift . replace (entityKey nde) $
         (entityVal nde) {M.nodeTitle = unpack (payloadTitle pyld)}
