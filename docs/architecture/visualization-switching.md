@@ -38,59 +38,55 @@ value that selects a drawing built on something other than the layered
 engine — see
 [`orbital-dependency-weighted-graph.md`](orbital-dependency-weighted-graph.md).
 
-### Absent takes the default; wrong is corrected
-
-Both end up drawing the default, but only one of them is worth telling
-the caller about:
+### Absent takes the default; wrong is refused
 
 | Request | Result |
 |---|---|
 | no `visualizationMode` | `defaultVisualization`, drawn directly |
 | `visualizationMode=Orbital` | that drawing |
-| `visualizationMode=Radial` | **302** to the same URL with the default |
-| `visualizationMode=orbital` | **302** — `Read` is case-sensitive on constructor names |
-| `visualizationMode=` (empty) | **302** — present and unparseable, not absent |
+| `visualizationMode=orbital` | that drawing — the vocabulary is matched case-insensitively |
+| `visualizationMode=Radial` | **400** |
+| `visualizationMode=` (empty) | **400** — present and unparseable, not absent |
 
 A value nobody supplied is an ordinary link, so it is answered on the
-spot. A value somebody got **wrong** is answered too, but by redirecting
-to the corrected URL rather than drawing something different from what
-was asked for under the original address. The redirect is what keeps a
-wrong value from being silently absorbed: the parameter in the address
-bar always names the drawing actually on screen, so "the graph looks
-wrong" cannot be caused by a typo the server quietly swallowed.
+spot with the default. A value somebody got **wrong** is refused, and
+that is the point: the parameter in the address bar always names the
+drawing actually on screen, so "the graph looks wrong" cannot be caused
+by a typo the server quietly swallowed.
 
-The empty case follows the same path. `lookupVal` returns `Just ""` for
-an empty parameter, so it is a value that does not parse rather than a
-missing one, and it is corrected like any other unparseable value.
-
-Resolution is a pure function on the raw parameter, in
-`Config.Visualization`:
+Casing is not a way to get it wrong. The vocabulary is stated
+explicitly — not derived from `Read` over the constructor names — and
+matched case-insensitively:
 
 ```haskell
-data VisualizationChoice
-  = AsRequested Visualization
-  | FellBack Visualization
+-- Config.Visualization
+visualizationText :: Visualization -> Text
+visualizationText Rootless = "Rootless"
+visualizationText Orbital  = "Orbital"
 
-resolveVisualization :: Maybe Text -> VisualizationChoice
+parseVisualization :: Text -> Maybe Visualization
+parseVisualization raw =
+  lookup (T.toLower raw)
+    [(T.toLower (visualizationText v), v) | v <- [minBound .. maxBound]]
 ```
 
-The two constructors are the whole point: both carry a visualization to
-draw, and they differ only in whether the caller asked for it. That is
-what lets one call site decide between rendering and redirecting without
-re-deriving why.
+`App.Params` wraps that as the `FromHttpApiData` instance the route type
+uses, so the refusal happens at the request boundary rather than in a
+handler:
 
-This deliberately does not go through `runValidation` the way other
-query parameters do. A validator's job is to decide whether a request is
-acceptable, and this parameter can no longer make one unacceptable —
-every input resolves to a drawing. Keeping it as a validator would mean
-a pipeline whose failure branch is unreachable.
+```haskell
+instance FromHttpApiData Visualization where
+  parseUrlPiece raw =
+    maybe (Left ("Unknown visualization: " <> raw)) Right (parseVisualization raw)
+```
 
-**Where the redirect points.** `setQueryParam` replaces the parameter in
-place and leaves every other one alone, so `projectId` and `nodeId`
-survive the correction. It targets the *explicit* default rather than
-dropping the parameter, so the answer is visible in the URL rather than
-implied by its absence — and because the target is a value that resolves
-to `AsRequested`, the redirect cannot loop.
+The empty case follows from the same instance: `""` is a value that does
+not parse rather than a missing one, and `Strict` means it is refused
+rather than treated as absent.
+
+An absent parameter reaches the handler as `Nothing` and takes
+`defaultVisualization` there. That is the only place the default is
+applied, and the only input that can reach it.
 
 ### The default is "whichever was added most recently"
 
@@ -107,8 +103,8 @@ that reason.
 
 ## 2. Where the switch happens
 
-Two pieces. The table of what each visualization is, in
-`Domain.Project.Responder.Ui.Container`:
+Both pieces live in `Domain.Project.Visualization.Dispatch`. The table of
+what each visualization is:
 
 ```haskell
 renderFor :: Visualization -> RenderGraph
@@ -116,17 +112,27 @@ renderFor Rootless = Rootless.renderGraph
 renderFor Orbital  = Orbital.renderGraph
 ```
 
-and the endpoint that consumes it, in
-`Domain.Project.Visualization.Common`:
+and the route's handler, which resolves the parameter and applies it:
 
 ```haskell
-handleGraph :: (Visualization -> RenderGraph) -> ConnectionPool -> Application
+handler :: Int64 -> Maybe Visualization -> AppM (Html ())
+handler pid mviz = do
+  ns <- runDb (Viz.queryNodes pid)
+  case ns of
+    [] -> throwError err404 {errBody = …}
+    _  -> do
+      ds <- runDb (Viz.queryDependencies (map (fromSqlKey . entityKey) ns))
+      pure $ renderFor (fromMaybe defaultVisualization mviz) pid ns ds
 ```
 
-`handleGraph` takes a **function**, not a `Visualization`: the shared
-module never learns which drawings exist, it resolves the parameter and
-applies the table it was handed. The list of visualizations stays in one
-place, and the shared request handling stays honest about being shared.
+The parameter arrives already parsed — `Maybe Visualization`, not text —
+because the route type says `QueryParam' '[Optional, Strict]
+"visualizationMode" Visualization`. An absent one takes the default here;
+an unrecognised one never reaches this function at all.
+
+`Domain.Project.Visualization.Common` holds the queries and the shared
+rendering both drawings use, and never learns which drawings exist. The
+list of visualizations stays in one place.
 
 ### The choice reaches the fragment, not just the page
 
@@ -198,7 +204,7 @@ import neither the engine nor the template.
 |---|---|
 | `Domain.Project.Graph.*` — the layered layout engine | Geometry, not policy. It takes nodes and edges and returns coordinates; it has no opinion about which nodes it was given. One copy means one place to fix a layout bug. |
 | `Domain.Project.Model` and the esqueleto queries | The domain, not a drawing of it. Two visualizations asking the same question of the database is not coupling; duplicating the query would let them silently disagree about what "the project" is. |
-| Request parsing, error responses (`handleGraphWith`) | Identical whichever drawing is selected. |
+| The route, its parameters, its queries and its error responses (`Dispatch.handler`) | Identical whichever drawing is selected. |
 | `graphFrame` — the navigable shell | The viewport, not the drawing. Six load-bearing details (no `viewBox`, the base-size attributes, `#graph-zoom-layer`, the origin shift, the anchor conversion, and the script tag living *inside* the fragment) that every visualization needs identically and none of which are apparent from the markup. Hand-rolling it gets pan/zoom subtly wrong with nothing to catch it. |
 | The SVG vocabulary — `edgeLine`, `nodeGroup`, `nodeLabel`, `arrowMarker`, `templateServerGraph` | Presentation primitives, the same tier as `Common.Web.Elements`. Available to any visualization; used in practice by the layered ones, since they are what draws rects and orthogonal paths. |
 | `Data.*` / `Common.*` utilities | General-purpose library code. `wrapLabel` wraps text; it does not know what a graph is. |
@@ -310,10 +316,10 @@ makes, or brings a third.
   every one of those would also pass on a visualization that drew
   nothing at all.
 - **Every visualization is exercised**, not only the default one. Each
-  spec constructs its handler directly, so adding a visualization cannot
-  quietly change what an existing test asserts. The switch itself is
-  covered separately, driving `handleGraph` with the real `renderFor`
-  table so a spec cannot pass against a table that has lost an entry.
+  spec names the drawing it is about with `?visualizationMode=`, so
+  adding a visualization cannot quietly change what an existing test
+  asserts. The switch itself is covered separately, driving the real
+  route so a spec cannot pass against a table that has lost an entry.
 
 ## 6. How an issue says which visualization it is for
 

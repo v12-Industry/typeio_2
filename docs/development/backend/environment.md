@@ -2,36 +2,38 @@
 
 "Environment" here means the small set of system-level resources the
 whole app runs on — config, a logger, a database connection pool — that
-exist exactly once, get acquired at startup, and get threaded down into
-everything else. It is **not** where domain/business dependencies live;
-that's [Containers](containers.md). This doc covers the raw resources;
-Containers covers how they get reshaped into what individual handlers
-need.
+exist exactly once, get acquired at startup, and are then available to
+every handler. It is the *only* place a handler's dependencies come
+from: there is no injection layer between a route and the code answering
+it — see [handlers.md](handlers.md).
 
 ## `Env`
 
 ```haskell
--- Environment.Env
+-- App.Env
 data Env = Env
-  { appConf :: AppConfig
-  , logger  :: EntryLog
-  , pool    :: ConnectionPool
+  { envConfig :: AppConfig
+  , envLogger :: EntryLog
+  , envPool   :: ConnectionPool
   }
 
-withEnv :: AppConfig -> (Env -> IO r) -> IO r
-withEnv cfg = runContT $
-  Env cfg <$> withLogger <*> withPool (dbConf cfg)
+withEnv :: AppConfig -> (Env -> IO a) -> IO a
+withEnv cfg =
+  runContT $
+    Env cfg
+      <$> withLogger
+      <*> withPool (dbConf cfg)
 ```
 
 Three resources, acquired once, for the lifetime of the process:
 
-- `appConf :: AppConfig` — already-loaded, already-validated
+- `envConfig :: AppConfig` — already-loaded, already-validated
   configuration (see below). Not acquired via `ContT`; it's pure data,
-  loaded before `withEnv` runs (`Platform.Web.main`).
-- `logger :: EntryLog` — from `Environment.Logging.withLogger`, a
+  loaded before `withEnv` runs (`App.Server.main`).
+- `envLogger :: EntryLog` — from `Environment.Logging.withLogger`, a
   `TimedFastLogger` writing structured JSON to stdout. See
   [logging.md](logging.md).
-- `pool :: ConnectionPool` — from `Environment.Db.withPool`, a
+- `envPool :: ConnectionPool` — from `Environment.Db.withPool`, a
   `persistent` connection pool, itself wrapped so every query it runs is
   logged as structured JSON — via a *second*, independent logger from
   the one above, not the same `EntryLog` (see [logging.md](logging.md),
@@ -42,9 +44,25 @@ Three resources, acquired once, for the lifetime of the process:
 ConnectionPool` rather than plain `IO` actions — `ContT` gives
 bracket-style acquire/release (the fast-logger and the connection pool
 both need cleanup on shutdown) without hand-writing nested `bracket`
-calls. `Container.Build.withRootContainer` continues the same `ContT`
-chain one level further to build the [Containers](containers.md) from
-this `Env`.
+calls.
+
+## How a handler reaches it
+
+`AppM` is `ReaderT Env Handler`, and `App.Server` lowers it into
+Servant's own `Handler` once, at the top, with `hoistServer` (see
+[routing.md](routing.md#the-server)). So a handler reads the environment
+the ordinary way:
+
+```haskell
+runDb :: ReaderT SqlBackend IO a -> AppM a
+runDb q = do
+  pl <- asks envPool
+  liftIO (runSqlPool q pl)
+```
+
+`envLogger` is the exception: nothing in `AppM` reads it. It is there for
+the [middleware](logging.md), which is composed around the application
+rather than inside it.
 
 ## Config
 

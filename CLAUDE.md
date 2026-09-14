@@ -9,23 +9,27 @@ graph-based layout for visualizing and managing those dependencies.
 ## Tech Stack & Architecture
 
 - **Language & Runtime:** Haskell, built with `cabal` (GHC via `ghcup`).
-- **Web layer:** no external framework (no Scotty/Servant/Yesod) — a
-  hand-rolled stack on WAI/Warp:
-  - Routing: a custom tree-based router (`Platform.Web.Router`, built on
-    `Data.HashTree` combinators), not string-pattern matching.
-  - Dependency wiring: a `Container` pattern (`Container.Root`,
-    `Container.Build`) — root → per-domain → API/UI sub-containers, each
-    holding just the dependencies its handlers need. This project's form
-    of DI; no typeclass-based effects system.
-  - Middleware: an ordered pipeline in `Platform.Web.Middleware`
-    (request-id tagging, request/response logging, index rendering,
-    static file serving) — order matters, it's composed via `foldr1 (.)`.
+- **Web layer:** Servant on WAI/Warp.
+  - Routing: the API is a **type** (`App.Api.Api`), and `App.Server`
+    supplies a handler of the matching shape for each route in it. There
+    is no route table and no dispatch code — a route the server doesn't
+    answer is a type error. Every query parameter is `Strict`, so a
+    missing or malformed one is a 400 before a handler runs.
+  - URLs: `App.Link` derives every URL the app emits from the route
+    type with `safeLink`. Don't write one as a string.
+  - Dependency wiring: `AppM = ReaderT Env Handler`, lowered once by
+    `hoistServer`. A handler asks the environment for what it needs
+    (`runDb`, `asks envConfig`); there is no injection layer. Shared
+    handler shapes live in `App.Handler`.
+  - Middleware: an ordered pipeline in `App.Middleware`, composed
+    *around* the application (request-id tagging, request/response
+    logging, index rendering, static file serving) — order matters.
   - Logging: structured JSON via `Logging.Core` (`fast-logger`), with two
     consumers — DB query logging (`Logging.Database`) and HTTP
     request/response logging (`Domain.System.Middleware.Logging.*`),
     correlated by a per-request UUID.
   - Full write-up: [`docs/development/backend/`](docs/development/backend/)
-    (one file each for routing, environment, containers, logging).
+    (one file each for routing, handlers, environment, logging).
 - **HTML rendering:** Lucid — UI is built as Haskell combinators
   (`Html ()` values, e.g. `div_`, `header_`) evaluated server-side to
   HTML. There are no template files; a `View.hs`/template module per
@@ -58,12 +62,12 @@ cases:
 | `#container`/`#view`, Lucid rendering, CSS conventions | `docs/development/ui/` |
 | htmx or hyperscript attribute patterns | `docs/development/frontend/` |
 | What `design/` holds and how much authority a mockup has | `docs/development/ux/` |
-| The router, `Env`, containers (DI), or logging | `docs/development/backend/` (one file each) |
+| The API type and routing, how handlers get their dependencies, `Env`, or logging | `docs/development/backend/` (one file each) |
 | The `project` DB schema: entities, columns, relationships, ER diagram | `docs/development/backend/database-schema.md` |
 | CI: what it runs, when, and how to reproduce it locally | `docs/development/ci.md` |
 | Dependabot / security scanning: what runs, where findings show up, how to triage | `docs/development/dependency-security.md` |
-| Running/writing unit tests, and what's out of scope (responders) | `docs/development/unit-testing.md` |
-| Running/writing integration tests (the responder-testing answer) | `docs/development/integration-testing.md` |
+| Running/writing unit tests, and what's out of scope (handlers) | `docs/development/unit-testing.md` |
+| Running/writing integration tests (the handler-testing answer -- drives the real app by URL) | `docs/development/integration-testing.md` |
 | Running/writing E2E tests (Playwright, htmx interaction hazards, CI's `run-e2e` label) | `docs/development/e2e-testing.md` |
 | Anything touching the dependency graph's layout or rendering | `docs/architecture/graph-rendering.md` -- the *layered* layout engine's pipeline: module map, per-phase contracts, and the dependency-vs-containment distinction |
 | How the app holds several graph visualizations and picks one, and what they may share | `docs/architecture/visualization-switching.md` -- the request parameter, the dispatch table, and what visualizations share |
@@ -434,7 +438,7 @@ Quick summary:
   A directory whose case doesn't match its module path works fine on
   macOS's case-insensitive filesystem and fails outright on CI's Linux
   runner, where GHC reports `Cabal-7554: can't find source for
-  Platform/Web in lib/src`. A mismatch can also live in the **git
+  App/Server in lib/src`. A mismatch can also live in the **git
   index** while `ls` shows the right thing, which a filesystem walk
   cannot detect on a case-preserving filesystem.
 - **Renaming for case alone needs two steps.** `git mv old New` fails

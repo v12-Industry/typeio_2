@@ -44,7 +44,7 @@ Both middleware just read that header back out — request and response
 logs for the same request share the same `requestId` value in their JSON
 output, which is what makes them joinable in whatever reads the logs.
 Ordering matters here: `RequestId` has to run before the two logging
-middleware in `Platform.Web.Middleware`'s pipeline, or there's no header
+middleware in `App.Middleware`'s pipeline, or there's no header
 yet for them to read.
 
 Both `Request`/`Response` share one small helper,

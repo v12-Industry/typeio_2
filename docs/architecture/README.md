@@ -47,7 +47,7 @@ E2E suite".
 ## A known inconsistency
 
 Several docs that are arguably architecture already live under
-`development/` — `backend/routing.md`, `backend/containers.md`,
+`development/` — `backend/routing.md`, `backend/handlers.md`,
 `backend/database-schema.md`, `ui/components.md`. They predate this
 directory and have **not** been moved: they describe things that are
 fully built, so they are not wrong where they are, and a bulk migration

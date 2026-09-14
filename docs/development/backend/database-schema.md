@@ -97,7 +97,7 @@ rows here** — the two values the app actually uses (`project_root`,
 `work`) are seeded at runtime by
 `Domain.Central.Responder.Api.Seed.nodeTypes`
 (`lib/src/Domain/Central/Responder/Api/Seed.hs`), which `insertUnique`s
-them via the `handleSeedDatabase` responder (`make seed-db`). Whatever
+them via the seed endpoint (`make seed-db`). Whatever
 rows exist in a given database are whatever that seed step has inserted
 into it — not something you'll find by reading `migrations/` alone.
 
@@ -121,7 +121,7 @@ CREATE TABLE project.node_status (
 Same shape and same story as `node_type`: a `VARCHAR`-keyed lookup
 table with no migration-inserted rows. `Domain.Central.Responder.Api
 .Seed.nodeStatuses` seeds four values — `active`, `closed`, `open`,
-`rejected` — the same way, via `handleSeedDatabase`.
+`rejected` — the same way, via the seed endpoint.
 
 ### `project.node_status_change`
 

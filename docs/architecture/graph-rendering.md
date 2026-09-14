@@ -65,24 +65,24 @@ flowchart TD
     F["4. Order within layers<br/>Graph.Order"] --> G
     G["5. Assign coordinates<br/>Graph.Coord"] --> H
     H["6. Route edges<br/>Graph.Route"] --> I
-    I["Diagram"] --> J["SVG via Lucid<br/>ProjectManage/Graph.hs"]
+    I["Diagram"] --> J["SVG via Lucid<br/>Visualization/Common.hs"]
 ```
 
 Everything from `LayoutNode`/`LayoutEdge` to `Diagram` is pure. The
-responder does the I/O on either side of it and nothing else.
+route's handler does the I/O on either side of it and nothing else.
 
 ## Module map
 
 | Module | Owns |
 |---|---|
 | `Domain.Project.Graph.Types` | Every type below; no logic |
-| `Domain.Project.Graph.Containment` | Which work the root attaches to |
 | `Domain.Project.Graph.Layer` | Cycle breaking, layer assignment, dummy insertion |
 | `Domain.Project.Graph.Order` | Crossing reduction, crossing counter |
 | `Domain.Project.Graph.Coord` | x/y assignment, component packing |
 | `Domain.Project.Graph.Route` | Ports, tracks, polylines, line jumps |
 | `Domain.Project.Graph.Layout` | The pipeline; the one entry point callers use |
-| `Domain.Project.Responder.Ui.ProjectManage.Graph` | Queries, entity → layout conversion, SVG rendering |
+| `Domain.Project.Visualization.Common` | Queries, entity → layout conversion, SVG rendering |
+| `Domain.Project.Visualization.Rootless.Responder` | Which nodes and edges this drawing is *of* |
 
 ### The one hard rule
 
@@ -595,11 +595,11 @@ proxy.
 
 **`#node-text-<id>` is a contract, not an implementation detail.** The
 label element and the hook that refreshes it are written ~40 lines apart
-in `ProjectManage/Graph.hs`, and nothing in the type system ties them
+in `Visualization/Common.hs`, and nothing in the type system ties them
 together. A constant id here would both repeat one id across the
 document and aim the refresh hook at an element that does not exist, and
 neither shows up as an error — so it is pinned by an integration test
-(`test-integration/…/ProjectManage/GraphSpec.hs`).
+(`test-integration/…/Visualization/Rootless/ResponderSpec.hs`).
 
 **Labels are positioned by a `transform` on the `<text>`, not by `x`/`y`
 on it and every `<tspan>`.** That puts the text origin at the centre of

@@ -687,7 +687,8 @@ The per-visualization surface is **render**, not build:
 type RenderGraph =
   Int64 -> [Entity M.Node] -> [Entity M.Dependency] -> Html ()
 
-handleGraphWith :: RenderGraph -> ConnectionPool -> Application
+-- Domain.Project.Visualization.Dispatch
+renderFor :: Visualization -> RenderGraph
 ```
 
 It has to be there rather than one step in. The narrower surface would
@@ -736,7 +737,7 @@ requires.
 ### Selection
 
 `Orbital` joins `Config.Visualization.Visualization`, and the switch in
-`Domain.Project.Responder.Ui.Container` gains a third case.
+`Domain.Project.Visualization.Dispatch` gains a third case.
 
 Selected per request, `?visualizationMode=Orbital` — on the graph
 fragment, or on the project page, which forwards it.

@@ -84,7 +84,7 @@ general-purpose REST API, they're autosave hooks for one field each.
 
 ## Pattern: event-driven triggers
 
-`ProjectManage/Graph.hs`'s node labels listen for a custom event rather
+`Visualization/Common.hs`'s node labels listen for a custom event rather
 than a user action:
 
 ```haskell

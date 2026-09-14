@@ -87,7 +87,7 @@ sub-fragments independently, at finer granularity:
   itself htmx-loads (`hxTrigger_ "load"`) the project cards from
   `ProjectIndex/List.hs`'s `templateList` — a second, nested round trip
   inside the page that's already inside `#container`'s round trip.
-- The dependency graph (`ProjectManage/Graph.hs`) targets `#node-panel`
+- The dependency graph (`Visualization/Common.hs`) targets `#node-panel`
   directly when a node is clicked, and individual node labels target
   their own `#node-text-<id>` when refreshed — neither touches `#view` or
   `#container` at all.

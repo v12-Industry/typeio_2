@@ -33,14 +33,16 @@ validation errors).
 The convention is one module per page/feature under
 `responder/ui/<Feature>/`, usually named `View.hs`, exposing:
 
-- a WAI handler (`handleProjectCreateVw`, `handleGetNodeRefresh`, ...)
-  that does I/O (DB queries, request parsing) and eventually calls
-  `renderBS` on a template value to produce the response body, and
+- a route's `handler` (`ProjectCreate.View.handler`,
+  `Node.Refresh.handler`, ...) that does the I/O — usually a DB query
+  through `runDb` — and returns the template's `Html ()`, which the
+  `HTML` content type renders into the response body, and
 - a pure template function (`projectCreateVwTemplate`, `templateRefresh`,
   ...) that only knows how to turn already-fetched data into `Html ()`.
 
-Keeping those separate means the HTML-shape logic doesn't depend on WAI
-or the database at all.
+Keeping those separate means the HTML-shape logic doesn't depend on
+Servant or the database at all — which is why the templates are reachable
+by name from the specs that assert on their markup.
 
 ## Escaping Lucid's built-in vocabulary
 
@@ -60,8 +62,8 @@ Lucid's own escape hatches (`Lucid.Base`):
 - **`Common.Web.Elements`** — arbitrary elements via `term`, for the SVG
   tags Lucid has no combinator for: `rect_`, `path_`, `g_`, `marker_`,
   `defs_`, `text_`, `tspan_`, plus `circle_` and `line_`, which nothing
-  currently uses. Used exclusively by the dependency-graph template
-  (`ProjectManage/Graph.hs`).
+  currently uses. Used by the dependency-graph templates
+  (`Visualization/Common.hs`, `Visualization/Orbital/View.hs`).
 
 If you need an attribute or element that isn't already in one of these
 two modules, add it there rather than reaching for a raw string
