@@ -25,13 +25,14 @@ import Control.Monad.Error.Class (throwError)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ReaderT)
 import Control.Monad.Trans.Class (lift)
-import Control.Monad.Trans.Either (hoistMaybe, runEitherT)
+import Control.Monad.Trans.Either (hoistEither, hoistMaybe, runEitherT)
+import Data.Bifunctor (first)
 import Data.Int (Int64)
 import Data.Text (Text, strip, unpack)
 import Data.Text.Util (intToText)
 import Data.Time (UTCTime, getCurrentTime)
 import Database.Persist (Entity (..))
-import Database.Persist.Sql (Key, SqlBackend, fromSqlKey, insert)
+import Database.Persist.Sql (SqlBackend, fromSqlKey, insert)
 import qualified Domain.Project.Model as M
 import Domain.Project.Responder.Ui.ProjectManage.Node (templateNodePanel)
 import Domain.Project.Responder.Ui.ProjectManage.Node.Query
@@ -44,19 +45,48 @@ import Servant (Header, Headers, addHeader, err422, err500)
 import Web.FormUrlEncoded (Form, lookupMaybe)
 
 data CreateWorkError
-  = ProjectMissing
+  = FormInvalid [ValidationErr]
+  | TitleInvalid Int64 [ValidationErr]
+  | ProjectMissing Int64
   | ReferenceMissing
+
+data AddWorkForm = AddWorkForm
+  { formProjectId :: Maybe Text
+  , formTitle :: Maybe Text
+  }
+
+formToAddWorkForm :: Form -> AddWorkForm
+formToAddWorkForm f =
+  AddWorkForm
+    { formProjectId = look "projectId"
+    , formTitle = look "title"
+    }
+  where
+    look k = case lookupMaybe k f of
+      Right (Just v) -> Just v
+      _ -> Nothing
 
 createWork ::
   UTCTime ->
-  Text ->
-  Int64 ->
-  ReaderT SqlBackend IO (Either CreateWorkError (Key M.Node))
-createWork now ttl pid = runEitherT $ do
-  prj <- lift (queryProject pid) >>= hoistMaybe ProjectMissing
+  AddWorkForm ->
+  ReaderT SqlBackend IO (Either CreateWorkError (Entity M.Node))
+createWork now form = runEitherT $ do
+  pid <-
+    hoistEither
+      . first FormInvalid
+      . validateProjectId
+      $ formProjectId form
+  ttl <-
+    hoistEither
+      . first (TitleInvalid pid)
+      . validateTitle
+      $ formTitle form
+  prj <- lift (queryProject pid) >>= hoistMaybe (ProjectMissing pid)
   sts <- lift (queryNodeStatus "active") >>= hoistMaybe ReferenceMissing
   typ <- lift (queryNodeType "work") >>= hoistMaybe ReferenceMissing
-  lift . insert $ newWorkNode now ttl prj sts typ
+  let nde = newWorkNode now ttl prj sts typ
+  ky <- lift (insert nde)
+  pure (Entity ky nde)
 
 newWorkNode ::
   UTCTime ->
@@ -155,24 +185,23 @@ handler pid = pure (templateAddWork pid [])
 submitHandler :: Form -> AppM (Headers '[Header "HX-Trigger" Text] (Html ()))
 submitHandler form = do
   now <- liftIO getCurrentTime
-  case validateProjectId (look "projectId") of
-    Left es -> throwError (htmlError err422 (templateErrors es))
-    Right pid -> case validateTitle (look "title") of
-      Left es -> throwError (htmlError err422 (templateAddWork pid es))
-      Right ttl -> do
-        rslt <- runDb (createWork now ttl pid)
-        case rslt of
-          Left ProjectMissing ->
-            throwError (htmlError err422 (templateAddWork pid ["Project not found"]))
-          Left ReferenceMissing ->
-            throwError
-              ( htmlError
-                  err500
-                  (templateErrors ["The database is missing its reference data"])
-              )
-          Right ky ->
-            pure (addHeader "nodeCreated" (templateCreated (fromSqlKey ky) pid))
-  where
-    look k = case lookupMaybe k form of
-      Right (Just v) -> Just v
-      _ -> Nothing
+  rslt <- runDb (createWork now (formToAddWorkForm form))
+  case rslt of
+    Left (FormInvalid es) -> throwError (htmlError err422 (templateErrors es))
+    Left (TitleInvalid pid es) ->
+      throwError (htmlError err422 (templateAddWork pid es))
+    Left (ProjectMissing pid) ->
+      throwError (htmlError err422 (templateAddWork pid ["Project not found"]))
+    Left ReferenceMissing ->
+      throwError
+        ( htmlError
+            err500
+            (templateErrors ["The database is missing its reference data"])
+        )
+    Right (Entity ky nde) ->
+      pure
+        . addHeader "nodeCreated"
+        . templateCreated (fromSqlKey ky)
+        . fromSqlKey
+        . M.nodeProjectId
+        $ nde

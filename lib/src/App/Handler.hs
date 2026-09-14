@@ -3,7 +3,7 @@
 module App.Handler
   ( FieldUpdateErr (..)
   , htmlError
-  , nodeForUpdate
+  , lookupNode
   , renderNode
   , updateNodeField
   ) where
@@ -20,8 +20,7 @@ import Database.Persist.Sql (SqlBackend)
 import qualified Domain.Project.Model as M
 import Domain.Project.Responder.Ui.ProjectManage.Node.Query (queryNode)
 import Domain.Project.Responder.Ui.ProjectManage.Node.Validation
-  ( nodeInProject
-  , validateNodeProjectId
+  ( validateNodeProjectId
   )
 import Lucid (Html, renderBS)
 import Servant (ServerError, err404, err422, errBody, errHeaders)
@@ -38,16 +37,17 @@ renderNode ::
   (Entity M.Node -> AppM (Html ())) ->
   AppM (Html ())
 renderNode pid nid missing invalid found = do
-  mnde <- runDb (queryNode nid)
-  case mnde of
-    Nothing -> pure missing
-    Just ent -> either (pure . invalid) found (nodeInProject pid ent)
+  rslt <- runDb (runEitherT (lookupNode pid nid))
+  case rslt of
+    Left FieldNodeMissing -> pure missing
+    Left (FieldInvalid es) -> pure (invalid es)
+    Right ent -> found ent
 
-nodeForUpdate ::
+lookupNode ::
   Int64 ->
   Int64 ->
   EitherT FieldUpdateErr (ReaderT SqlBackend IO) (Entity M.Node)
-nodeForUpdate pid nid =
+lookupNode pid nid =
   lift (queryNode nid)
     >>= hoistMaybe FieldNodeMissing
     >>= firstEitherT FieldInvalid . validateNodeProjectId pid
