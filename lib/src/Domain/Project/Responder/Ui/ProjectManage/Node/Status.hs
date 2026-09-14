@@ -1,0 +1,124 @@
+{-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedRecordDot #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeApplications #-}
+
+module Domain.Project.Responder.Ui.ProjectManage.Node.Status where
+
+import Common.Validation
+import Lucid
+
+import qualified Domain.Project.Model as M
+
+import App.Env (AppM)
+import App.Handler (FieldUpdateErr (..), nodeForUpdate, updateNodeField)
+import Control.Monad.Reader (ReaderT)
+import Control.Monad.Trans.Class (lift)
+import Control.Monad.Trans.Either
+  ( EitherT
+  , firstEitherT
+  , hoistEither
+  , hoistMaybe
+  )
+import Data.Int (Int64)
+import Data.Maybe (listToMaybe)
+import Data.Text (Text, unpack)
+import Database.Esqueleto.Experimental
+import Web.FormUrlEncoded (Form, lookupMaybe)
+
+data PostNodeStatusForm = PostNodeStatusForm
+  { formNodeStatus :: Maybe Text
+  , formNodeId :: Maybe Text
+  , formProjectId :: Maybe Text
+  }
+
+data PostNodeStatusPayload = PostNodeDescriptionPayload
+  { payloadStatus :: Text
+  , payloadNodeId :: Int64
+  , payloadProjectId :: Int64
+  }
+
+queryStatus ::
+  Text ->
+  ReaderT SqlBackend IO (Maybe (Entity M.NodeStatus))
+queryStatus st = do
+  ns <- select $ do
+    s <- from $ table @M.NodeStatus
+    where_ $ s.nodeStatusId ==. (val . unpack $ st)
+    limit 1
+    pure s
+  return . listToMaybe $ ns
+
+formToPostNodeStatusForm :: Form -> PostNodeStatusForm
+formToPostNodeStatusForm f =
+  PostNodeStatusForm
+    { formNodeStatus = look "status"
+    , formNodeId = look "nodeId"
+    , formProjectId = look "projectId"
+    }
+  where
+    look k = case lookupMaybe k f of
+      Right (Just v) -> Just v
+      _ -> Nothing
+
+templatePostSuccess :: Html ()
+templatePostSuccess = do
+  i_ [class_ "material-icons"] "done"
+
+templateNodeNotFound :: Html ()
+templateNodeNotFound = do
+  p_ [] "Node not found"
+
+templatePostFail :: [ValidationErr] -> Html ()
+templatePostFail es = do
+  i_ [class_ "material-icons"] "error"
+  ul_ [] $ mapM_ (li_ [] . toHtml) es
+
+validatePayload ::
+  Monad m =>
+  PostNodeStatusForm ->
+  EitherT [ValidationErr] m PostNodeStatusPayload
+validatePayload form =
+  hoistEither . runValidation id $ do
+    st <-
+      formNodeStatus form
+        .$ id
+        >>= isThere "Node status is required"
+        >>= isNotEmpty "Node status cannot be empty"
+    nid <-
+      formNodeId form
+        .$ unpack
+        >>= isThere "Node id is required"
+        >>= isNotEmpty "Node id must have value"
+        >>= valRead "Node id must be valid integer"
+    pid <-
+      formProjectId form
+        .$ unpack
+        >>= isThere "Project id is required"
+        >>= isNotEmpty "Project id must have value"
+        >>= valRead "Project id must be valid integer"
+    return $
+      PostNodeDescriptionPayload
+        <$> st
+        <*> nid
+        <*> pid
+
+handler :: Form -> AppM (Html ())
+handler form =
+  updateNodeField
+    templateNodeNotFound
+    templatePostFail
+    templatePostSuccess
+    $ do
+      pyld <-
+        firstEitherT FieldInvalid
+          . validatePayload
+          . formToPostNodeStatusForm
+          $ form
+      nde <- nodeForUpdate (payloadProjectId pyld) (payloadNodeId pyld)
+      sts <-
+        lift (queryStatus (payloadStatus pyld))
+          >>= hoistMaybe (FieldInvalid ["Node status is required"])
+      lift . replace (entityKey nde) $
+        (entityVal nde) {M.nodeNodeStatusId = entityKey sts}

@@ -37,7 +37,7 @@ make start-app
 ```
 make run-postgres      # start Postgres in Docker
 make migrate-up        # apply all migrations
-cabal run servant-server  # start the app, reads .env
+cabal run server      # start the app, reads .env
 make seed-db           # reference data (NodeStatus/NodeType; needs the server already running)
 make seed-demo-data    # the demo projects this suite drives, straight into Postgres
 ```
@@ -202,14 +202,14 @@ to this suite should follow the same conventions:
 ## CI wiring
 
 `.github/workflows/e2e-test.yml` runs this suite against a real,
-compiled `servant-server` process talking to a real, seeded Postgres,
+compiled `server` process talking to a real, seeded Postgres,
 driven by a headless browser. Unlike `test.yml`/`integration-test.yml`, it's
 **informational only, not required, and deliberately not run on every
 PR** — multi-process (browser + server + database), meaningfully slower
 than the other suites, and a finding here isn't necessarily about what a
 given PR changed. See [`ci.md`](ci.md)'s "E2E test workflow" section for
 the step-by-step CI shape (starting Postgres via a plain `docker run`,
-backgrounding `cabal run servant-server`, seeding reference data via
+backgrounding `cabal run server`, seeding reference data via
 `POST /api/central/seed-database` and the demo projects via
 `local/script/seed-demo-data.sh`, then `npm test`); this section covers
 when it runs.

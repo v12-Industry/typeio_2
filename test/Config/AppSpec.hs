@@ -3,7 +3,6 @@
 module Config.AppSpec (spec) where
 
 import Config.App
-import Config.Visualization (Visualization (..))
 import Config.Web (port)
 import System.Environment (setEnv, unsetEnv)
 import Test.Hspec
