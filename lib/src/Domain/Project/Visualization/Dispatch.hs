@@ -27,11 +27,11 @@ renderFor Orbital = Orbital.renderGraph
 
 handler :: Int64 -> Maybe Visualization -> AppM (Html ())
 handler pid mviz = do
-  ns <- runDb (Viz.queryNodes pid)
+  ns <- runDb . Viz.queryNodes $ pid
   case ns of
-    [] -> throwError err404 {errBody = encode (object ["error" .= noNodes])}
+    [] -> throwError err404 {errBody = encode . object $ ["error" .= noNodes]}
     _ -> do
-      ds <- runDb (Viz.queryDependencies (map (fromSqlKey . entityKey) ns))
+      ds <- runDb . Viz.queryDependencies . map (fromSqlKey . entityKey) $ ns
       pure $ renderFor (fromMaybe defaultVisualization mviz) pid ns ds
   where
     noNodes = "No nodes found for the project" :: Text

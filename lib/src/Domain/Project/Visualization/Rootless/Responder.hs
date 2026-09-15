@@ -20,13 +20,13 @@ import Domain.Project.Visualization.Common
   )
 
 renderGraph :: RenderGraph
-renderGraph pid ns ds = templateServerGraph (buildGraph pid ns ds)
+renderGraph pid ns ds = templateServerGraph . buildGraph pid ns $ ds
 
 buildGraph :: BuildGraph
 buildGraph pid ns ds = serverGraph pid (nodeStatuses ns) work edges
   where
-    work = filter ((/= RootNode) . lnKind) (map toLayoutNode ns)
-    drawn = S.fromList (map lnId work)
+    work = filter ((/= RootNode) . lnKind) . map toLayoutNode $ ns
+    drawn = S.fromList . map lnId $ work
     edges =
       [ e
       | e <- map toLayoutEdge ds

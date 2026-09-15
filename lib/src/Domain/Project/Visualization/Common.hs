@@ -166,7 +166,7 @@ nodeStatuses ns =
   Map.fromList
     [ (NodeId (fromSqlKey k), st)
     | Entity k e <- ns
-    , st <- maybeToList (nodeStatusFromKey (statusKey e))
+    , st <- maybeToList . nodeStatusFromKey . statusKey $ e
     ]
   where
     statusKey = pack . M.unNodeStatusKey . M.nodeNodeStatusId
@@ -174,12 +174,12 @@ nodeStatuses ns =
 toLayoutNode :: Entity M.Node -> LayoutNode
 toLayoutNode (Entity k e) =
   LayoutNode
-    { lnId = NodeId (fromSqlKey k)
+    { lnId = NodeId . fromSqlKey $ k
     , lnKind =
         if M.unNodeTypeKey (M.nodeNodeTypeId e) == "project_root"
           then RootNode
           else WorkNode
-    , lnLabel = pack (M.nodeTitle e)
+    , lnLabel = pack . M.nodeTitle $ e
     }
 
 toLayoutEdge :: Entity M.Dependency -> LayoutEdge
@@ -203,8 +203,8 @@ graphFrame box anchor contents =
       ( [ id_ "tree-view"
         , width_ "100%"
         , height_ "100%"
-        , dataBaseWidth_ (dblText (fbWidth box))
-        , dataBaseHeight_ (dblText (fbHeight box))
+        , dataBaseWidth_ . dblText . fbWidth $ box
+        , dataBaseHeight_ . dblText . fbHeight $ box
         , h_ "on load transition my opacity to 1 over 200ms"
         ]
           <> anchorAttrs
@@ -218,9 +218,9 @@ graphFrame box anchor contents =
     originShift =
       T.concat
         [ "translate("
-        , dblText (negate (fbMinX box))
+        , dblText . negate . fbMinX $ box
         , ","
-        , dblText (negate (fbMinY box))
+        , dblText . negate . fbMinY $ box
         , ")"
         ]
     anchorAttrs = case anchor of
@@ -270,7 +270,7 @@ edgeLine :: PlacedEdge -> Html ()
 edgeLine e =
   path_
     [ class_ (if derived then "link link-contains" else "link")
-    , d_ (polyline (peJumps e) (pePoints e))
+    , d_ . polyline (peJumps e) . pePoints $ e
     , fill_ "none"
     , markerEnd_ "url(#arrow)"
     ]
@@ -323,7 +323,7 @@ nodeGroup sg n =
     , dataNodeId_ nid
     , class_ "node"
     , transform_ ("translate(" <> dblText (ptX tl) <> "," <> dblText (ptY tl) <> ")")
-    , hxGet_ (nodePanelLink rawId pid)
+    , hxGet_ . nodePanelLink rawId $ pid
     , hxTrigger_ "click"
     , hxTarget_ "#node-panel"
     , hxPushUrl'_ (projectViewLink pid (Just rawId) Nothing)
@@ -332,22 +332,18 @@ nodeGroup sg n =
     $ do
       rect_
         [ class_ shapeClass
-        , width_ (dblText (szW sz))
-        , height_ (dblText (szH sz))
+        , width_ . dblText . szW $ sz
+        , height_ . dblText . szH $ sz
         , rx_ "6"
         ]
         (mempty :: Html ())
-      nodeLabel nid sz (pnLines n)
+      nodeLabel nid sz . pnLines $ n
 
       g_
         [ class_ "hidden"
         , hxGet_
-            ( nodeRefreshLink
-                rawId
-                pid
-                (cfgLabelWidth defaultLayoutConfig)
-                rawLabel
-            )
+            . nodeRefreshLink rawId pid (cfgLabelWidth defaultLayoutConfig)
+            $ rawLabel
         , hxTrigger_ $
             "nodePanel:onEditClosed[event.detail.nodeId=="
               <> nid
@@ -363,13 +359,15 @@ nodeGroup sg n =
     pid = sgProjectId sg
     tl = pnTopLeft n
     sz = pnSize n
-    rawLabel = Map.findWithDefault "" (pnId n) (sgLabels sg)
+    rawLabel = Map.findWithDefault "" (pnId n) . sgLabels $ sg
     shapeClass =
       T.unwords
         . (kindClass (pnKind n) :)
         . map nodeStatusClass
         . maybeToList
-        $ Map.lookup (pnId n) (sgStatuses sg)
+        . Map.lookup (pnId n)
+        . sgStatuses
+        $ sg
 
 kindClass :: NodeKind -> Text
 kindClass RootNode = "root"
@@ -393,6 +391,6 @@ nodeLabel nid (Size w h) ls =
 dblText :: Double -> Text
 dblText v
   | v == fromIntegral rounded = intToText rounded
-  | otherwise = pack (show v)
+  | otherwise = pack . show $ v
   where
     rounded = round v :: Int

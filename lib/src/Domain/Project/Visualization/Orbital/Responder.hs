@@ -33,7 +33,7 @@ import Domain.Project.Visualization.Orbital.View
 
 renderGraph :: RenderGraph
 renderGraph pid ns ds =
-  templateOrbit pid defaultOrbitConfig (factsOf ns) (buildOrbit ns ds)
+  templateOrbit pid defaultOrbitConfig (factsOf ns) . buildOrbit ns $ ds
 
 factsOf :: [Entity M.Node] -> DiscFacts
 factsOf ns =
@@ -50,7 +50,7 @@ statusesOf ns =
   Map.fromList
     [ (NodeId (fromSqlKey k), st)
     | Entity k e <- ns
-    , st <- maybeToList (nodeStatusFromKey (statusKey e))
+    , st <- maybeToList . nodeStatusFromKey . statusKey $ e
     ]
   where
     statusKey = pack . M.unNodeStatusKey . M.nodeNodeStatusId
@@ -59,7 +59,7 @@ buildOrbit :: [Entity M.Node] -> [Entity M.Dependency] -> OrbitDiagram
 buildOrbit ns ds = orbit defaultOrbitConfig work edges
   where
     work = [toOrbitNode n | n <- ns, not (isRoot n)]
-    drawn = S.fromList (map onId work)
+    drawn = S.fromList . map onId $ work
     edges =
       [ e
       | e <- map toOrbitEdge ds
@@ -73,13 +73,13 @@ isRoot (Entity _ e) = M.unNodeTypeKey (M.nodeNodeTypeId e) == "project_root"
 toOrbitNode :: Entity M.Node -> OrbitNode
 toOrbitNode (Entity k e) =
   OrbitNode
-    { onId = NodeId (fromSqlKey k)
-    , onLabel = pack (M.nodeTitle e)
+    { onId = NodeId . fromSqlKey $ k
+    , onLabel = pack . M.nodeTitle $ e
     }
 
 toOrbitEdge :: Entity M.Dependency -> OrbitEdge
 toOrbitEdge (Entity _ e) =
   OrbitEdge
-    { oeDependent = NodeId (fromSqlKey (M.dependencyNodeId e))
-    , oeDependency = NodeId (fromSqlKey (M.dependencyToNodeId e))
+    { oeDependent = NodeId . fromSqlKey . M.dependencyNodeId $ e
+    , oeDependency = NodeId . fromSqlKey . M.dependencyToNodeId $ e
     }
