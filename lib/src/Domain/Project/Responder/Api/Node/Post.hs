@@ -89,7 +89,7 @@ formToPostNodeForm f =
     }
   where
     look k = case lookupMaybe k f of
-      Right (Just v) -> Just (encodeUtf8 v)
+      Right (Just v) -> Just . encodeUtf8 $ v
       _ -> Nothing
 
 createNode ::
@@ -181,7 +181,7 @@ handler ::
   AppM (Headers '[Header "Location" Text] CreatedNode)
 handler form = do
   now <- liftIO getCurrentTime
-  rslt <- runDb (createNode (formToPostNodeForm form) now)
+  rslt <- runDb . createNode (formToPostNodeForm form) $ now
   case rslt of
     Left (FailValidation es) -> throwError err422 {errBody = errJson es}
     Left ProjectNotFound ->
@@ -195,5 +195,5 @@ handler form = do
               (nodeResourceLink nid)
               (CreatedNode nid)
   where
-    errJson es = encode (object ["error" .= es])
+    errJson es = encode . object $ ["error" .= es]
     serverErr = errJson ["Internal server error" :: Text]

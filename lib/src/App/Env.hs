@@ -26,7 +26,7 @@ type AppM = ReaderT Env Handler
 runDb :: ReaderT SqlBackend IO a -> AppM a
 runDb q = do
   pl <- asks envPool
-  liftIO (runSqlPool q pl)
+  liftIO . runSqlPool q $ pl
 
 withEnv :: AppConfig -> (Env -> IO a) -> IO a
 withEnv cfg =

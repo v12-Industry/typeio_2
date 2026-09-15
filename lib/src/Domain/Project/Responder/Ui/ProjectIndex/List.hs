@@ -76,4 +76,4 @@ handler = do
   ps <- runDb queryProjectVw
   pure $ case ps of
     [] -> templateEmptyProjects
-    _ -> templateList (map entityVal ps)
+    _ -> templateList . map entityVal $ ps

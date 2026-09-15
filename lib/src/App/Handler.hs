@@ -37,10 +37,10 @@ renderNode ::
   (Entity M.Node -> AppM (Html ())) ->
   AppM (Html ())
 renderNode pid nid missing invalid found = do
-  rslt <- runDb (runEitherT (lookupNode pid nid))
+  rslt <- runDb . runEitherT . lookupNode pid $ nid
   case rslt of
     Left FieldNodeMissing -> pure missing
-    Left (FieldInvalid es) -> pure (invalid es)
+    Left (FieldInvalid es) -> pure . invalid $ es
     Right ent -> found ent
 
 lookupNode ::
@@ -59,10 +59,10 @@ updateNodeField ::
   EitherT FieldUpdateErr (ReaderT SqlBackend IO) () ->
   AppM (Html ())
 updateNodeField missing invalid ok act = do
-  rslt <- runDb (runEitherT act)
+  rslt <- runDb . runEitherT $ act
   case rslt of
-    Left (FieldInvalid es) -> throwError (htmlError err422 (invalid es))
-    Left FieldNodeMissing -> throwError (htmlError err404 missing)
+    Left (FieldInvalid es) -> throwError . htmlError err422 . invalid $ es
+    Left FieldNodeMissing -> throwError . htmlError err404 $ missing
     Right () -> pure ok
 
 htmlError :: ServerError -> Html () -> ServerError
