@@ -57,21 +57,21 @@ backEdges ns es = dfsBack (foldl' fromRoot start (sort (map lnId ns)))
       M.fromListWith
         (++)
         [(leUpper e, [e]) | e <- es]
-    outOf n = sortOn leId (M.findWithDefault [] n outgoing)
+    outOf n = sortOn leId . M.findWithDefault [] n $ outgoing
     fromRoot st n
       | n `S.member` dfsSeen st = st
       | otherwise = visit st n
     visit st n =
       let entered =
             st
-              { dfsSeen = S.insert n (dfsSeen st)
-              , dfsOnStack = S.insert n (dfsOnStack st)
+              { dfsSeen = S.insert n . dfsSeen $ st
+              , dfsOnStack = S.insert n . dfsOnStack $ st
               }
-          descended = foldl' step entered (outOf n)
-       in descended {dfsOnStack = S.delete n (dfsOnStack descended)}
+          descended = foldl' step entered . outOf $ n
+       in descended {dfsOnStack = S.delete n . dfsOnStack $ descended}
     step st e
       | tgt `S.member` dfsOnStack st =
-          st {dfsBack = S.insert (leId e) (dfsBack st)}
+          st {dfsBack = S.insert (leId e) . dfsBack $ st}
       | tgt `S.member` dfsSeen st = st
       | otherwise = visit st tgt
       where
@@ -88,7 +88,7 @@ assignLayers ns arcs = snd (foldl' go (S.empty, M.empty) (sort (map lnId ns)))
       | n `M.member` memo = acc
       | n `S.member` active = acc
       | otherwise =
-          let ps = sort (M.findWithDefault [] n above)
+          let ps = sort . M.findWithDefault [] n $ above
               (active', memo') = foldl' go (S.insert n active, memo) ps
               lvl = case mapMaybe (`M.lookup` memo') ps of
                 [] -> 0
