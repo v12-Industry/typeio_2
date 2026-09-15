@@ -79,8 +79,8 @@ countCrossings rows segments =
 
     crossingsBelow l =
       inversions
-        [ posOf (segTo s)
-        | s <- sortOn (posOf . segFrom) (segmentsFrom l)
+        [ posOf . segTo $ s
+        | s <- sortOn (posOf . segFrom) . segmentsFrom $ l
         ]
 
     segmentsFrom l = [s | s <- segments, layerOf (segFrom s) == Just l]

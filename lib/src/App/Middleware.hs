@@ -27,7 +27,7 @@ import Network.Wai.Middleware.Static
 withMiddleware :: Env -> (Middleware -> IO a) -> IO a
 withMiddleware ev k = do
   cc <- initCaching staticCachingStrategy
-  k (allMiddleware ev cc)
+  k . allMiddleware ev $ cc
 
 staticCachingStrategy :: CachingStrategy
 staticCachingStrategy = CustomCaching $ \fm ->
@@ -51,4 +51,4 @@ allMiddleware ev cc =
     cf = envConfig ev
     lg = envLogger ev
     wc = webConf cf
-    dp = pack (webDefaultPath cf)
+    dp = pack . webDefaultPath $ cf

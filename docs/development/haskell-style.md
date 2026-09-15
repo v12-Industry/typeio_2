@@ -51,6 +51,18 @@ dataBaseWidth_ (dblText (fbWidth box))
 dataBaseWidth_ . dblText . fbWidth $ box
 ```
 
+This holds wherever the call is a complete expression — the right of an
+`=`, a `->` or a `do`-block bind, a record field, an element of a list
+(a Lucid attribute list included), a comprehension generator, the thing
+a `case` scrutinises:
+
+```haskell
+, dataBaseWidth_ . dblText . fbWidth $ box
+, lnLabel = pack . M.nodeTitle $ e
+rslt <- runDb . createWork now . formToAddWorkForm $ form
+, st <- maybeToList . nodeStatusFromKey . statusKey $ e
+```
+
 A chain that ends in a function application rather than a value needs no
 `$` at all, and is better without one:
 
@@ -88,11 +100,56 @@ keyEnv` says the same thing with more punctuation:
 >>= isThere (er keyEnv)
 ```
 
-**Inside a tuple or a list element.** The parentheses are the tuple, or
-they delimit the element, and a `$` inside either one reads as noise:
+**Inside a tuple.** The parentheses are the tuple, and a `$` inside one
+reads as noise:
 
 ```haskell
 [(T.toLower (visualizationText v), v) | v <- [minBound .. maxBound]]
+```
+
+**Anywhere an operator is in play** — and this one is not taste, it is
+correctness. `$` binds looser than every other operator, so a chain
+written next to one silently rebrackets the line:
+
+```haskell
+-- `n : anchors rest . reach seen $ [n]` parses as
+-- `(n : (anchors rest . reach seen)) $ [n]` -- a different program.
+n : anchors rest (reach seen [n])
+
+-- Same trap with >>=, which binds tighter than $: the chain would hand
+-- the bind's whole right-hand side to the query.
+lift (queryStatus "active")
+  >>= hoistMaybe MissingStatus
+
+-- And with <$>, <>, arithmetic, comparison:
+templateProjectStats <$> runDb (queryProjectStats pid)
+"M" <> point p <> mconcat (zipWith run (p : ps) ps)
+fromIntegral (total + 1)
+```
+
+The parenthesised expression has to be an *application* for a chain to
+say the same thing. `f (a <> b)` has nothing to chain.
+
+**When the trailing argument is a placeholder, not the value.** A chain
+claims that something flows through it, so it should end with the thing
+being transformed — not with a positional `Nothing`, `mempty` or `[]`
+that is only saying "no value here":
+
+```haskell
+absolute (manageVw pid nid viz Nothing Nothing Nothing)
+pure (templateAddWork pid [])
+```
+
+**When the arguments form a parallel group.** Chaining the last one
+alone breaks a table that is readable precisely because its rows line
+up:
+
+```haskell
+[ Point ux (exitY (segFrom s))
+, Point ux (trackY s)
+, Point lx (trackY s)
+, Point lx (entryY (segTo s))
+]
 ```
 
 ## Flatten failure handling, don't nest it

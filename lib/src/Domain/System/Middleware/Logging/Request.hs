@@ -39,7 +39,7 @@ fromRequest hn req =
     { method = show $ requestMethod req
     , path = show $ pathInfo req
     , headers = hashMapHeaders . requestHeaders $ req
-    , requestId = lookup hn (requestHeaders req)
+    , requestId = lookup hn . requestHeaders $ req
     }
 
 requestLogMiddleware :: WebConfig -> EntryLog -> Middleware

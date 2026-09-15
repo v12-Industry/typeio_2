@@ -25,7 +25,7 @@ parseSqlKey = fmap toSqlKey . parseUrlPiece @Int64
 
 instance FromHttpApiData Visualization where
   parseUrlPiece raw =
-    maybe (Left ("Unknown visualization: " <> raw)) Right (parseVisualization raw)
+    maybe (Left ("Unknown visualization: " <> raw)) Right . parseVisualization $ raw
 
 instance ToHttpApiData Visualization where
   toUrlPiece = visualizationText

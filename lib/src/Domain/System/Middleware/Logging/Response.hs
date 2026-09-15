@@ -41,7 +41,7 @@ fromTraffic :: HeaderName -> Request -> Response -> ResponseLog
 fromTraffic hn req resp =
   ResponseLog
     { headers = hashMapHeaders . responseHeaders $ resp
-    , requestId = lookup hn (requestHeaders req)
+    , requestId = lookup hn . requestHeaders $ req
     , status = statusCode . responseStatus $ resp
     }
 

@@ -13,7 +13,7 @@ data LogLevel = Debug | Info | Warning | Error
   deriving (Show, Eq)
 
 instance ToJSON LogLevel where
-  toJSON lvl = toJSON $ map toLower (show lvl)
+  toJSON lvl = toJSON . map toLower . show $ lvl
 
 newtype EntryLog = EntryLog
   { runEntryLog ::
