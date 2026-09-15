@@ -13,14 +13,15 @@ type AppM = ReaderT Env Handler
 ```
 
 `Env` (see [environment.md](environment.md)) carries the config, the
-logger and the connection pool. A handler reaches for what it needs:
+logger, the connection pool and the build commit. A handler reaches for
+what it needs:
 
 ```haskell
 handler :: Int64 -> AppM (Html ())
 handler pid = templateProjectStats <$> runDb (queryProjectStats pid)
 
 handler :: AppM ConfigDisplay
-handler = asks (configDisplay . envConfig)
+handler = configDisplay <$> asks envBuild <*> asks envConfig
 ```
 
 `runDb` runs a `ReaderT SqlBackend IO` query against the pool. Being

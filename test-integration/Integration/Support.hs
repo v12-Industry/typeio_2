@@ -85,6 +85,7 @@ import Network.Wai
   , requestMethod
   )
 import Network.Wai.Test (SRequest (..), SResponse (..), runSession, srequest)
+import Platform.Build (BuildInfo (..), unknownCommit)
 import System.Directory (makeAbsolute)
 import Test.Hspec (Expectation, expectationFailure)
 import qualified TestContainers.Hspec as TC
@@ -142,7 +143,7 @@ withTestApp action = do
       runContT withLogger $ \lgr ->
         action
           TestApp
-            { testApplication = app (Env cfg lgr pool)
+            { testApplication = app (Env cfg lgr pool testBuildInfo)
             , testPool = pool
             }
 
@@ -207,6 +208,12 @@ testWebConfig =
     , port = 0
     , requestIdHeader = "x-request-id"
     }
+
+{- | No route under test reports the build commit, so a fixed placeholder
+keeps the suite independent of the checkout it runs in.
+-}
+testBuildInfo :: BuildInfo
+testBuildInfo = BuildInfo {commit = unknownCommit}
 
 seedReferenceData :: ConnectionPool -> IO ()
 seedReferenceData = runSqlPool Seed.seedReferenceData

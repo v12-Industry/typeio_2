@@ -3,23 +3,45 @@
 module Platform.BuildSpec (spec) where
 
 import Data.Aeson (encode, object, toJSON, (.=))
-import Data.Char (isHexDigit)
-import Platform.Build (BuildInfo (..), buildInfo, unknownCommit)
+import Platform.Build (BuildInfo (..), resolveCommit, unknownCommit)
 import Test.Hspec
+
+aCommit :: String
+aCommit = "0329aef1739cd1f62ff44fe519c937dc87abd170"
+
+anotherCommit :: String
+anotherCommit = "6f6020a204742649c3ffbad16eb5fd7409849a38"
 
 spec :: Spec
 spec = do
-  describe "buildInfo" $ do
-    it "reports either a full commit hash or an explicit unknown" $
-      -- The build embeds whatever git could tell it. In a checkout that
-      -- is a 40-character hash; in a source tarball with no .git there
-      -- is nothing to read, and saying so is the honest answer. An
-      -- empty string is neither, and is what this rules out.
-      commit buildInfo `shouldSatisfy` \c ->
-        c == unknownCommit || (length c == 40 && all isHexDigit c)
+  describe "resolveCommit" $ do
+    it "prefers the injected commit over the checked-out one" $
+      -- A binary shipped without its checkout carries its commit in the
+      -- environment; whatever the local checkout says where it happens
+      -- to be running is not the commit it was built from.
+      resolveCommit (Just aCommit) (Just anotherCommit) `shouldBe` aCommit
+
+    it "falls back to the checked-out commit when nothing is injected" $
+      resolveCommit Nothing (Just aCommit) `shouldBe` aCommit
+
+    it "trims the trailing newline the rev-parse output carries" $
+      resolveCommit Nothing (Just (aCommit ++ "\n")) `shouldBe` aCommit
+
+    it "reports an explicit unknown when neither source has a commit" $
+      resolveCommit Nothing Nothing `shouldBe` unknownCommit
+
+    it "ignores a blank injected value" $
+      -- An exported-but-empty BUILD_COMMIT is an unset one, not an answer.
+      resolveCommit (Just "  ") (Just aCommit) `shouldBe` aCommit
+
+    it "ignores anything that is not a full hash" $
+      -- The endpoint exists to name one exact commit, so an abbreviated
+      -- hash, a branch name or a tag is not an answer either.
+      map (`resolveCommit` Nothing) [Just "0329aef", Just "main", Just "v1.2.3", Just (aCommit ++ "0")]
+        `shouldBe` replicate 4 unknownCommit
 
     it "never reports an empty commit" $
-      commit buildInfo `shouldNotBe` ""
+      resolveCommit (Just "") (Just "") `shouldNotBe` ""
 
   describe "its JSON" $ do
     it "names the field `commit`" $
