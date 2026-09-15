@@ -36,10 +36,10 @@ projectStats vocabulary counts =
     }
   where
     rows =
-      [ StatusCount st (Map.findWithDefault 0 st counts)
+      [ StatusCount st . Map.findWithDefault 0 st $ counts
       | st <- vocabulary
       ]
-    total = sum (Map.elems counts)
+    total = sum . Map.elems $ counts
     done = Map.findWithDefault 0 completedStatus counts
     completion
       | total == 0 = 0

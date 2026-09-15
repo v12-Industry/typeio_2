@@ -33,10 +33,10 @@ orderRows rows segments = best
     above = M.fromListWith (++) [(segTo s, [segFrom s]) | s <- segments]
     below = M.fromListWith (++) [(segFrom s, [segTo s]) | s <- segments]
 
-    sweep dir current = foldl' reorder current (rowsToVisit dir current)
+    sweep dir current = foldl' reorder current . rowsToVisit dir $ current
       where
-        rowsToVisit Downward rs = drop 1 (M.keys rs)
-        rowsToVisit Upward rs = drop 1 (reverse (M.keys rs))
+        rowsToVisit Downward rs = drop 1 . M.keys $ rs
+        rowsToVisit Upward rs = drop 1 . reverse . M.keys $ rs
 
         reorder acc l =
           M.insert l (map thd (sortOn key keyed)) acc
@@ -44,7 +44,7 @@ orderRows rows segments = best
             reference = case dir of
               Downward -> l - 1
               Upward -> l + 1
-            positions = positionsIn (M.findWithDefault [] reference acc)
+            positions = positionsIn . M.findWithDefault [] reference $ acc
             neighbours n =
               M.findWithDefault [] n $ case dir of
                 Downward -> above
@@ -66,7 +66,7 @@ orderRows rows segments = best
         mid = n `div` 2
 
 positionsIn :: [LNode] -> Map LNode Int
-positionsIn row = M.fromList (zip row [0 ..])
+positionsIn row = M.fromList . zip row $ [0 ..]
 
 countCrossings :: Map Int [LNode] -> [Segment] -> Int
 countCrossings rows segments =
@@ -79,8 +79,8 @@ countCrossings rows segments =
 
     crossingsBelow l =
       inversions
-        [ posOf (segTo s)
-        | s <- sortOn (posOf . segFrom) (segmentsFrom l)
+        [ posOf . segTo $ s
+        | s <- sortOn (posOf . segFrom) . segmentsFrom $ l
         ]
 
     segmentsFrom l = [s | s <- segments, layerOf (segFrom s) == Just l]

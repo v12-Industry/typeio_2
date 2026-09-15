@@ -28,7 +28,7 @@ configDisplay cfg = ConfigDisplay cf cs buildInfo
   where
     ev = envName cfg
     cf = preprocessConfig ev cfg
-    cs = maskField ev (connStr . dbConf $ cf)
+    cs = maskField ev . connStr . dbConf $ cf
 
 maskField :: EnvironmentName -> String -> String
 maskField Production _ = replicate 22 '*'

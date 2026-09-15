@@ -18,13 +18,13 @@ import Domain.Project.Orbit.Types
 heads :: [OrbitNode] -> [OrbitEdge] -> [NodeId]
 heads ns es = [n | n <- S.toAscList present, not (n `S.member` waitedOn)]
   where
-    present = S.fromList (map onId ns)
-    waitedOn = S.fromList (map oeDependency (liveEdges present es))
+    present = S.fromList . map onId $ ns
+    waitedOn = S.fromList . map oeDependency . liveEdges present $ es
 
 unfold :: [OrbitNode] -> [OrbitEdge] -> [OrbitTree]
-unfold ns es = numberForest (map (raw S.empty) roots)
+unfold ns es = numberForest . map (raw S.empty) $ roots
   where
-    present = S.fromList (map onId ns)
+    present = S.fromList . map onId $ ns
     es' = liveEdges present es
 
     below :: Map NodeId [NodeId]

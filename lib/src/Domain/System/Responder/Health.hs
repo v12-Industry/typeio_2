@@ -24,5 +24,5 @@ handler =
   pure
     Health
       { healthStatus = "ok"
-      , healthCommit = pack (commit buildInfo)
+      , healthCommit = pack . commit $ buildInfo
       }

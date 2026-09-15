@@ -58,7 +58,7 @@ templateOrbit pid cfg facts d =
       forM_ (odDiscs d) (discGroup pid cfg facts)
   where
     Bounds mn _ = odBounds d
-    size = boundsSize (odBounds d)
+    size = boundsSize . odBounds $ d
     box =
       FrameBox
         { fbMinX = ptX mn
@@ -80,13 +80,13 @@ linkLine (Link from to) =
     segment =
       T.concat
         [ "M"
-        , dbl (ptX from)
+        , dbl . ptX $ from
         , ","
-        , dbl (ptY from)
+        , dbl . ptY $ from
         , "L"
-        , dbl (ptX to)
+        , dbl . ptX $ to
         , ","
-        , dbl (ptY to)
+        , dbl . ptY $ to
         ]
 
 discGroup :: Int64 -> OrbitConfig -> DiscFacts -> Disc -> Html ()
@@ -101,7 +101,7 @@ discGroup pid cfg facts disc =
           <> nodeSel
           <> " on mouseleave remove .replica-hover from "
           <> nodeSel
-    , hxGet_ (nodePanelLink rawId pid)
+    , hxGet_ . nodePanelLink rawId $ pid
     , hxTrigger_ "click"
     , hxTarget_ "#node-panel"
     , hxPushUrl'_ (projectViewLink pid (Just rawId) Nothing)
@@ -110,16 +110,16 @@ discGroup pid cfg facts disc =
     $ do
       circle_
         [ class_ shapeClass
-        , cx_ (dbl (ptX centre))
-        , cy_ (dbl (ptY centre))
-        , r_ (dbl (cfgDiscRadius cfg))
+        , cx_ . dbl . ptX $ centre
+        , cy_ . dbl . ptY $ centre
+        , r_ . dbl . cfgDiscRadius $ cfg
         ]
         (mempty :: Html ())
-      discLabel discKey centre (dLines disc)
+      discLabel discKey centre . dLines $ disc
 
       g_
         [ class_ "hidden"
-        , hxGet_ (nodeRefreshLink rawId pid (cfgLabelWidth cfg) label)
+        , hxGet_ . nodeRefreshLink rawId pid (cfgLabelWidth cfg) $ label
         , hxTrigger_ $
             "nodePanel:onEditClosed[event.detail.nodeId=="
               <> nid
@@ -136,13 +136,15 @@ discGroup pid cfg facts disc =
     centre = dCentre disc
     nodeSel = "<[data-node-id='" <> nid <> "']/>"
 
-    label = Map.findWithDefault T.empty (dNode disc) (dfLabels facts)
+    label = Map.findWithDefault T.empty (dNode disc) . dfLabels $ facts
     shapeClass =
       T.unwords
         . ("work" :)
         . map nodeStatusClass
         . maybeToList
-        $ Map.lookup (dNode disc) (dfStatuses facts)
+        . Map.lookup (dNode disc)
+        . dfStatuses
+        $ facts
 
 discLabel :: Text -> Point -> [Text] -> Html ()
 discLabel discKey (Point cx cy) ls =
@@ -172,4 +174,4 @@ nodeHue nodeId = dbl (fromIntegral thousandths / 1000)
 dbl :: Double -> Text
 dbl x
   | x == fromIntegral (round x :: Int) = pack (show (round x :: Int))
-  | otherwise = pack (show x)
+  | otherwise = pack . show $ x

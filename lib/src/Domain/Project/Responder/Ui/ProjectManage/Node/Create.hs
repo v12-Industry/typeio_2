@@ -85,8 +85,8 @@ createWork now form = runEitherT $ do
   sts <- lift (queryNodeStatus "active") >>= hoistMaybe ReferenceMissing
   typ <- lift (queryNodeType "work") >>= hoistMaybe ReferenceMissing
   let nde = newWorkNode now ttl prj sts typ
-  ky <- lift (insert nde)
-  pure (Entity ky nde)
+  ky <- lift . insert $ nde
+  pure . Entity ky $ nde
 
 newWorkNode ::
   UTCTime ->
@@ -144,7 +144,7 @@ templateAddWork pid es =
       input_
         [ type_ "hidden"
         , name_ "projectId"
-        , value_ (intToText pid)
+        , value_ . intToText $ pid
         ]
       unless (null es) $ templateErrors es
       div_ [class_ "panel-footer"] $
@@ -185,19 +185,18 @@ handler pid = pure (templateAddWork pid [])
 submitHandler :: Form -> AppM (Headers '[Header "HX-Trigger" Text] (Html ()))
 submitHandler form = do
   now <- liftIO getCurrentTime
-  rslt <- runDb (createWork now (formToAddWorkForm form))
+  rslt <- runDb . createWork now . formToAddWorkForm $ form
   case rslt of
-    Left (FormInvalid es) -> throwError (htmlError err422 (templateErrors es))
+    Left (FormInvalid es) -> throwError . htmlError err422 . templateErrors $ es
     Left (TitleInvalid pid es) ->
-      throwError (htmlError err422 (templateAddWork pid es))
+      throwError . htmlError err422 . templateAddWork pid $ es
     Left (ProjectMissing pid) ->
-      throwError (htmlError err422 (templateAddWork pid ["Project not found"]))
+      throwError . htmlError err422 . templateAddWork pid $ ["Project not found"]
     Left ReferenceMissing ->
       throwError
-        ( htmlError
-            err500
-            (templateErrors ["The database is missing its reference data"])
-        )
+        . htmlError err500
+        . templateErrors
+        $ ["The database is missing its reference data"]
     Right (Entity ky nde) ->
       pure
         . addHeader "nodeCreated"

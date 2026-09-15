@@ -48,7 +48,7 @@ queryProjectStats :: Int64 -> ReaderT SqlBackend IO ProjectStats
 queryProjectStats pid = do
   vocabulary <- queryStatusVocabulary
   counts <- queryStatusCounts pid
-  return (projectStats vocabulary counts)
+  return . projectStats vocabulary $ counts
 
 queryStatusVocabulary :: ReaderT SqlBackend IO [Text]
 queryStatusVocabulary = do

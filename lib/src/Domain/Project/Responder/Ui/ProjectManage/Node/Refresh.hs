@@ -58,13 +58,13 @@ handler ::
   Maybe Int ->
   AppM (Union '[WithStatus 200 (Html ()), WithStatus 204 NoContent])
 handler pid nid clientTitle mwrap = do
-  mnde <- runDb (queryNode nid)
+  mnde <- runDb . queryNode $ nid
   case mnde >>= either (const Nothing) Just . nodeInProject pid of
     Nothing -> throwError err404 {errBody = "Node not found"}
     Just nde
       | pack (M.nodeTitle (entityVal nde)) == clientTitle ->
           respond (WithStatus @204 NoContent)
       | otherwise ->
-          respond (WithStatus @200 (templateRefresh wrapWidth nde))
+          respond . WithStatus @200 . templateRefresh wrapWidth $ nde
   where
     wrapWidth = fromMaybe defaultWrapWidth mwrap

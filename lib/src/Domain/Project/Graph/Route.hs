@@ -63,7 +63,7 @@ routeEdges cfg layers centres segments chains =
               centreOf owner
                 - nodeW / 2
                 + nodeW * fromIntegral slot / fromIntegral (total + 1)
-        _ -> centreOf (fallback s)
+        _ -> centreOf . fallback $ s
 
     upperX s = portX bottomPorts segFrom s
     rawLowerX s = portX topPorts segTo s
@@ -93,7 +93,7 @@ routeEdges cfg layers centres segments chains =
 
     needsTrack s = upperX s /= lowerX s
     spanOf s = (min (upperX s) (lowerX s), max (upperX s) (lowerX s))
-    gapOf s = layerOf (segFrom s)
+    gapOf s = layerOf . segFrom $ s
 
     byGap = M.fromListWith (++) [(gapOf s, [s]) | s <- segments, needsTrack s]
 
@@ -124,9 +124,9 @@ routeEdges cfg layers centres segments chains =
         (cfgLayerGap cfg)
         (fromIntegral (trackCount g + 1) * cfgTrackGap cfg)
 
-    lastLayer = if M.null layers then 0 else maximum (M.elems layers)
+    lastLayer = if M.null layers then 0 else maximum . M.elems $ layers
     layerTops =
-      M.fromList (zip [0 ..] (scanl step (cfgMargin cfg) [0 .. lastLayer - 1]))
+      M.fromList . zip [0 ..] . scanl step (cfgMargin cfg) $ [0 .. lastLayer - 1]
       where
         step y g = y + nodeH + gapHeight g
 
@@ -140,7 +140,7 @@ routeEdges cfg layers centres segments chains =
     exitY n
       | isDummy n = topOf (layerOf n) + nodeH
       | otherwise = topOf (layerOf n) + nodeH
-    entryY n = topOf (layerOf n)
+    entryY n = topOf . layerOf $ n
 
     segmentPoints s
       | ux == lx = [Point ux (exitY (segFrom s)), Point lx (entryY (segTo s))]

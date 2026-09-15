@@ -51,11 +51,11 @@ templateProject py = do
     div_
       ( [ id_ "tree-container"
         , tabindex_ "0"
-        , hxGet_ (graphLink pid viz)
+        , hxGet_ . graphLink pid $ viz
         , hxPushUrl_ False
         , hxSwap_ "innerHTML"
         , hxTrigger_ "load, nodeCreated from:body"
-        , dataViewBase_ (payloadViewBase py)
+        , dataViewBase_ . payloadViewBase $ py
         , h_ viewUrlBehavior
         ]
           <> viewAttrs (payloadView py)
@@ -76,7 +76,7 @@ templateProject py = do
       Just nid -> do
         div_
           [ class_ "hidden"
-          , hxGet_ (nodePanelLink nid pid)
+          , hxGet_ . nodePanelLink nid $ pid
           , hxPushUrl_ False
           , hxTarget_ "#node-panel"
           , hxTrigger_ "load"
@@ -108,7 +108,7 @@ templateToolbar pid =
       [ class_ "stats-toggle"
       , type_ "button"
       , ariaLabel_ "Project stats"
-      , hxGet_ (projectStatsLink pid)
+      , hxGet_ . projectStatsLink $ pid
       , hxPushUrl_ False
       , hxSwap_ "innerHTML"
       , hxTarget_ "#stats-body"
@@ -123,7 +123,7 @@ templateAddWorkToggle pid =
     [ id_ "add-work-toggle"
     , type_ "button"
     , ariaLabel_ "Add work"
-    , hxGet_ (addWorkLink pid)
+    , hxGet_ . addWorkLink $ pid
     , hxPushUrl_ False
     , hxSwap_ "innerHTML"
     , hxTarget_ "#add-work-panel"

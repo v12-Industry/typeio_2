@@ -164,10 +164,10 @@ handler :: Form -> AppM HxRedirect
 handler f = do
   let form = formToAddProjectForm f
   now <- liftIO getCurrentTime
-  rslt <- runDb (createProject form now)
+  rslt <- runDb . createProject form $ now
   pure $ case rslt of
     Right _ -> addHeader (decodeUtf8 (snd redirectHeader)) mempty
     Left (FormValidationFail es) ->
-      noHeader (CreateView.projectCreateVwTemplate form es)
+      noHeader . CreateView.projectCreateVwTemplate form $ es
     Left _ ->
-      noHeader (CreateView.projectCreateVwTemplate form ["Could not create the project"])
+      noHeader . CreateView.projectCreateVwTemplate form $ ["Could not create the project"]

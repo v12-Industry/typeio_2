@@ -60,8 +60,8 @@ layout cfg ns es =
       [ PlacedNode
           { pnId = lnId n
           , pnKind = lnKind n
-          , pnLines = wrapLabel (cfgLabelWidth cfg) (cfgLabelLines cfg) (lnLabel n)
-          , pnTopLeft = topLeftOf (lnId n)
+          , pnLines = wrapLabel (cfgLabelWidth cfg) (cfgLabelLines cfg) . lnLabel $ n
+          , pnTopLeft = topLeftOf . lnId $ n
           , pnSize = cfgNodeSize cfg
           }
       | n <- ns
@@ -86,5 +86,5 @@ layout cfg ns es =
 
     rootAnchor =
       case filter ((== RootNode) . pnKind) placed of
-        (p : _) -> Just (centreOf p)
+        (p : _) -> Just . centreOf $ p
         [] -> Nothing

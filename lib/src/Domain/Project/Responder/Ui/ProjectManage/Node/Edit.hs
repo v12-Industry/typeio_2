@@ -140,5 +140,5 @@ handler pid nid =
     templateInvalidParams
     ( \nde -> do
         nsts <- runDb queryNodeStatuses
-        pure (templateNodeEdit nsts nde)
+        pure . templateNodeEdit nsts $ nde
     )

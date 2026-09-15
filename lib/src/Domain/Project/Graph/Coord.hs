@@ -47,17 +47,17 @@ assignX widthOf gap rows segments =
     rowOrder Downward = M.toAscList rows
     rowOrder Upward = M.toDescList rows
 
-    pass xs dir = foldl' (placeRow dir) xs (map snd (rowOrder dir))
+    pass xs dir = foldl' (placeRow dir) xs . map snd . rowOrder $ dir
 
-    placeRow dir xs row = foldl' (placeNode dir row) xs (byPriority dir row)
+    placeRow dir xs row = foldl' (placeNode dir row) xs . byPriority dir $ row
 
     byPriority dir row =
       sortOn (\n -> (Down (isDummy n), Down (length (neighboursOf dir n)), n)) row
 
-    neighboursOf dir n = M.findWithDefault [] n (referenceOf dir)
+    neighboursOf dir n = M.findWithDefault [] n . referenceOf $ dir
 
     placeNode dir row xs n =
-      case medianOf (mapMaybe (`M.lookup` xs) (neighboursOf dir n)) of
+      case medianOf . mapMaybe (`M.lookup` xs) . neighboursOf dir $ n of
         Nothing -> xs
         Just target -> shiftTo sepOf row (priorityIn dir row) xs n target
 

@@ -35,13 +35,13 @@ orbit cfg ns es =
 
     angled = angles forest
     radii = ringRadii cfg angled
-    placed = map (place cfg labels radii) (flattenAngled angled)
+    placed = map (place cfg labels radii) . flattenAngled $ angled
     links = concatMap (treeLinks cfg radii) angled
 
 leafCount :: OrbitTree -> Int
 leafCount t
   | null (otChildren t) = 1
-  | otherwise = sum (map leafCount (otChildren t))
+  | otherwise = sum . map leafCount . otChildren $ t
 
 angles :: [OrbitTree] -> [Angled]
 angles [] = []
@@ -64,7 +64,7 @@ placeTree start width t = case otChildren t of
 placeForest :: Double -> Double -> [OrbitTree] -> [Angled]
 placeForest start width ts = go start ts
   where
-    total = max 1 (sum (map leafCount ts))
+    total = max 1 . sum . map leafCount $ ts
     go _ [] = []
     go s (t : rest) =
       let w = width * fromIntegral (leafCount t) / fromIntegral total
@@ -86,13 +86,13 @@ ringRadii cfg as = foldl step M.empty [0 .. maxRing]
     maxRing =
       if null everyDisc
         then -1
-        else maximum (map (otRing . anTree) everyDisc)
+        else maximum . map (otRing . anTree) $ everyDisc
 
     step acc k = M.insert k r acc
       where
         ringStep = 2 * cfgDiscRadius cfg + cfgMinRingGap cfg
         prev = maybe 0 (+ ringStep) (M.lookup (k - 1) acc)
-        r = max prev (demand k)
+        r = max prev . demand $ k
 
     demand k = case minGapOn k of
       Nothing -> 0
@@ -119,18 +119,17 @@ place cfg labels radii a =
     , dReplica = otReplica t
     , dRing = otRing t
     , dAngle = anAngle a
-    , dCentre = polar (radiusOf radii (otRing t)) (anAngle a)
+    , dCentre = polar (radiusOf radii (otRing t)) . anAngle $ a
     , dLines =
-        wrapLabel
-          (cfgLabelWidth cfg)
-          (cfgLabelLines cfg)
-          (M.findWithDefault T.empty (otNode t) labels)
+        wrapLabel (cfgLabelWidth cfg) (cfgLabelLines cfg)
+          . M.findWithDefault T.empty (otNode t)
+          $ labels
     }
   where
     t = anTree a
 
 radiusOf :: M.Map Int Double -> Int -> Double
-radiusOf radii k = fromMaybe 0 (M.lookup k radii)
+radiusOf radii k = fromMaybe 0 . M.lookup k $ radii
 
 polar :: Double -> Double -> Point
 polar r theta = Point (r * sin theta) (negate (r * cos theta))
@@ -142,7 +141,7 @@ treeLinks cfg radii a =
   ]
     <> concatMap (treeLinks cfg radii) (anChildren a)
   where
-    centre x = polar (radiusOf radii (otRing (anTree x))) (anAngle x)
+    centre x = polar (radiusOf radii (otRing (anTree x))) . anAngle $ x
 
 trim :: OrbitConfig -> Point -> Point -> Link
 trim cfg from to
