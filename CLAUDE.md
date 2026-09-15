@@ -59,6 +59,7 @@ cases:
 | Need to know about... | Read |
 |---|---|
 | Getting set up / how a request flows end-to-end | `docs/development/onboarding.md` |
+| How to write the Haskell itself: `.`/`$` chaining, flattening fallible steps, what `template*`/`query*`/`validate*` mean | `docs/development/haskell-style.md` |
 | `#container`/`#view`, Lucid rendering, CSS conventions | `docs/development/ui/` |
 | htmx or hyperscript attribute patterns | `docs/development/frontend/` |
 | What `design/` holds and how much authority a mockup has | `docs/development/ux/` |
@@ -176,6 +177,15 @@ Quick summary:
 ## Code & Style Conventions
 
 - Explicit type signatures, clear module exports.
+- **How to write the Haskell itself is
+  [`docs/development/haskell-style.md`](docs/development/haskell-style.md)** —
+  the conventions Fourmolu deliberately leaves alone: read a call as a
+  pipeline (`validateTitle . look $ "title"`) rather than inside-out
+  (`validateTitle (look "title")`), and the shapes where the parentheses
+  stay; flatten several fallible steps into one `EitherT` block with a
+  single `case` at the edge; the `handler`/`template*`/`query*`/
+  `validate*`/`formTo*Form` naming. The bullets here stay the short list
+  read every session — that file is the depth behind them.
 - **Do not add comments to library source code.** Nothing under
   `lib/src` gets a comment — not explanatory prose, not a Haddock
   module header, not a `-- ^` on a record field, not a one-line note
